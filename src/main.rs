@@ -13,16 +13,16 @@ use data::schedule;
 
 static LOGGER: Logger = Logger;
 lazy_static! {
-    /// ./data
-    static ref DATA_PATH: PathBuf = {
+    /// ./temp
+    static ref TEMP_PATH: PathBuf = {
         let mut path = PathBuf::new();
         path.push(".");
-        path.push("data");
+        path.push("temp");
     
         path
     };
-    static ref SCHEDULE: schedule::Container = {
-        schedule::Container::default()
+    static ref RAW_SCHEDULE: schedule::raw::Container = {
+        schedule::raw::Container::default()
     };
 }
 
@@ -34,9 +34,9 @@ async fn main() -> std::io::Result<()> {
 
     Logger::init().unwrap();
 
-    if !DATA_PATH.exists() {
-        tokio::fs::create_dir(DATA_PATH.as_path()).await?;
-        info!("created {:?}", DATA_PATH.as_path());
+    if !TEMP_PATH.exists() {
+        tokio::fs::create_dir(TEMP_PATH.as_path()).await?;
+        info!("created {:?}", TEMP_PATH.as_path());
     }
 
     // start http server
@@ -46,6 +46,7 @@ async fn main() -> std::io::Result<()> {
             .service(api::load::schedule::ft_daily)
             .service(api::load::schedule::r_weekly)
             .service(api::load::regex::group)
+            .app_data(web::PayloadConfig::new(100 * 1024 * 1024))
     })
         .bind(("127.0.0.1", 8080))?
         .run()
