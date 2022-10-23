@@ -16,7 +16,7 @@ use crate::{
 /// - treat recieved body as a ZIP archive
 /// - set ZIP bytes in global schedule container
 /// - extract ZIP in file system
-async fn generic_loader<'a, Setter, Fut>(
+async fn generic_load<Setter, Fut>(
     // The request body
     bytes: web::Bytes,
     // Global instance of raw schedule container
@@ -69,7 +69,7 @@ async fn ft_weekly(req: HttpRequest, bytes: web::Bytes) -> impl Responder {
     let storage = crate::RAW_SCHEDULE.ft_weekly.clone();
     let sc_type = raw::Type::FtWeekly;
 
-    generic_loader(bytes, setter_self, setter, storage, sc_type).await
+    generic_load(bytes, setter_self, setter, storage, sc_type).await
 }
 
 #[post("/load/schedule/ft_daily")]
@@ -79,7 +79,7 @@ async fn ft_daily(req: HttpRequest, bytes: web::Bytes) -> impl Responder {
     let storage = crate::RAW_SCHEDULE.ft_daily.clone();
     let sc_type = raw::Type::FtDaily;
 
-    generic_loader(bytes, setter_self, setter, storage, sc_type).await
+    generic_load(bytes, setter_self, setter, storage, sc_type).await
 }
 
 #[post("/load/schedule/r_weekly")]
@@ -89,5 +89,5 @@ async fn r_weekly(req: HttpRequest, bytes: web::Bytes) -> impl Responder {
     let storage = crate::RAW_SCHEDULE.r_weekly.clone();
     let sc_type = raw::Type::RWeekly;
 
-    generic_loader(bytes, setter_self, setter, storage, sc_type).await
+    generic_load(bytes, setter_self, setter, storage, sc_type).await
 }

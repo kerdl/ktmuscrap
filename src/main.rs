@@ -45,7 +45,7 @@ async fn main() -> std::io::Result<()> {
             .service(api::load::schedule::ft_weekly)
             .service(api::load::schedule::ft_daily)
             .service(api::load::schedule::r_weekly)
-            .service(api::load::regex::group)
+            .service(api::load::regex::group)     // 100 mB
             .app_data(web::PayloadConfig::new(100 * 1024 * 1024))
     })
         .bind(("127.0.0.1", 8080))?
