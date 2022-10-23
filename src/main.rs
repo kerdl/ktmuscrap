@@ -5,7 +5,7 @@ pub mod logger;
 use log::{info};
 use actix_web::{get, web, App, HttpServer, Responder};
 use lazy_static::lazy_static;
-use std::{path::PathBuf};
+use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
 use data::schedule;
@@ -21,8 +21,8 @@ lazy_static! {
     
         path
     };
-    static ref RAW_SCHEDULE: schedule::raw::Container = {
-        schedule::raw::Container::default()
+    static ref RAW_SCHEDULE: Arc<schedule::raw::Container> = {
+        Arc::new(schedule::raw::Container::default())
     };
 }
 
