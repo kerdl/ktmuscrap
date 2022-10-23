@@ -31,8 +31,7 @@ pub async fn genric_loader(
     let regex_str_result = String::from_utf8(bytes.to_vec());
 
     if regex_str_result.is_err() {
-        let err = error::RegexNotAValidUtf8::new(
-            regex_type, 
+        let err = error::NotAValidUtf8::new(
             regex_str_result.unwrap_err().to_string()
         )
             .to_api_error()

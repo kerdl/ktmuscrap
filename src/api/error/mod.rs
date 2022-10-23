@@ -11,24 +11,6 @@ use base::{ApiError, Kind, ToApiError};
 use crate::data::{schedule, regex};
 
 
-#[derive(ToPrimitive, Serialize, Clone, Debug)]
-pub enum ErrorNum {
-    NoSchedulesLoaded = 0,
-    ScheduleExtractionFailed,
-    ScheduleDeletionFailed,
-    MassScheduleDeletionFailed,
-
-    RegexNotAValidUtf8 = 100,
-    RegexCompileFailed,
-    RegexesNotSet,
-}
-impl ErrorNum {
-    pub fn to_u32(&self) -> u32 {
-        ToPrimitive::to_u32(self).unwrap()
-    }
-}
-
-
 lazy_static! {
     pub static ref NO_SCHEDULES_LOADED: ApiError = {
         ApiError::new(
@@ -42,6 +24,46 @@ lazy_static! {
             ".to_owned()
         )
     };
+}
+
+
+#[derive(ToPrimitive, Serialize, Clone, Debug)]
+pub enum ErrorNum {
+    NotAValidUtf8 = 0,
+
+    NoSchedulesLoaded = 100,
+    ScheduleExtractionFailed,
+    ScheduleDeletionFailed,
+    MassScheduleDeletionFailed,
+
+    RegexCompileFailed = 200,
+    RegexesNotSet,
+}
+impl ErrorNum {
+    pub fn to_u32(&self) -> u32 {
+        ToPrimitive::to_u32(self).unwrap()
+    }
+}
+
+
+pub struct NotAValidUtf8 {
+    pub error: String
+}
+impl NotAValidUtf8 {
+    pub fn new(error: String) -> NotAValidUtf8 {
+        NotAValidUtf8 { error }
+    }
+}
+impl ToApiError for NotAValidUtf8 {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::NotAValidUtf8;
+        let text = format!(
+            "failed to decode raw bytes to utf-8 with error {:?}",
+            self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
 }
 
 pub struct ScheduleExtractionFailed {
@@ -107,31 +129,6 @@ impl ToApiError for MassScheduleDeletionFailed {
         let err = ErrorNum::MassScheduleDeletionFailed;
         let text = format!(
             "failed to mass delete schedule from disk with error {:?}",
-            self.error
-        );
-
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
-
-pub struct RegexNotAValidUtf8 {
-    pub regex_type: regex::Type,
-    pub error: String
-}
-impl RegexNotAValidUtf8 {
-    pub fn new(
-        regex_type: regex::Type,
-        error: String
-    ) -> RegexNotAValidUtf8 {
-        RegexNotAValidUtf8 { regex_type, error }
-    }
-}
-impl ToApiError for RegexNotAValidUtf8 {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::RegexNotAValidUtf8;
-        let text = format!(
-            "failed to decode raw bytes to utf-8 of {} regex with error {:?}",
-            self.regex_type.to_str(),
             self.error
         );
 
