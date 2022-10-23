@@ -781,6 +781,7 @@ dependencies = [
  "log",
  "num-derive",
  "num-traits",
+ "regex",
  "serde",
  "serde_derive",
  "tokio",

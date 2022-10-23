@@ -2,12 +2,50 @@ pub mod error;
 pub mod raw;
 
 use std::ops::Range;
-use serde_derive::Deserialize;
+use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
 
 
+
+/* CONTAINERS */
+
+/// ## Container for typed schedule
+/// - contains schedule data
+/// and tells what type it is:
+/// `Weekly` or `Daily`
+pub struct Typed { 
+    pub sc_type: Type,
+    pub schedule: Page
+}
+impl Typed {
+    pub fn new(sc_type: Type, schedule: Page) -> Typed {
+        Typed { sc_type, schedule }
+    }
+}
+
+/// ## Stores last converted schedule
+/// - used for comparing schedules
+pub struct Last {
+    pub weekly: Option<Typed>,
+    pub daily: Option<Typed>
+}
+impl Last {
+    pub fn new(weekly: Option<Typed>, daily: Option<Typed>) -> Last {
+        Last { weekly, daily }
+    }
+}
+impl Default for Last {
+    fn default() -> Last {
+        Last::new(None, None)
+    }
+}
+
+
+
+/* SCHEDULE */
+
 /// ## Format of a lesson
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Format {
     /// Means you take ur ass
     /// and go to this fucking
@@ -31,7 +69,7 @@ pub enum Format {
 }
 
 /// ## Schedule type
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Type {
     /// Was parsed from a weekly
     /// (`ft_weekly`, `r_weekly`) schedule
@@ -42,7 +80,7 @@ pub enum Type {
 }
 
 /// ## Single subject (lesson) in a `Weekday`
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Subject {
     /// ## Raw representation, before parsing
     /// 
@@ -109,7 +147,7 @@ pub struct Subject {
 }
 
 /// ## Single weekday (Mon, Tue) in a week
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Weekday {
     /// ## Raw name of a weekday
     /// ### Examples
@@ -127,7 +165,7 @@ pub struct Weekday {
 }
 
 /// ## Group's full schedule container
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Group {
     /// ## Raw header of a group
     /// 
@@ -157,8 +195,8 @@ pub struct Group {
 
 /// ## Whole schedule page
 /// - contains a list of groups
-#[derive(Deserialize)]
-struct Page {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Page {
     /// ## Raw page header
     /// 
     /// - different for each 
@@ -184,12 +222,12 @@ struct Page {
     /// (too sad not 2B i wanted her to step on my dick)
     ///     - **"понедельник 01.01.69"**
     ///     (*"monday 01.01.69"*)
-    raw: String,
+    pub raw: String,
     /// ## The date this page relates to
     /// 
     /// ### Examples
     /// - ``
-    date: NaiveDate,
+    pub date: NaiveDate,
     /// ## List of groups on this page
-    groups: Vec<Group>,
+    pub groups: Vec<Group>,
 }

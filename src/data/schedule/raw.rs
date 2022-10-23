@@ -1,6 +1,7 @@
 use actix_web::web::{Bytes, Buf};
 use log::info;
 use zip::read::ZipArchive;
+use serde_derive::Serialize;
 use tokio::sync::RwLock;
 use std::{path::{Path, PathBuf}, io::Cursor, sync::Arc};
 
@@ -8,7 +9,7 @@ use crate::DynResult;
 use super::error;
 
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub enum Type {
     FtWeekly,
     FtDaily,
@@ -54,11 +55,21 @@ impl Html {
 
 pub struct Zip {
     sc_type: Type,
-    content: Option<RwLock<Arc<Bytes>>>,
+    pub content: RwLock<Option<Arc<Bytes>>>,
 }
 impl Zip {
-    pub fn new(sc_type: Type, content: Option<RwLock<Arc<Bytes>>>) -> Zip {
+    pub fn new(sc_type: Type, content: RwLock<Option<Arc<Bytes>>>) -> Zip {
         Zip { sc_type, content }
+    }
+
+    pub async fn set_content(&self, content: Bytes) {
+        let mut field = self.content.write().await;
+        *field = Some(Arc::new(content));
+    }
+
+    pub async fn del_content(&self) {
+        let mut field = self.content.write().await;
+        field.take();
     }
 
     /// ## Generate potential path for this schedule type
@@ -81,11 +92,13 @@ impl Zip {
 
     /// ## Extract content to `./temp/<schedule_type>`
     pub async fn extract(&self) -> DynResult<()> {
-        if self.content.is_none() {
+        let content_lock = self.content.read().await;
+
+        if content_lock.is_none() {
             return Err(error::ExtractingEmptyContent.into())
         }
 
-        let content = self.content.as_ref().unwrap().read().await.clone();
+        let content = content_lock.as_ref().unwrap().clone();
         let cursor = Cursor::new(&content[..]);
 
         let dir_path = self.path();
@@ -122,27 +135,12 @@ impl Container {
     ) -> Container {
         Container { ft_weekly, ft_daily, r_weekly }
     }
-
-    pub async fn set_ft_weekly(self: Arc<Self>, content: Bytes) {
-        let mut field = self.ft_weekly.write().await;
-        *field = Zip::new(Type::FtWeekly, Some(RwLock::new(Arc::new(content))))
-    }
-
-    pub async fn set_ft_daily(self: Arc<Self>, content: Bytes) {
-        let mut field = self.ft_daily.write().await;
-        *field = Zip::new(Type::FtDaily, Some(RwLock::new(Arc::new(content))))
-    }
-
-    pub async fn set_r_weekly(self: Arc<Self>, content: Bytes) {
-        let mut field = self.r_weekly.write().await;
-        *field = Zip::new(Type::RWeekly, Some(RwLock::new(Arc::new(content))))
-    }
 }
 impl Default for Container {
     fn default() -> Container {
-        let ft_weekly = Arc::new(RwLock::new(Zip::new(Type::FtWeekly, None)));
-        let ft_daily  = Arc::new(RwLock::new(Zip::new(Type::FtDaily, None)));
-        let r_weekly  = Arc::new(RwLock::new(Zip::new(Type::RWeekly, None)));
+        let ft_weekly = Arc::new(RwLock::new(Zip::new(Type::FtWeekly, RwLock::new(None))));
+        let ft_daily  = Arc::new(RwLock::new(Zip::new(Type::FtDaily, RwLock::new(None))));
+        let r_weekly  = Arc::new(RwLock::new(Zip::new(Type::RWeekly, RwLock::new(None))));
 
         Container::new(ft_weekly, ft_daily, r_weekly)
     }

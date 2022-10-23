@@ -4,19 +4,18 @@ use crate::api::{Response, ToResponse};
 use super::ErrorNum;
 
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// ## Indicates user's failure
     /// - i.e. some parameters were not loaded
-    #[serde(rename = "user_failure")]
     UserFailure,
     /// ## Indicates 3rd party failure
     /// - i.e. schedule is formatted incorrectly
-    #[serde(rename = "parsing_failure")]
     ParsingFailure
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 pub struct ApiError {
     pub kind: Kind,
     pub error: ErrorNum,

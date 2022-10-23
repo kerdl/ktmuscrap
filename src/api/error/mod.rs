@@ -1,21 +1,24 @@
 pub mod base;
 
+use std::collections::HashSet;
+
 use num_derive::ToPrimitive;
 use num_traits::ToPrimitive;
 use serde_derive::Serialize;
 use lazy_static::lazy_static;
 
 use base::{ApiError, Kind, ToApiError};
-use crate::data::schedule;
+use crate::data::{schedule, regex};
 
 
-#[derive(ToPrimitive, Serialize)]
+#[derive(ToPrimitive, Serialize, Clone, Debug)]
 pub enum ErrorNum {
     NoSchedulesLoaded = 0,
     ScheduleExtractionFailed,
 
-    NoGroupRegexLoaded = 100,
-    NoTeacherRegexLoaded,
+    RegexNotAValidUtf8 = 100,
+    RegexCompileFailed,
+    RegexesNotSet,
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -25,7 +28,7 @@ impl ErrorNum {
 
 
 lazy_static! {
-    static ref NO_SCHEDULES_LOADED: ApiError = {
+    pub static ref NO_SCHEDULES_LOADED: ApiError = {
         ApiError::new(
             Kind::UserFailure, 
             ErrorNum::NoSchedulesLoaded, 
@@ -36,26 +39,6 @@ lazy_static! {
             and put its ZIP content in body\
             ".to_owned()
         )
-    };
-    static ref NO_GROUP_REGEX_LOADED: ApiError = {
-        ApiError::new(
-            Kind::UserFailure, 
-            ErrorNum::NoGroupRegexLoaded, 
-            "
-            upload GROUP matching regex \
-            with POST at /load/regex/group \
-            and put regex string in body\
-            ".to_owned())
-    };
-    static ref NO_TEACHER_REGEX_LOADED: ApiError = {
-        ApiError::new(
-            Kind::UserFailure, 
-            ErrorNum::NoTeacherRegexLoaded, 
-            "
-            upload TEACHER matching regex \
-            with POST at /load/regex/teacher \
-            and put regex string in body\
-            ".to_owned())
     };
 }
 
@@ -78,6 +61,76 @@ impl ToApiError for ScheduleExtractionFailed {
             "{} failed to extract with error {:?}",
             self.sc_type.to_str(),
             self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
+}
+
+pub struct RegexNotAValidUtf8 {
+    pub regex_type: regex::Type,
+    pub error: String
+}
+impl RegexNotAValidUtf8 {
+    pub fn new(
+        regex_type: regex::Type,
+        error: String
+    ) -> RegexNotAValidUtf8 {
+        RegexNotAValidUtf8 { regex_type, error }
+    }
+}
+impl ToApiError for RegexNotAValidUtf8 {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::RegexNotAValidUtf8;
+        let text = format!(
+            "failed to decode raw bytes to utf-8 of {} regex with error {:?}",
+            self.regex_type.to_str(),
+            self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
+}
+
+pub struct RegexCompileFailed {
+    pub regex_type: regex::Type,
+    pub error: String
+}
+impl RegexCompileFailed {
+    pub fn new(
+        regex_type: regex::Type,
+        error: String
+    ) -> RegexCompileFailed {
+        RegexCompileFailed { regex_type, error }
+    }
+}
+impl ToApiError for RegexCompileFailed {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::RegexCompileFailed;
+        let text = format!(
+            "{} regex failed to compile with error {:?}",
+            self.regex_type.to_str(),
+            self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
+}
+
+pub struct RegexesNotSet {
+    pub types: HashSet<regex::Type>
+}
+impl RegexesNotSet {
+    pub fn new(types: HashSet<regex::Type>) -> RegexesNotSet {
+        RegexesNotSet { types }
+    }
+}
+impl ToApiError for RegexesNotSet {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::RegexesNotSet;
+        let text = format!(
+            "{:?} regexes are not set, they're all necessary",
+            self.types
         );
 
         ApiError::new(Kind::UserFailure, err, text)
