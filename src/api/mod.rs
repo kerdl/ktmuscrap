@@ -1,24 +1,23 @@
 pub mod error;
-pub mod load;
-pub mod compare;
-pub mod convert;
+pub mod schedule;
+pub mod regex;
 
 use serde_derive::Serialize;
 
-use crate::data::schedule;
+use crate::data::schedule as sc;
 use error::base::ApiError;
 
 
 #[derive(Serialize)]
 pub struct Data {
-    pub schedule: Option<schedule::Page>
+    pub schedule: Option<sc::Page>
 }
 impl Data {
-    pub fn new(schedule: Option<schedule::Page>) -> Data {
+    pub fn new(schedule: Option<sc::Page>) -> Data {
         Data { schedule }
     }
 
-    pub fn from_schedule(schedule: schedule::Page) -> Data {
+    pub fn from_schedule(schedule: sc::Page) -> Data {
         Data::new(Some(schedule))
     }
 }
@@ -40,7 +39,7 @@ impl Response {
         Response::new(true, None, None)
     }
 
-    pub fn from_schedule(schedule: schedule::Page) -> Response {
+    pub fn from_schedule(schedule: sc::Page) -> Response {
         let data = Data::from_schedule(schedule);
 
         Response::new(true, Some(data), None)

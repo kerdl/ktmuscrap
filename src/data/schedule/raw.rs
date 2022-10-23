@@ -67,12 +67,12 @@ impl Zip {
         *field = Some(Arc::new(content));
     }
 
-    pub async fn del_content(&self) {
+    pub async fn clear_content(&self) {
         let mut field = self.content.write().await;
         field.take();
     }
 
-    /// ## Generate potential path for this schedule type
+    /// ## Generate path for this schedule type
     pub fn path(&self) -> PathBuf {
         // naming the directory the same as schedule type
         let dir_name = self.sc_type.to_str();
@@ -87,6 +87,26 @@ impl Zip {
         let path = self.path();
         tokio::fs::remove_dir_all(path).await?;
         
+        Ok(())
+    }
+
+    pub async fn remove_folder_if_exists(&self) -> DynResult<()> {
+        let path = self.path();
+
+        if !path.exists() {
+            return Ok(())
+        }
+
+        tokio::fs::remove_dir_all(path).await?;
+
+        Ok(())
+    }
+
+    /// ## Remove folder and clear content loaded into RAM
+    pub async fn delete(&self) -> DynResult<()> {
+        self.remove_folder_if_exists().await?;
+        self.clear_content().await;
+
         Ok(())
     }
 
@@ -134,6 +154,28 @@ impl Container {
         r_weekly: Arc<RwLock<Zip>>
     ) -> Container {
         Container { ft_weekly, ft_daily, r_weekly }
+    }
+
+    /// ## Remove all folders of schedules
+    pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
+        self.ft_weekly.read().await.remove_folder_if_exists().await?;
+        self.ft_daily.read().await.remove_folder_if_exists().await?;
+        self.r_weekly.read().await.remove_folder_if_exists().await?;
+
+        Ok(())
+    }
+
+    /// ## Clear all content loaded into RAM
+    pub async fn clear_loaded(self: Arc<Self>) {
+        self.ft_weekly.read().await.clear_content().await;
+        self.ft_daily.read().await.clear_content().await;
+        self.r_weekly.read().await.clear_content().await;
+    }
+
+    /// ## Remove all folders and clear all content loaded into RAM
+    pub async fn delete(self: Arc<Self>) {
+        let _ = self.clone().remove_folders_if_exists().await;
+        self.clone().clear_loaded().await;
     }
 }
 impl Default for Container {

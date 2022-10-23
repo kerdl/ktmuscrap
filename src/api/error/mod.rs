@@ -15,6 +15,8 @@ use crate::data::{schedule, regex};
 pub enum ErrorNum {
     NoSchedulesLoaded = 0,
     ScheduleExtractionFailed,
+    ScheduleDeletionFailed,
+    MassScheduleDeletionFailed,
 
     RegexNotAValidUtf8 = 100,
     RegexCompileFailed,
@@ -60,6 +62,51 @@ impl ToApiError for ScheduleExtractionFailed {
         let text = format!(
             "{} failed to extract with error {:?}",
             self.sc_type.to_str(),
+            self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
+}
+
+pub struct ScheduleDeletionFailed {
+    pub sc_type: schedule::raw::Type,
+    pub error: String,
+}
+impl ScheduleDeletionFailed {
+    pub fn new(
+        sc_type: schedule::raw::Type, 
+        error: String
+    ) -> ScheduleDeletionFailed{
+        ScheduleDeletionFailed { sc_type, error }
+    }
+}
+impl ToApiError for ScheduleDeletionFailed {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::ScheduleDeletionFailed;
+        let text = format!(
+            "{} failed to delete from disk with error {:?}",
+            self.sc_type.to_str(),
+            self.error
+        );
+
+        ApiError::new(Kind::UserFailure, err, text)
+    }
+}
+
+pub struct MassScheduleDeletionFailed {
+    pub error: String,
+}
+impl MassScheduleDeletionFailed {
+    pub fn new(error: String) -> MassScheduleDeletionFailed{
+        MassScheduleDeletionFailed { error }
+    }
+}
+impl ToApiError for MassScheduleDeletionFailed {
+    fn to_api_error(&self) -> ApiError {
+        let err = ErrorNum::MassScheduleDeletionFailed;
+        let text = format!(
+            "failed to mass delete schedule from disk with error {:?}",
             self.error
         );
 

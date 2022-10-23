@@ -67,40 +67,40 @@ pub async fn genric_loader(
 }
 
 
-#[post("/load/regex/group")]
-pub async fn group(bytes: web::Bytes) -> impl Responder {
+#[post("/regex/group")]
+async fn group(bytes: web::Bytes) -> impl Responder {
     let field = crate::REGEX.group.clone();
     let regex_type = Type::Group;
 
     genric_loader(bytes, field, regex_type).await
 }
 
-#[post("/load/regex/date")]
-pub async fn date(bytes: web::Bytes) -> impl Responder {
+#[post("/regex/date")]
+async fn date(bytes: web::Bytes) -> impl Responder {
     let field = crate::REGEX.date.clone();
     let regex_type = Type::Date;
 
     genric_loader(bytes, field, regex_type).await
 }
 
-#[post("/load/regex/time")]
-pub async fn time(bytes: web::Bytes) -> impl Responder {
+#[post("/regex/time")]
+async fn time(bytes: web::Bytes) -> impl Responder {
     let field = crate::REGEX.time.clone();
     let regex_type = Type::Time;
 
     genric_loader(bytes, field, regex_type).await
 }
 
-#[post("/load/regex/teacher")]
-pub async fn teacher(bytes: web::Bytes) -> impl Responder {
+#[post("/regex/teacher")]
+async fn teacher(bytes: web::Bytes) -> impl Responder {
     let field = crate::REGEX.teacher.clone();
     let regex_type = Type::Teacher;
 
     genric_loader(bytes, field, regex_type).await
 }
 
-#[post("/load/regex/cabinet")]
-pub async fn cabinet(bytes: web::Bytes) -> impl Responder {
+#[post("/regex/cabinet")]
+async fn cabinet(bytes: web::Bytes) -> impl Responder {
     let field = crate::REGEX.cabinet.clone();
     let regex_type = Type::Cabinet;
 

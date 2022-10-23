@@ -41,6 +41,8 @@ async fn pre_check() -> Result<(), ApiError> {
 
 
 pub async fn weekly() -> Result<schedule::Page, ApiError> {
+    pre_check().await?;
+
     Ok(schedule::Page {
         raw: "".to_owned(), 
         date: NaiveDate::from_ymd(2020, 1, 1),
@@ -49,6 +51,8 @@ pub async fn weekly() -> Result<schedule::Page, ApiError> {
 }
 
 pub async fn daily() -> Result<schedule::Page, ApiError> {
+    pre_check().await?;
+
     Ok(schedule::Page {
         raw: "".to_owned(), 
         date: NaiveDate::from_ymd(2020, 1, 1),

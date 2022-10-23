@@ -49,18 +49,27 @@ async fn main() -> std::io::Result<()> {
     // start http server
     HttpServer::new(|| {
         App::new()
-            .service(api::load::schedule::ft_weekly)
-            .service(api::load::schedule::ft_daily)
-            .service(api::load::schedule::r_weekly)
-            .service(api::load::regex::group)
-            .service(api::load::regex::date)
-            .service(api::load::regex::time)
-            .service(api::load::regex::teacher)
-            .service(api::load::regex::cabinet)
-            .service(api::convert::weekly)
-            .service(api::convert::daily)
-            .service(api::compare::weekly)
-            .service(api::compare::daily)
+            .service(api::schedule::raw::ft_weekly::load)
+            .service(api::schedule::raw::ft_weekly::delete)
+            .service(api::schedule::raw::ft_daily::load)
+            .service(api::schedule::raw::ft_daily::delete)
+            .service(api::schedule::raw::r_weekly::load)
+            .service(api::schedule::raw::r_weekly::delete)
+            .service(api::schedule::raw::delete)
+
+            .service(api::schedule::weekly::get)
+            .service(api::schedule::weekly::delete)
+            .service(api::schedule::weekly::compare)
+            .service(api::schedule::daily::get)
+            .service(api::schedule::daily::delete)
+            .service(api::schedule::daily::compare)
+
+            .service(api::regex::group)
+            .service(api::regex::date)
+            .service(api::regex::time)
+            .service(api::regex::teacher)
+            .service(api::regex::cabinet)
+
             .app_data(web::PayloadConfig::new(100 * 1024 * 1024)) // 100 mB
     })
         .bind(("127.0.0.1", 8080))?
