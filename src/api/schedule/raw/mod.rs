@@ -3,9 +3,9 @@ pub mod ft_daily;
 pub mod r_weekly;
 
 use log::info;
-use actix_web::{post, delete, Responder, HttpRequest, web};
+use actix_web::{post, delete, Responder, web};
 use tokio::sync::RwLock;
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     api::{
@@ -41,18 +41,16 @@ async fn generic_load(
         // clean up the mess we just created
         field_read.delete().await.unwrap();
 
-        // construct api error
-        let err = error::ScheduleExtractionFailed::new(
+        return error::ScheduleExtractionFailed::new(
             sc_type, 
             extraction_result.unwrap_err().to_string()
         )
             .to_api_error()
-            .to_response();
-        
-        return web::Json(err);
+            .to_response()
+            .to_json()
     }
 
-    web::Json(Response::ok())
+    Response::ok().to_json()
 }
 
 async fn generic_delete(
@@ -64,17 +62,16 @@ async fn generic_delete(
     let deletion_result = field.read().await.delete().await;
 
     if deletion_result.is_err() {
-        let err = error::ScheduleDeletionFailed::new(
+        return error::ScheduleDeletionFailed::new(
             sc_type, 
             deletion_result.unwrap_err().to_string()
         )
             .to_api_error()
-            .to_response();
-
-        return web::Json(err)
+            .to_response()
+            .to_json()
     }
 
-    web::Json(Response::ok())
+    Response::ok().to_json()
 }
 
 
@@ -82,5 +79,5 @@ async fn generic_delete(
 async fn delete() -> impl Responder {
     crate::RAW_SCHEDULE.clone().delete().await;
 
-    web::Json(Response::ok())
+    Response::ok().to_json()
 }

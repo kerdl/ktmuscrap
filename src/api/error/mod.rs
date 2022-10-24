@@ -167,7 +167,7 @@ api_err!(
 api_err!(
     name:    NoHtmls,
     as_enum: ErrorNum::NoHtmls,
-    kind:    Kind::ParsingFailure,
+    kind:    Kind::DataFailure,
     fields:  (pub sc_type: schedule::raw::Type),
     error:   |this| format!(
         "{} contains no html files inside archive, wtf dude",
@@ -178,7 +178,7 @@ api_err!(
 api_err!(
     name:    MultipleHtmls,
     as_enum: ErrorNum::MultipleHtmls,
-    kind:    Kind::ParsingFailure,
+    kind:    Kind::DataFailure,
     fields:  (pub sc_type: schedule::raw::Type, pub index: Vec<PathBuf>),
     error:   |this| format!(
         "{} contains multiple html files inside archive: {:?}, wtf dude",

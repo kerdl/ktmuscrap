@@ -1,10 +1,11 @@
 pub mod error;
 pub mod schedule;
 
+use actix_web::{web, http::StatusCode};
 use serde_derive::Serialize;
 
 use crate::data::schedule as sc;
-use error::base::ApiError;
+use error::base::{ApiError, Kind};
 
 
 #[derive(Serialize)]
@@ -33,7 +34,7 @@ impl Response {
     pub fn new(is_ok: bool, data: Option<Data>, error: Option<ApiError>) -> Response {
         Response { is_ok, data, error }
     }
-
+    
     pub fn ok() -> Response {
         Response::new(true, None, None)
     }
@@ -42,6 +43,21 @@ impl Response {
         let data = Data::from_schedule(schedule);
 
         Response::new(true, Some(data), None)
+    }
+
+    pub fn to_json(self) -> web::Json<Self> {
+        let mut status = StatusCode::OK;
+
+        self.error.as_ref().map(|err| 
+            status = match err.kind {
+                Kind::UserFailure =>     StatusCode::BAD_REQUEST,
+                Kind::InternalFailure => StatusCode::INTERNAL_SERVER_ERROR,
+                Kind::DataFailure =>     StatusCode::NOT_IMPLEMENTED
+
+            }
+        );
+
+        web::Json(self)
     }
 }
 

@@ -15,7 +15,7 @@ pub enum Kind {
     InternalFailure,
     /// ## Indicates 3rd party failure
     /// - i.e. schedule is formatted incorrectly
-    ParsingFailure
+    DataFailure
 }
 
 #[derive(Serialize, Clone, Debug)]
