@@ -1,6 +1,7 @@
 pub mod api;
 pub mod data;
 pub mod parse;
+pub mod fs;
 pub mod logger;
 
 use log::{info};
@@ -57,18 +58,14 @@ async fn main() -> std::io::Result<()> {
             .service(api::schedule::raw::r_weekly::delete)
             .service(api::schedule::raw::delete)
 
+            .service(api::schedule::weekly::convert)
             .service(api::schedule::weekly::get)
             .service(api::schedule::weekly::delete)
             .service(api::schedule::weekly::compare)
+            .service(api::schedule::daily::convert)
             .service(api::schedule::daily::get)
             .service(api::schedule::daily::delete)
             .service(api::schedule::daily::compare)
-
-            .service(api::regex::group)
-            .service(api::regex::date)
-            .service(api::regex::time)
-            .service(api::regex::teacher)
-            .service(api::regex::cabinet)
 
             .app_data(web::PayloadConfig::new(100 * 1024 * 1024)) // 100 mB
     })

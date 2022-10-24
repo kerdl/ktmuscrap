@@ -1,37 +1,75 @@
 pub mod base;
 
-use std::collections::HashSet;
-
 use num_derive::ToPrimitive;
 use num_traits::ToPrimitive;
 use serde_derive::Serialize;
-use lazy_static::lazy_static;
 
 use base::{ApiError, Kind, ToApiError};
-use crate::data::{schedule, regex};
+use crate::data::schedule;
 
 
-lazy_static! {
-    pub static ref NO_SCHEDULES_LOADED: ApiError = {
-        ApiError::new(
-            Kind::UserFailure, 
-            ErrorNum::NoSchedulesLoaded, 
-            "
-            upload at least one schedule: \
-            `ft_weekly`, `ft_daily`, `r_weekly` \
-            with POST at /load/schedule/<schedule type> \
-            and put its ZIP content in body\
-            ".to_owned()
-        )
+/// # Less boilerplate API error
+/// 
+/// 
+/// 
+/// ## Usage
+/// ```
+/// api_err!(
+///     // struct name
+///     name:    InvalidUtf8,
+///     // the same but as enum
+///     as_enum: ErrorNum::InvalidUtf8,
+///     // type of error
+///     kind:    Kind::UserFailure,
+///     // optional, fields inside struct
+///     fields:  (pub error: String, pub sc_type: String),
+///     // closure to format error text, using `this` instead of `self`
+///     error:   |this| format!(
+///         "failed to decode raw bytes to utf-8 with error {:?}", 
+///         this.error
+///     )
+/// );
+/// ```
+macro_rules! api_err {
+        // NotAValidUtf8
+    (   name: $name: ident,
+        // ErrorNum::NotAValidUtf8
+        as_enum: $enum_variant: path,
+        // Kind::UserFailure
+        kind: $kind: path,
+        // (field1: String, pub field2: String)
+        // OR NOTHING, FIELDS ARE OPRIONAL
+        $(fields: ($($visibility: vis $field: ident: $field_type: ty),*),)?
+        // |this| format!("fuck you {}", this.field1)
+        error: $error_closure: expr
+    ) => {
+        pub struct $name {
+            $($($visibility $field: $field_type),*)?
+        }
+        impl $name {
+            pub fn new($($($field: $field_type),*)?) -> $name {
+                $name { $($($field),*)? }
+            }
+        }
+        impl ToApiError for $name {
+            fn to_api_error(&self) -> ApiError {
+                let err = $enum_variant;
+                let error_formatter: &dyn Fn(&Self) -> String = &$error_closure;
+                let text = error_formatter(self);
+        
+                ApiError::new($kind, err, text)
+            }
+        }
     };
 }
 
 
 #[derive(ToPrimitive, Serialize, Clone, Debug)]
 pub enum ErrorNum {
-    NotAValidUtf8 = 0,
+    InvalidUtf8 = 0,
 
-    NoSchedulesLoaded = 100,
+    NoWeeklySchedulesLoaded = 100,
+    NoDailySchedulesLoaded,
     ScheduleExtractionFailed,
     ScheduleDeletionFailed,
     MassScheduleDeletionFailed,
@@ -46,137 +84,74 @@ impl ErrorNum {
 }
 
 
-pub struct NotAValidUtf8 {
-    pub error: String
-}
-impl NotAValidUtf8 {
-    pub fn new(error: String) -> NotAValidUtf8 {
-        NotAValidUtf8 { error }
-    }
-}
-impl ToApiError for NotAValidUtf8 {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::NotAValidUtf8;
-        let text = format!(
-            "failed to decode raw bytes to utf-8 with error {:?}",
-            self.error
-        );
+api_err!(
+    name:    InvalidUtf8,
+    as_enum: ErrorNum::InvalidUtf8,
+    kind:    Kind::UserFailure,
+    fields:  (pub error: String, pub sc_type: String),
+    error:   |this| format!(
+        "failed to decode raw bytes to utf-8 with error {:?}", 
+        this.error
+    )
+);
 
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
+api_err!(
+    name:    ScheduleExtractionFailed,
+    as_enum: ErrorNum::ScheduleExtractionFailed,
+    kind:    Kind::UserFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to extract with error {:?}", 
+        this.sc_type.to_str(), 
+        this.error
+    )
+);
 
-pub struct ScheduleExtractionFailed {
-    pub sc_type: schedule::raw::Type,
-    pub error: String,
-}
-impl ScheduleExtractionFailed {
-    pub fn new(
-        sc_type: schedule::raw::Type, 
-        error: String
-    ) -> ScheduleExtractionFailed{
-        ScheduleExtractionFailed { sc_type, error }
-    }
-}
-impl ToApiError for ScheduleExtractionFailed {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::ScheduleExtractionFailed;
-        let text = format!(
-            "{} failed to extract with error {:?}",
-            self.sc_type.to_str(),
-            self.error
-        );
+api_err!(
+    name:    ScheduleDeletionFailed,
+    as_enum: ErrorNum::ScheduleDeletionFailed,
+    kind:    Kind::UserFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to delete from disk with error {:?}", 
+        this.sc_type.to_str(), 
+        this.error
+    )
+);
 
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
+api_err!(
+    name:    MassScheduleDeletionFailed,
+    as_enum: ErrorNum::MassScheduleDeletionFailed,
+    kind:    Kind::UserFailure,
+    fields:  (pub error: String),
+    error:   |this| format!(
+        "failed to mass delete schedule from disk with error {:?}",
+        this.error
+    )
+);
 
-pub struct ScheduleDeletionFailed {
-    pub sc_type: schedule::raw::Type,
-    pub error: String,
-}
-impl ScheduleDeletionFailed {
-    pub fn new(
-        sc_type: schedule::raw::Type, 
-        error: String
-    ) -> ScheduleDeletionFailed{
-        ScheduleDeletionFailed { sc_type, error }
-    }
-}
-impl ToApiError for ScheduleDeletionFailed {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::ScheduleDeletionFailed;
-        let text = format!(
-            "{} failed to delete from disk with error {:?}",
-            self.sc_type.to_str(),
-            self.error
-        );
+api_err!(
+    name:    NoWeeklySchedulesLoaded,
+    as_enum: ErrorNum::NoWeeklySchedulesLoaded,
+    kind:    Kind::UserFailure,
+    error:   |_this| 
+        "
+        to convert weekly type, \
+        load both `ft_weekly` and `r_weekly` \
+        raw types: POST ZIP files at \
+        /schedule/<type>/load\
+        ".to_owned()
+);
 
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
-
-pub struct MassScheduleDeletionFailed {
-    pub error: String,
-}
-impl MassScheduleDeletionFailed {
-    pub fn new(error: String) -> MassScheduleDeletionFailed{
-        MassScheduleDeletionFailed { error }
-    }
-}
-impl ToApiError for MassScheduleDeletionFailed {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::MassScheduleDeletionFailed;
-        let text = format!(
-            "failed to mass delete schedule from disk with error {:?}",
-            self.error
-        );
-
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
-
-pub struct RegexCompileFailed {
-    pub regex_type: regex::Type,
-    pub error: String
-}
-impl RegexCompileFailed {
-    pub fn new(
-        regex_type: regex::Type,
-        error: String
-    ) -> RegexCompileFailed {
-        RegexCompileFailed { regex_type, error }
-    }
-}
-impl ToApiError for RegexCompileFailed {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::RegexCompileFailed;
-        let text = format!(
-            "{} regex failed to compile with error {:?}",
-            self.regex_type.to_str(),
-            self.error
-        );
-
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
-
-pub struct RegexesNotSet {
-    pub types: HashSet<regex::Type>
-}
-impl RegexesNotSet {
-    pub fn new(types: HashSet<regex::Type>) -> RegexesNotSet {
-        RegexesNotSet { types }
-    }
-}
-impl ToApiError for RegexesNotSet {
-    fn to_api_error(&self) -> ApiError {
-        let err = ErrorNum::RegexesNotSet;
-        let text = format!(
-            "{:?} regexes are not set, they're all necessary",
-            self.types
-        );
-
-        ApiError::new(Kind::UserFailure, err, text)
-    }
-}
+api_err!(
+    name:    NoDailySchedulesLoaded,
+    as_enum: ErrorNum::NoDailySchedulesLoaded,
+    kind:    Kind::UserFailure,
+    error:   |_this| 
+        "
+        to convert daily type, \
+        load both `ft_daily` and `r_weekly` \
+        raw types: POST ZIP files at \
+        /schedule/<type>/load\
+        ".to_owned()
+);

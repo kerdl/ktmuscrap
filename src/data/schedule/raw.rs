@@ -1,15 +1,16 @@
-use actix_web::web::{Bytes, Buf};
 use log::info;
+use chrono::NaiveDate;
 use zip::read::ZipArchive;
 use serde_derive::Serialize;
+use actix_web::web::{Bytes, Buf};
 use tokio::sync::RwLock;
-use std::{path::{Path, PathBuf}, io::Cursor, sync::Arc};
+use std::{path::{Path, PathBuf}, io::Cursor, sync::Arc, collections::HashMap};
 
-use crate::DynResult;
+use crate::{DynResult, fs};
 use super::error;
 
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     FtWeekly,
     FtDaily,
@@ -42,14 +43,6 @@ pub struct Html {
 impl Html {
     pub fn new(sc_type: Type, content: RwLock<String>) -> Html {
         Html { sc_type, content }
-    }
-
-    pub fn from_zip(raw_zip: Zip) -> Html {
-        unimplemented!()
-
-        //let content = raw_zip.extract();
-
-        //RawHtml::new(raw_zip.sc_type, content)
     }
 }
 
@@ -136,6 +129,37 @@ impl Zip {
         archive.extract(&dir_path)?;
 
         Ok(())
+    }
+
+    /// ## Latest schedule in this archive
+    /// - only looks for `.html` files inside
+    pub async fn latest_schedule(&self) -> DynResult<PathBuf> {
+        // { <path to schedule>: <declared date in that schedule>}
+        let path_date_map: HashMap<PathBuf, NaiveDate> = HashMap::new();
+
+        let all_file_paths = fs::collect_file_paths(self.path()).await?;
+
+        // vec of html files
+        let html_paths = all_file_paths
+            .into_iter()
+            .filter(|path| {
+                path.extension().is_some() // has extension
+                && path.extension().unwrap() == "html" // and that extension is "html"
+            })
+            .collect::<Vec<PathBuf>>(); // create new vec of filtered files
+
+        match self.sc_type {
+            Type::FtWeekly | Type::FtDaily => {
+                if html_paths.len() > 1 {
+
+                }
+            }
+            Type::RWeekly => {
+
+            }
+        }
+
+        todo!()
     }
 }
 

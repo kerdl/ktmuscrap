@@ -26,66 +26,50 @@ impl Type {
 }
 
 pub struct Container {
-    pub group: Arc<RwLock<Option<Regex>>>,
-    pub date: Arc<RwLock<Option<Regex>>>,
-    pub time: Arc<RwLock<Option<Regex>>>,
-    pub teacher: Arc<RwLock<Option<Regex>>>,
-    pub cabinet: Arc<RwLock<Option<Regex>>>,
-}
-impl Container {
-    pub fn new(
-        group: Arc<RwLock<Option<Regex>>>,
-        date: Arc<RwLock<Option<Regex>>>,
-        time: Arc<RwLock<Option<Regex>>>,
-        teacher: Arc<RwLock<Option<Regex>>>,
-        cabinet: Arc<RwLock<Option<Regex>>>,
-    ) -> Container {
-        Container { 
-            group, 
-            date, 
-            time, 
-            teacher, 
-            cabinet 
-        }
-    }
-
-    pub async fn unset_types(self: Arc<Self>) -> HashSet<Type> {
-        let mut types: HashSet<Type> = HashSet::new();
-
-        // is there really no way to iterate
-        // struct fields?
-
-        if self.group.read().await.is_none() {
-            types.insert(Type::Group);
-        }
-
-        if self.date.read().await.is_none() {
-            types.insert(Type::Date);
-        }
-
-        if self.time.read().await.is_none() {
-            types.insert(Type::Time);
-        }
-
-        if self.teacher.read().await.is_none() {
-            types.insert(Type::Teacher);
-        }
-
-        if self.cabinet.read().await.is_none() {
-            types.insert(Type::Cabinet);
-        }
-
-        types
-    }
+    /// ## Matches
+    /// - **"1КДД69"**
+    /// - **"1-кДД-69"**
+    /// - ...
+    pub group: Arc<Regex>,
+    /// ## Matches
+    /// - **"01.01.22"**
+    /// - **"01/01/22"**
+    /// - ...
+    /// 
+    /// ( *day*.*month*.*year* )
+    pub date: Arc<Regex>,
+    /// ## Matches
+    /// - **"8:00-9:00"**
+    /// - **"10:00-11:00"**
+    /// - ...
+    pub time: Arc<Regex>,
+    /// ## Matches
+    /// - **"Ебанько Х."**
+    /// - **"Ебанько Х.Й"**
+    /// - **"Ебанько Х.Й."**
+    /// - ...
+    pub teacher: Arc<Regex>,
+    /// ## Matches
+    /// - **"ауд.29"**
+    /// - **"ауд.56,54"**
+    /// - **"ауд.сп.з,23в"**
+    /// - ...
+    pub cabinet: Arc<Regex>,
 }
 impl Default for Container {
     fn default() -> Container {
-        Container::new(
-            Arc::new(RwLock::new(None)), 
-            Arc::new(RwLock::new(None)), 
-            Arc::new(RwLock::new(None)), 
-            Arc::new(RwLock::new(None)), 
-            Arc::new(RwLock::new(None))
-        )
+        let group   = r"(\d)([-]{0,1})([а-яёА-ЯЁ]{3})([-]{0,1})(\d{2})";
+        let date    = r"(\d{1,2})\W(\d{1,2})\W(\d{2})";
+        let time    = r"(\d{1,2}:\d{2})-(\d{1,2}:\d{2})";
+        let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
+        let cabinet = r"([аa][уy]д)[.].*(\d|\w)([.]|[,]){0,1}";
+
+        Container {
+            group: Arc::new(Regex::new(group).unwrap()), 
+            date: Arc::new(Regex::new(date).unwrap()), 
+            time: Arc::new(Regex::new(time).unwrap()), 
+            teacher: Arc::new(Regex::new(teacher).unwrap()), 
+            cabinet: Arc::new(Regex::new(cabinet).unwrap())
+        }
     }
 }

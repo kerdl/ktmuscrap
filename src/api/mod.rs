@@ -1,6 +1,5 @@
 pub mod error;
 pub mod schedule;
-pub mod regex;
 
 use serde_derive::Serialize;
 

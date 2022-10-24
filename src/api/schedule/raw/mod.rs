@@ -39,8 +39,7 @@ async fn generic_load(
 
     if extraction_result.is_err() {
         // clean up the mess we just created
-        field_read.remove_folder().await.unwrap();
-        field_read.clear_content().await;
+        field_read.delete().await.unwrap();
 
         // construct api error
         let err = error::ScheduleExtractionFailed::new(

@@ -69,7 +69,7 @@ pub enum Format {
 }
 
 /// ## Schedule type
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// Was parsed from a weekly
     /// (`ft_weekly`, `r_weekly`) schedule

@@ -10,6 +10,9 @@ pub enum Kind {
     /// ## Indicates user's failure
     /// - i.e. some parameters were not loaded
     UserFailure,
+    /// ## Indicates that this server is fucked up
+    /// - i.e. reading from disk failed
+    InternalFailure,
     /// ## Indicates 3rd party failure
     /// - i.e. schedule is formatted incorrectly
     ParsingFailure
