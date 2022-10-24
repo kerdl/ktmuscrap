@@ -38,6 +38,12 @@ impl ToResponse for ApiError {
         Response::new(is_ok, data, error)
     }
 }
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
+}
+impl std::error::Error for ApiError {}
 
 pub trait ToApiError {
     fn to_api_error(&self) -> ApiError;

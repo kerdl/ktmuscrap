@@ -1,13 +1,19 @@
-use std::{error, fmt};
-
-use super::super::schedule;
-
-
-#[derive(Debug, Clone)]
-pub struct ExtractingEmptyContent;
-impl fmt::Display for ExtractingEmptyContent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "cannot extract empty content")
-    }
+/// # Default waffle maker
+macro_rules! err {
+    ($name: ident, $text: literal) => {
+        #[derive(Debug, Clone)]
+        pub struct $name;
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, $text)
+            }
+        }
+        impl std::error::Error for $name {}
+    };
 }
-impl error::Error for ExtractingEmptyContent {}
+
+err!(
+    ExtractingEmptyContent, 
+    "cannot extract empty content"
+);
+

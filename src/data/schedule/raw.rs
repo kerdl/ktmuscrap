@@ -2,37 +2,21 @@ use log::info;
 use chrono::NaiveDate;
 use zip::read::ZipArchive;
 use serde_derive::Serialize;
-use actix_web::web::{Bytes, Buf};
+use strum_macros::{EnumString, Display};
+use actix_web::web::Bytes;
 use tokio::sync::RwLock;
-use std::{path::{Path, PathBuf}, io::Cursor, sync::Arc, collections::HashMap};
+use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashMap};
 
-use crate::{DynResult, fs};
+use crate::{DynResult, fs, api::{self, error::base::ToApiError}};
 use super::error;
 
 
-#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Debug, Display, Clone, PartialEq, Eq, EnumString)]
+#[strum(serialize_all = "snake_case")]
 pub enum Type {
     FtWeekly,
     FtDaily,
     RWeekly
-}
-impl Type {
-    pub fn from_string(&self, string: &str) -> Option<Type> {
-        match string {
-            "ft_weekly" => Some(Type::FtWeekly),
-            "ft_daily"  => Some(Type::FtDaily),
-            "r_weekly"  => Some(Type::RWeekly),
-            _           => None,
-        }
-    }
-
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Type::FtWeekly => "ft_weekly",
-            Type::FtDaily  => "ft_daily",
-            Type::RWeekly  => "r_weekly"
-        }
-    }
 }
 
 
@@ -68,7 +52,7 @@ impl Zip {
     /// ## Generate path for this schedule type
     pub fn path(&self) -> PathBuf {
         // naming the directory the same as schedule type
-        let dir_name = self.sc_type.to_str();
+        let dir_name = self.sc_type.to_string();
         // make relative path to this dir
         let dir_path = crate::TEMP_PATH.join(dir_name);
 
@@ -143,23 +127,39 @@ impl Zip {
         let html_paths = all_file_paths
             .into_iter()
             .filter(|path| {
-                path.extension().is_some() // has extension
-                && path.extension().unwrap() == "html" // and that extension is "html"
+                // has extension
+                path.extension().is_some()
+                // and that extension is "html"
+                && path.extension().unwrap() == "html"
             })
-            .collect::<Vec<PathBuf>>(); // create new vec of filtered files
+            // create new vec of filtered files
+            .collect::<Vec<PathBuf>>();
+
+        if html_paths.len() < 1 {
+            return Err(
+                api::error::NoHtmls::new(
+                    self.sc_type.clone()
+                ).into()
+            )
+        }
 
         match self.sc_type {
             Type::FtWeekly | Type::FtDaily => {
                 if html_paths.len() > 1 {
-
+                    return Err(
+                        api::error::MultipleHtmls::new(
+                            self.sc_type.clone(), 
+                            html_paths
+                        ).into()
+                    )
                 }
+
+                return Ok(html_paths.get(0).unwrap().to_owned())
             }
             Type::RWeekly => {
-
+                todo!()
             }
         }
-
-        todo!()
     }
 }
 

@@ -3,14 +3,13 @@ pub mod base;
 use num_derive::ToPrimitive;
 use num_traits::ToPrimitive;
 use serde_derive::Serialize;
+use std::path::PathBuf;
 
 use base::{ApiError, Kind, ToApiError};
 use crate::data::schedule;
 
 
 /// # Less boilerplate API error
-/// 
-/// 
 /// 
 /// ## Usage
 /// ```
@@ -43,6 +42,7 @@ macro_rules! api_err {
         // |this| format!("fuck you {}", this.field1)
         error: $error_closure: expr
     ) => {
+        #[derive(Debug, Clone)]
         pub struct $name {
             $($($visibility $field: $field_type),*)?
         }
@@ -60,6 +60,15 @@ macro_rules! api_err {
                 ApiError::new($kind, err, text)
             }
         }
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                let error_formatter: &dyn Fn(&Self) -> String = &$error_closure;
+                let text = error_formatter(self);
+
+                write!(f, "{}", text)
+            }
+        }
+        impl std::error::Error for $name {}
     };
 }
 
@@ -73,9 +82,8 @@ pub enum ErrorNum {
     ScheduleExtractionFailed,
     ScheduleDeletionFailed,
     MassScheduleDeletionFailed,
-
-    RegexCompileFailed = 200,
-    RegexesNotSet,
+    NoHtmls,
+    MultipleHtmls
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -83,52 +91,6 @@ impl ErrorNum {
     }
 }
 
-
-api_err!(
-    name:    InvalidUtf8,
-    as_enum: ErrorNum::InvalidUtf8,
-    kind:    Kind::UserFailure,
-    fields:  (pub error: String, pub sc_type: String),
-    error:   |this| format!(
-        "failed to decode raw bytes to utf-8 with error {:?}", 
-        this.error
-    )
-);
-
-api_err!(
-    name:    ScheduleExtractionFailed,
-    as_enum: ErrorNum::ScheduleExtractionFailed,
-    kind:    Kind::UserFailure,
-    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
-    error:   |this| format!(
-        "{} failed to extract with error {:?}", 
-        this.sc_type.to_str(), 
-        this.error
-    )
-);
-
-api_err!(
-    name:    ScheduleDeletionFailed,
-    as_enum: ErrorNum::ScheduleDeletionFailed,
-    kind:    Kind::UserFailure,
-    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
-    error:   |this| format!(
-        "{} failed to delete from disk with error {:?}", 
-        this.sc_type.to_str(), 
-        this.error
-    )
-);
-
-api_err!(
-    name:    MassScheduleDeletionFailed,
-    as_enum: ErrorNum::MassScheduleDeletionFailed,
-    kind:    Kind::UserFailure,
-    fields:  (pub error: String),
-    error:   |this| format!(
-        "failed to mass delete schedule from disk with error {:?}",
-        this.error
-    )
-);
 
 api_err!(
     name:    NoWeeklySchedulesLoaded,
@@ -154,4 +116,73 @@ api_err!(
         raw types: POST ZIP files at \
         /schedule/<type>/load\
         ".to_owned()
+);
+
+api_err!(
+    name:    InvalidUtf8,
+    as_enum: ErrorNum::InvalidUtf8,
+    kind:    Kind::UserFailure,
+    fields:  (pub error: String, pub sc_type: String),
+    error:   |this| format!(
+        "failed to decode raw bytes to utf-8 with error {:?}", 
+        this.error
+    )
+);
+
+api_err!(
+    name:    ScheduleExtractionFailed,
+    as_enum: ErrorNum::ScheduleExtractionFailed,
+    kind:    Kind::UserFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to extract with error {:?}", 
+        this.sc_type.to_string(), 
+        this.error
+    )
+);
+
+api_err!(
+    name:    ScheduleDeletionFailed,
+    as_enum: ErrorNum::ScheduleDeletionFailed,
+    kind:    Kind::InternalFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to delete from disk with error {:?}", 
+        this.sc_type.to_string(), 
+        this.error
+    )
+);
+
+api_err!(
+    name:    MassScheduleDeletionFailed,
+    as_enum: ErrorNum::MassScheduleDeletionFailed,
+    kind:    Kind::InternalFailure,
+    fields:  (pub error: String),
+    error:   |this| format!(
+        "failed to mass delete schedule from disk with error {:?}",
+        this.error
+    )
+);
+
+api_err!(
+    name:    NoHtmls,
+    as_enum: ErrorNum::NoHtmls,
+    kind:    Kind::ParsingFailure,
+    fields:  (pub sc_type: schedule::raw::Type),
+    error:   |this| format!(
+        "{} contains no html files inside archive, wtf dude",
+        this.sc_type.to_string()
+    )
+);
+
+api_err!(
+    name:    MultipleHtmls,
+    as_enum: ErrorNum::MultipleHtmls,
+    kind:    Kind::ParsingFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub index: Vec<PathBuf>),
+    error:   |this| format!(
+        "{} contains multiple html files inside archive: {:?}, wtf dude",
+        this.sc_type.to_string(),
+        this.index
+    )
 );
