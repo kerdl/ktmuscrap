@@ -18,6 +18,11 @@ impl Html {
         })
     }
 
+    pub async fn from_path(path: &PathBuf) -> DynResult<Html> {
+        let string = tokio::fs::read_to_string(path).await?;
+        Html::from_string(&string)
+    }
+
     /// ## Get base date this schedule is for
     pub fn base_date(&self) -> Option<NaiveDate> {
         todo!()

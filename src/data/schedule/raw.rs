@@ -7,7 +7,7 @@ use actix_web::web::Bytes;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashMap};
 
-use crate::{DynResult, fs, api};
+use crate::{DynResult, fs, api, parse};
 use super::error;
 
 
@@ -119,12 +119,12 @@ impl Zip {
     /// - only looks for `.html` files inside
     pub async fn latest_schedule(&self) -> DynResult<PathBuf> {
         // { <path to schedule>: <declared date in that schedule>}
-        let path_date_map: HashMap<PathBuf, NaiveDate> = HashMap::new();
+        let mut path_date_map: HashMap<PathBuf, NaiveDate> = HashMap::new();
 
         let all_file_paths = fs::collect_file_paths(self.path()).await?;
 
         // vec of html files
-        let html_paths = all_file_paths
+         let html_paths = all_file_paths
             .into_iter()
             .filter(|path| {
                 // has extension
@@ -157,6 +157,19 @@ impl Zip {
                 return Ok(html_paths.get(0).unwrap().to_owned())
             }
             Type::RWeekly => {
+                for path in html_paths.into_iter() {
+                    let parser = parse::remote::Html::from_path(&path).await?;
+                    let date = parser.base_date();
+
+                    if date.is_none() {
+                        continue
+                    }
+
+                    let date = date.unwrap();
+
+                    path_date_map.insert(path, date);
+                }
+
                 todo!()
             }
         }
