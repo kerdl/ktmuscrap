@@ -75,15 +75,19 @@ macro_rules! api_err {
 
 #[derive(ToPrimitive, Serialize, Clone, Debug)]
 pub enum ErrorNum {
-    InvalidUtf8 = 0,
+    Unknown = 0,
+    IoError,
 
-    NoWeeklySchedulesLoaded = 100,
+    InvalidUtf8 = 100,
+
+    NoWeeklySchedulesLoaded = 200,
     NoDailySchedulesLoaded,
     ScheduleExtractionFailed,
     ScheduleDeletionFailed,
     MassScheduleDeletionFailed,
     NoHtmls,
-    MultipleHtmls
+    MultipleHtmls,
+    ScheduleParsingFailed,
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -91,6 +95,27 @@ impl ErrorNum {
     }
 }
 
+api_err!(
+    name:    Unknown,
+    as_enum: ErrorNum::Unknown,
+    kind:    Kind::InternalFailure,
+    fields:  (pub text: String),
+    error:   |this| format!(
+        "wtf dude unknown error: {:?}",
+        this.text
+    )
+);
+
+api_err!(
+    name:    IoError,
+    as_enum: ErrorNum::IoError,
+    kind:    Kind::InternalFailure,
+    fields:  (pub text: String),
+    error:   |this| format!(
+        "io error while converting: {:?}",
+        this.text
+    )
+);
 
 api_err!(
     name:    NoWeeklySchedulesLoaded,

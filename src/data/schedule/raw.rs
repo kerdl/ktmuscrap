@@ -7,7 +7,7 @@ use actix_web::web::Bytes;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashMap};
 
-use crate::{DynResult, fs, api, parse};
+use crate::{DynResult, fs, api, parse::{self, remote::HtmlContainer}};
 use super::error;
 
 
@@ -20,28 +20,18 @@ pub enum Type {
 }
 
 
-pub struct Html {
-    sc_type: Type,
-    content: RwLock<String>,
-}
-impl Html {
-    pub fn new(sc_type: Type, content: RwLock<String>) -> Html {
-        Html { sc_type, content }
-    }
-}
-
 pub struct Zip {
     sc_type: Type,
-    pub content: RwLock<Option<Arc<Bytes>>>,
+    pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
-    pub fn new(sc_type: Type, content: RwLock<Option<Arc<Bytes>>>) -> Zip {
+    pub fn new(sc_type: Type, content: RwLock<Option<Bytes>>) -> Zip {
         Zip { sc_type, content }
     }
 
     pub async fn set_content(&self, content: Bytes) {
         let mut field = self.content.write().await;
-        *field = Some(Arc::new(content));
+        *field = Some(content);
     }
 
     pub async fn clear_content(&self) {
@@ -57,6 +47,10 @@ impl Zip {
         let dir_path = crate::TEMP_PATH.join(dir_name);
 
         dir_path
+    }
+
+    pub async fn create_folder(&self) -> tokio::io::Result<()> {
+        tokio::fs::create_dir(self.path()).await
     }
 
     /// ## Remove folder in `self.path()`
@@ -89,13 +83,13 @@ impl Zip {
 
     /// ## Extract content to `./temp/<schedule_type>`
     pub async fn extract(&self) -> DynResult<()> {
-        let content_lock = self.content.read().await;
+        let content = self.content.read().await;
 
-        if content_lock.is_none() {
+        if content.is_none() {
             return Err(error::ExtractingEmptyContent.into())
         }
 
-        let content = content_lock.as_ref().unwrap().clone();
+        let content = content.as_ref().unwrap().clone();
         let cursor = Cursor::new(&content[..]);
 
         let dir_path = self.path();
@@ -103,7 +97,7 @@ impl Zip {
         // if directory for this schedule type doesn't exist
         if !dir_path.exists() {
             // create it
-            tokio::fs::create_dir(&dir_path).await?;
+            self.create_folder().await?
         }
 
         // parse archive
@@ -115,64 +109,27 @@ impl Zip {
         Ok(())
     }
 
-    /// ## Latest schedule in this archive
-    /// - only looks for `.html` files inside
-    pub async fn latest_schedule(&self) -> DynResult<PathBuf> {
-        // { <path to schedule>: <declared date in that schedule>}
-        let mut path_date_map: HashMap<PathBuf, NaiveDate> = HashMap::new();
-
+    /// ## Get all paths to HTML files in this ZIP
+    /// - not only in root, but in all subdirectories
+    pub async fn html_paths(&self) -> DynResult<Vec<PathBuf>> {
         let all_file_paths = fs::collect_file_paths(self.path()).await?;
 
-        // vec of html files
-         let html_paths = all_file_paths
+        let filtered_htmls = all_file_paths
             .into_iter()
-            .filter(|path| {
-                // has extension
-                path.extension().is_some()
-                // and that extension is "html"
+            .filter(|path: &PathBuf| {
+                path.extension().is_some() 
                 && path.extension().unwrap() == "html"
             })
-            // create new vec of filtered files
-            .collect::<Vec<PathBuf>>();
+            .collect();
 
-        if html_paths.len() < 1 {
-            return Err(
-                api::error::NoHtmls::new(
-                    self.sc_type.clone()
-                ).into()
-            )
-        }
+        Ok(filtered_htmls)
+    }
 
-        match self.sc_type {
-            Type::FtWeekly | Type::FtDaily => {
-                if html_paths.len() > 1 {
-                    return Err(
-                        api::error::MultipleHtmls::new(
-                            self.sc_type.clone(), 
-                            html_paths
-                        ).into()
-                    )
-                }
+    pub async fn to_html_container(&self) -> DynResult<HtmlContainer> {
+        let html_paths = self.html_paths().await?;
+        let container = HtmlContainer::from_paths(&html_paths).await?;
 
-                return Ok(html_paths.get(0).unwrap().to_owned())
-            }
-            Type::RWeekly => {
-                for path in html_paths.into_iter() {
-                    let parser = parse::remote::Html::from_path(&path).await?;
-                    let date = parser.base_date();
-
-                    if date.is_none() {
-                        continue
-                    }
-
-                    let date = date.unwrap();
-
-                    path_date_map.insert(path, date);
-                }
-
-                todo!()
-            }
-        }
+        Ok(container)
     }
 }
 
