@@ -1,5 +1,6 @@
 pub mod error;
 pub mod raw;
+pub mod weekday;
 
 use std::ops::Range;
 use serde_derive::{Serialize, Deserialize};

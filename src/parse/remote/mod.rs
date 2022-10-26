@@ -1,11 +1,12 @@
-use log::info;
+use log::{info, debug};
 use chrono::NaiveDate;
-use html_parser::Dom;
+use html_parser::{Dom, Element, Node};
 use actix_web::web::Bytes;
 use tokio::sync::RwLock;
 use std::{sync::Arc, path::{Path, PathBuf}, collections::HashMap};
 
 use crate::{data::schedule::raw::{Zip, Type}, fs, DynResult};
+
 
 
 pub struct Html {
@@ -23,8 +24,83 @@ impl Html {
         Html::from_string(&string)
     }
 
+    fn main_div(&self) -> Option<&Node> {
+        self.dom.children.iter().find(|node| {
+
+            if node.element().is_none() {
+                return false
+            }
+            
+            let is_div = node
+                .element()
+                .unwrap()
+                .name == "div";
+            let is_grid_container = node
+                .element()
+                .unwrap()
+                .classes
+                .contains(&"grid-container".to_owned());
+            
+            is_div && is_grid_container
+        })
+    }
+
+    fn main_table(&self) -> Option<&Node> {
+        self.main_div()?.element()?.children.iter().find(|node| {
+            if node.element().is_none() {
+                return false
+            }
+
+            let is_table = node.element().unwrap().name == "table";
+
+            is_table
+        })
+    }
+
+    fn main_tbody(&self) -> Option<&Node> {
+        self.main_table()?.element()?.children.iter().find(|node| {
+
+            if node.element().is_none() {
+                return false
+            }
+
+            info!("tbody finder says: {}", node.element().unwrap().name);
+
+            let is_tbody = node.element().unwrap().name == "tbody";
+
+            is_tbody
+        })
+    }
+
+    fn weekdays_row(&self) -> Option<&Node> {
+        self.main_tbody()?.element()?.children.iter().find(|node| {
+
+            if node.element().is_none() {
+                return false
+            }
+
+            let is_tr = node.element().unwrap().name == "tr";
+            
+            is_tr
+        })
+    }
+
     /// ## Get base date this schedule is for
     pub fn base_date(&self) -> Option<NaiveDate> {
+        for node in self.main_tbody().unwrap() {
+            if node.element().is_none() { continue; }
+
+            let element = node.element().unwrap();
+            
+            info!("ELEMENT");
+
+            info!("    NAME {:?}", element.name);
+            info!("    ID {:?}", element.id);
+            info!("    CLASSES {:?}", element.classes);
+            info!("    ATTRS {:?}", element.attributes);
+            info!("    CHILDREN {:?}", element.children);
+        }
+
         todo!()
     }
 }

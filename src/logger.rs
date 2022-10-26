@@ -7,7 +7,7 @@ pub struct Logger;
 impl Logger {
     pub fn init() -> Result<(), SetLoggerError>  {
         log::set_logger(&crate::LOGGER)
-            .map(|()| log::set_max_level(LevelFilter::Info))
+            .map(|()| log::set_max_level(LevelFilter::Debug))
     }
 }
 impl Log for Logger {
