@@ -8,7 +8,7 @@ use std::{future::Future, sync::Arc};
 
 use crate::{
     api::{self, error::base::ToApiError, Response, ToResponse}, 
-    data::schedule::raw::Zip, DynResult
+    data::schedule::raw::Zip, DynResult, SyncResult
 };
 
 
@@ -18,7 +18,7 @@ pub async fn generic_parse<Parser, FutParsed>(
 ) -> impl Responder
 where
     Parser: FnOnce(Arc<RwLock<Zip>>) -> FutParsed,
-    FutParsed: Future<Output = DynResult<()>>
+    FutParsed: Future<Output = SyncResult<()>>
 {
     let parsed = parser(schedule).await;
 

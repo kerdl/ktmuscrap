@@ -1,11 +1,13 @@
 pub mod fulltime;
 pub mod remote;
+pub mod date;
+pub mod error;
 
 use chrono::NaiveDate;
 
 use crate::api::error::base::ToApiError;
 use crate::data::schedule;
-use crate::api::error::{self, base::ApiError};
+use crate::api::error::{self as api_err, base::ApiError};
 
 
 /// ## Pre-check if everything necessary is set
@@ -34,11 +36,11 @@ async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
 
 
     if sc_type == schedule::Type::Weekly && !weekly_schedules_loaded {
-        return Err(error::NoWeeklySchedulesLoaded::new().to_api_error())
+        return Err(api_err::NoWeeklySchedulesLoaded::new().to_api_error())
     }
 
     if sc_type == schedule::Type::Daily && !daily_schedules_loaded {
-        return Err(error::NoDailySchedulesLoaded::new().to_api_error())
+        return Err(api_err::NoDailySchedulesLoaded::new().to_api_error())
     }
 
 

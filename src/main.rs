@@ -3,6 +3,7 @@ pub mod data;
 pub mod parse;
 pub mod fs;
 pub mod logger;
+pub mod error;
 
 use log::{info};
 use actix_web::{get, web, App, HttpServer, Responder};
@@ -35,9 +36,10 @@ lazy_static! {
 }
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
-#[actix_web::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> std::io::Result<()> {
 
     Logger::init().unwrap();

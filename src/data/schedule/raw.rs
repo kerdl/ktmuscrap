@@ -7,7 +7,7 @@ use actix_web::web::Bytes;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashMap};
 
-use crate::{DynResult, fs, api, parse::{self, remote::HtmlContainer}};
+use crate::{DynResult, fs, api, parse::{self, remote::HtmlContainer}, SyncResult};
 use super::error;
 
 
@@ -111,7 +111,7 @@ impl Zip {
 
     /// ## Get all paths to HTML files in this ZIP
     /// - not only in root, but in all subdirectories
-    pub async fn html_paths(&self) -> DynResult<Vec<PathBuf>> {
+    pub async fn html_paths(&self) -> SyncResult<Vec<PathBuf>> {
         let all_file_paths = fs::collect_file_paths(self.path()).await?;
 
         let filtered_htmls = all_file_paths
@@ -125,9 +125,9 @@ impl Zip {
         Ok(filtered_htmls)
     }
 
-    pub async fn to_html_container(&self) -> DynResult<HtmlContainer> {
+    pub async fn to_html_container(&self) -> SyncResult<Arc<HtmlContainer>> {
         let html_paths = self.html_paths().await?;
-        let container = HtmlContainer::from_paths(&html_paths).await?;
+        let container = HtmlContainer::from_paths(html_paths).await?;
 
         Ok(container)
     }
