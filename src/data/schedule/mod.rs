@@ -1,7 +1,7 @@
 pub mod error;
 pub mod raw;
-pub mod weekday;
-pub mod temp;
+pub mod fulltime;
+pub mod remote;
 
 use std::ops::Range;
 use serde_derive::{Serialize, Deserialize};
@@ -74,10 +74,10 @@ pub enum Format {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// Was parsed from a weekly
-    /// (`ft_weekly`, `r_weekly`) schedule
+    /// (`ft_weekly` and `r_weekly`) schedule
     Weekly,
     /// Was parsed from a daily
-    /// (`ft_daily`) schedule
+    /// (`ft_daily` or `r_weekly`) schedule
     Daily
 }
 

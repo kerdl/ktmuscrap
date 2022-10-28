@@ -5,10 +5,12 @@ use tokio::sync::RwLock;
 use std::{sync::Arc, path::PathBuf, collections::HashMap};
 
 use crate::{
-    data::schedule::{
-        raw::Zip, 
-        weekday::Weekday, 
-        temp::NumTimeIndex
+    data::{
+        weekday::Weekday,
+        schedule::{
+            raw::Zip, 
+            remote::table::NumTime
+        }
     }, SyncResult
 };
 use super::{date, time, num};
@@ -18,11 +20,16 @@ use super::{date, time, num};
 pub struct Html {
     dom: Dom,
     base_date: Option<NaiveDate>,
-    time_table: Option<Vec<NumTimeIndex>>,
+    time_table: Option<Vec<NumTime>>,
 
 }
 impl Html {
-    pub fn new(dom: Dom, base_date: Option<NaiveDate>, time_table: Option<Vec<NumTimeIndex>>) -> Html {
+    pub fn new(
+        dom: Dom,
+        base_date: Option<NaiveDate>,
+        time_table: Option<Vec<NumTime>>
+    ) -> Html {
+
         Html { dom, base_date, time_table }
     }
 
@@ -97,7 +104,7 @@ impl Html {
 
     /// # Get node text
     /// 
-    /// < td ... >`text1` <br> `text2` < /td >
+    /// < td ... >`text1` < br > `text2` < /td >
     /// - where `text1 text2` is what being returned
     fn get_node_text<'a>(&'a self, node: &'a Node) -> Option<String> {
         let mut texts = vec![];
@@ -217,7 +224,7 @@ impl Html {
         })
     }
 
-    pub fn time_table(&mut self) -> Option<&Vec<NumTimeIndex>> {
+    pub fn time_table(&mut self) -> Option<&Vec<NumTime>> {
         let mut table = vec![];
 
         if self.time_table.is_some() {
@@ -250,14 +257,19 @@ impl Html {
 
             if time.is_none() { continue; }
 
+            todo!();
 
-            let num_time_idx = NumTimeIndex::new(num?, time?, index);
-            table.push(num_time_idx);
+            //let num_time_idx = NumTime::new(num?, time?, index);
+            //table.push(num_time_idx);
         }
 
         self.time_table = Some(table);
 
         Some(self.time_table.as_ref().unwrap())
+    }
+
+    fn group_rows(&self) -> Option<Vec<&Node>> {
+        todo!()
     }
 }
 
