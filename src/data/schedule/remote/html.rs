@@ -1,16 +1,16 @@
 use chrono::NaiveDate;
 use tokio::sync::RwLock;
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, collections::HashMap};
 
-use crate::{parse::remote::html::Html, SyncResult};
+use crate::{parse::remote::html, SyncResult};
 
 
 pub struct Container {
-    pub list: Vec<Html>,
-    pub old: Vec<Html>
+    pub list: Vec<html::Parser>,
+    pub old: Vec<html::Parser>
 }
 impl Container {
-    pub fn new(list: Vec<Html>, old: Vec<Html>) -> Container {
+    pub fn new(list: Vec<html::Parser>, old: Vec<html::Parser>) -> Container {
         Container { list, old }
     }
 
@@ -22,7 +22,7 @@ impl Container {
         Ok(this)
     }
 
-    pub fn add_html(&mut self, html: Html) {
+    pub fn add_html(&mut self, html: html::Parser) {
         self.list.push(html);
     }
 
@@ -31,7 +31,7 @@ impl Container {
         path: PathBuf
     ) -> SyncResult<()> {
 
-        let html = Html::from_path(&path).await?;
+        let html = html::Parser::from_path(&path).await?;
         self.add_html(html);
 
         Ok(())
@@ -54,7 +54,7 @@ impl Container {
                 let htmls_ref = htmls_ref.clone();
                 let path = path.clone();
 
-                let html = Html::from_path(&path).await.unwrap();
+                let html = html::Parser::from_path(&path).await.unwrap();
 
                 let mut htmls = htmls_ref.write().await;
                 htmls.push(html);
@@ -80,27 +80,32 @@ impl Container {
         Ok(())
     }
 
-    pub async fn latest(&mut self) -> Option<(NaiveDate, &mut Html)> {
-        todo!();
-        /* 
-        let mut date_map: HashMap<NaiveDate, &mut Html> = HashMap::new();
+    pub async fn latest(&mut self) -> Option<(NaiveDate, &mut html::Parser)> {
 
-        for html in self.list.iter_mut() {
-            let date = html.base_date();
+        let mut date_map: HashMap<NaiveDate, &mut html::Parser> = HashMap::new();
+
+        for parser in self.list.iter_mut() {
+
+            let mut table_parser = parser.to_table_parser();
+
+            if table_parser.is_none() {
+                continue;
+            }
+
+            let date = table_parser.as_mut().unwrap().base_date();
 
             if date.is_none() {
                 continue;
             }
 
-            date_map.insert(date.unwrap(), html);
+            date_map.insert(date.unwrap().clone(), parser);
         }
 
         return date_map.into_iter()
-            .max_by_key(|date_html: &(NaiveDate, &mut Html)| {
+            .max_by_key(|date_html: &(NaiveDate, &mut html::Parser)| {
                 let date = date_html.0;
                 date
             })
-        */
     }
 }
 impl Default for Container {

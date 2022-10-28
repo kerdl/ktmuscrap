@@ -13,9 +13,7 @@ use super::node;
 
 
 pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
-    todo!();
 
-    /* 
     let schedule = schedule.read().await;
 
     let mut html_container = schedule.to_html_container().await?;
@@ -23,14 +21,13 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     let mut latest = html_container.latest().await;
     info!("latest: {}", latest.as_ref().unwrap().0);
 
-    latest.unwrap().1.table();
+    let table_parser = latest.as_mut().unwrap().1.to_table_parser().unwrap();
 
-    return Ok(());
+    table_parser.dick();
 
     //let time_row = latest.as_mut().unwrap().1.time_table();
     //info!("time: {:?}", time_row.unwrap());
 
     
     Ok(())
-    */
 }

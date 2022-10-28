@@ -6,7 +6,7 @@ use crate::{
     data::schedule::raw::table, 
     SyncResult
 };
-use super::node;
+use super::{node, table::Parser as TableParser};
 
 
 /// # 1st step of parsing remote schedule
@@ -59,17 +59,17 @@ use super::node;
 /// in `self.table`, a reference to which
 /// it will return later on
 #[derive(Debug, Clone)]
-pub struct Html {
+pub struct Parser {
     dom: Dom,
     table: Option<table::Body>,
 }
-impl Html {
+impl Parser {
     pub fn new(
         dom: Dom,
         table: Option<table::Body>,
-    ) -> Html {
+    ) -> Parser {
 
-        Html { dom, table }
+        Parser { dom, table }
     }
 
     /// # Load from HTML text
@@ -79,7 +79,7 @@ impl Html {
     /// which runs `Dom` parsing, 
     /// may fail 
     /// (or it'll just panic cause i use unwrap there lol)
-    pub async fn from_string(string: String) -> SyncResult<Html> {
+    pub async fn from_string(string: String) -> SyncResult<Parser> {
 
         // spawned thread will send converted data here
         let dom = Arc::new(RwLock::new(Dom::default()));
@@ -114,13 +114,13 @@ impl Html {
         let dom = std::mem::take(&mut *dom_write_lock);
         let table = None;
 
-        Ok(Html::new(dom, table))
+        Ok(Parser::new(dom, table))
     }
 
     /// # Load from HTML file
-    pub async fn from_path(path: &PathBuf) -> SyncResult<Html> {
+    pub async fn from_path(path: &PathBuf) -> SyncResult<Parser> {
         let string = tokio::fs::read_to_string(path).await?;
-        Html::from_string(string).await
+        Parser::from_string(string).await
     }
 
     /// # Search for `div` with main content
@@ -334,5 +334,13 @@ impl Html {
         self.table = Some(body);
 
         Some(self.table.as_ref().unwrap())
+    }
+
+    /// # Create table parser
+    /// 
+    /// - parser will refer to data
+    /// owned by this `html::Parser`
+    pub fn to_table_parser<'a>(&mut self) -> Option<TableParser> {
+        Some(TableParser::from_table(self.table()?))
     }
 }
