@@ -1,7 +1,5 @@
 #[derive(Debug, Clone)]
 pub struct Cell {
-    pub x_index: usize,
-    pub y_index: usize,
     /// # How wide the cell is
     pub colspan: u32,
     /// # How tall the cell is
@@ -10,16 +8,12 @@ pub struct Cell {
 }
 impl Cell {
     pub fn new(
-        x_index: usize,
-        y_index: usize,
         colspan: u32,
         rowspan: u32,
         text: String,
     ) -> Cell {
 
         Cell {
-            x_index,
-            y_index,
             colspan,
             rowspan,
             text
@@ -27,13 +21,13 @@ impl Cell {
     }
 }
 
+
 #[derive(Debug, Clone)]
-pub struct Row {
-    pub y_index: usize,
+pub struct Body {
+    pub schema: Vec<Vec<Cell>>,
 }
-impl Row {
-    pub fn new(y_index: usize) -> Row {
-        Row { y_index }
+impl Body {
+    pub fn new(schema: Vec<Vec<Cell>>, ) -> Body {
+        Body { schema }
     }
 }
-

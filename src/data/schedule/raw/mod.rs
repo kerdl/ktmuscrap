@@ -7,7 +7,12 @@ use actix_web::web::Bytes;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, io::Cursor, sync::Arc};
 
-use crate::{DynResult, fs, parse::remote::HtmlContainer, SyncResult};
+use crate::{
+    DynResult, 
+    fs, 
+    data::schedule::remote::html::Container as HtmlContainer, 
+    SyncResult
+};
 use super::error;
 
 

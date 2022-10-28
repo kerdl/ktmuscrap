@@ -34,8 +34,4 @@ impl Group {
     pub fn new(cell: Cell, valid: String, ) -> Group {
         Group { cell, valid }
     }
-
-    pub fn schedule_start_index(&self) -> usize {
-        self.cell.x_index + 1
-    }
 }
