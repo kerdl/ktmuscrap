@@ -1,7 +1,6 @@
 use regex::Regex;
 use serde_derive::{Serialize, Deserialize};
-use tokio::sync::RwLock;
-use std::{sync::Arc, collections::HashSet};
+use std::sync::Arc;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

@@ -61,25 +61,32 @@ use super::{node, table::Parser as TableParser};
 #[derive(Debug, Clone)]
 pub struct Parser {
     dom: Dom,
+    pub path: PathBuf,
     table: Option<table::Body>,
 }
 impl Parser {
     pub fn new(
         dom: Dom,
+        path: PathBuf,
         table: Option<table::Body>,
     ) -> Parser {
 
-        Parser { dom, table }
+        Parser { dom, path, table }
     }
 
     /// # Load from HTML text
+    /// 
+    /// ## Params
+    /// - `string`: HTML text itself
+    /// - `path`: location of this file
+    /// in file system
     /// 
     /// ## Why `Result`
     /// - spawned thread, 
     /// which runs `Dom` parsing, 
     /// may fail 
     /// (or it'll just panic cause i use unwrap there lol)
-    pub async fn from_string(string: String) -> SyncResult<Parser> {
+    pub async fn from_string(string: String, path: PathBuf) -> SyncResult<Parser> {
 
         // spawned thread will send converted data here
         let dom = Arc::new(RwLock::new(Dom::default()));
@@ -114,13 +121,14 @@ impl Parser {
         let dom = std::mem::take(&mut *dom_write_lock);
         let table = None;
 
-        Ok(Parser::new(dom, table))
+        Ok(Parser::new(dom, path, table))
     }
 
     /// # Load from HTML file
-    pub async fn from_path(path: &PathBuf) -> SyncResult<Parser> {
-        let string = tokio::fs::read_to_string(path).await?;
-        Parser::from_string(string).await
+    pub async fn from_path(path: PathBuf) -> SyncResult<Parser> {
+        let string = tokio::fs::read_to_string(&path).await?;
+
+        Parser::from_string(string, path).await
     }
 
     /// # Search for `div` with main content
@@ -338,7 +346,7 @@ impl Parser {
 
     /// # Create table parser
     /// 
-    /// - parser will refer to data
+    /// - `table::Parser` will refer to data
     /// owned by this `html::Parser`
     pub fn to_table_parser<'a>(&mut self) -> Option<TableParser> {
         Some(TableParser::from_table(self.table()?))

@@ -1,5 +1,4 @@
 pub mod text {
-    use log::info;
     use html_parser::Node;
 
     pub fn nested_as_vec(node: &Node) -> Vec<&str> {
@@ -41,7 +40,7 @@ pub mod text {
     /// ## Example output
     /// - `"text1, text2, text3"`
     pub fn nested_as_string(node: &Node, sep: &str) -> String {
-        let mut texts = nested_as_vec(node);
+        let texts = nested_as_vec(node);
 
         texts.join(sep)
     }

@@ -6,12 +6,11 @@ use crate::{parse::remote::html, SyncResult};
 
 
 pub struct Container {
-    pub list: Vec<html::Parser>,
-    pub old: Vec<html::Parser>
+    pub list: Vec<html::Parser>
 }
 impl Container {
-    pub fn new(list: Vec<html::Parser>, old: Vec<html::Parser>) -> Container {
-        Container { list, old }
+    pub fn new(list: Vec<html::Parser>, ) -> Container {
+        Container { list }
     }
 
     pub async fn from_paths(paths: Vec<PathBuf>) -> SyncResult<Container> {
@@ -31,7 +30,7 @@ impl Container {
         path: PathBuf
     ) -> SyncResult<()> {
 
-        let html = html::Parser::from_path(&path).await?;
+        let html = html::Parser::from_path(path).await?;
         self.add_html(html);
 
         Ok(())
@@ -54,7 +53,7 @@ impl Container {
                 let htmls_ref = htmls_ref.clone();
                 let path = path.clone();
 
-                let html = html::Parser::from_path(&path).await.unwrap();
+                let html = html::Parser::from_path(path).await.unwrap();
 
                 let mut htmls = htmls_ref.write().await;
                 htmls.push(html);
@@ -80,36 +79,80 @@ impl Container {
         Ok(())
     }
 
-    pub async fn latest(&mut self) -> Option<(NaiveDate, &mut html::Parser)> {
-
-        let mut date_map: HashMap<NaiveDate, &mut html::Parser> = HashMap::new();
+    pub async fn date_path_map(&mut self) -> HashMap<PathBuf, NaiveDate> {
+        let mut date_path = HashMap::new();
 
         for parser in self.list.iter_mut() {
 
+            let path = parser.path.clone();
+
             let mut table_parser = parser.to_table_parser();
+            if table_parser.is_none() { continue; }
 
-            if table_parser.is_none() {
-                continue;
-            }
+            let base_date = table_parser.as_mut().unwrap().base_date();
+            if base_date.is_none() { continue; }
 
-            let date = table_parser.as_mut().unwrap().base_date();
-
-            if date.is_none() {
-                continue;
-            }
-
-            date_map.insert(date.unwrap().clone(), parser);
+            date_path.insert(
+                path,
+                base_date.unwrap().clone(),
+            );
         }
 
-        return date_map.into_iter()
-            .max_by_key(|date_html: &(NaiveDate, &mut html::Parser)| {
-                let date = date_html.0;
+        date_path
+    }
+
+    pub async fn latest_path(&mut self) -> Option<(PathBuf, NaiveDate)> {
+
+        self.date_path_map().await.into_iter()
+            .max_by_key(|path_date: &(PathBuf, NaiveDate)| {
+                let date = path_date.1;
                 date
             })
+    }
+
+    pub async fn get_by_path(
+        &mut self, 
+        path: &PathBuf
+    ) -> Option<&mut html::Parser> {
+
+        self.list.iter_mut().find(|parser| {
+            &parser.path == path
+        })
+    }
+
+    pub async fn latest(&mut self) -> Option<(NaiveDate, &mut html::Parser)> {
+        let latest = self.latest_path().await?;
+
+        let latest_path = latest.0;
+        let latest_date = latest.1;
+    
+        let parser = self.get_by_path(&latest_path).await?;
+
+        Some((latest_date, parser))
+    }
+
+    pub async fn clear_old(&mut self) -> Option<Vec<PathBuf>> {
+        let mut removed_paths = vec![];
+
+        let latest_path = self.latest_path().await?.0;
+
+        while let Some(old_index) = {
+            self.list.iter()
+            .position(|parser| parser.path != latest_path)
+        } {
+            let item = self.list.get_mut(old_index)?;
+            let path = item.path.clone();
+
+            removed_paths.push(path);
+
+            self.list.remove(old_index);
+        }
+
+        Some(removed_paths)
     }
 }
 impl Default for Container {
     fn default() -> Self {
-        Container::new(vec![], vec![])
+        Container::new(vec![])
     }
 }

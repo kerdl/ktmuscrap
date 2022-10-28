@@ -6,8 +6,9 @@ pub mod logger;
 pub mod error;
 
 use log::{info};
-use actix_web::{get, web, App, HttpServer, Responder};
+use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
+use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
@@ -24,8 +25,24 @@ lazy_static! {
     
         path
     };
+    /// ./temp/r_weekly/index.json
+    static ref REMOTE_SCHEDULE_INDEX_PATH: PathBuf = {
+        let mut temp_path = TEMP_PATH.clone();
+        temp_path.push(data::schedule::raw::Type::RWeekly.to_string());
+        temp_path.push("index.json");
+    
+        temp_path
+    };
+
     static ref RAW_SCHEDULE: Arc<schedule::raw::Container> = {
         Arc::new(schedule::raw::Container::default())
+    };
+    static ref REMOTE_SCHEDULE_INDEX: Arc<RwLock<schedule::raw::Index>> = {
+        let sc = schedule::raw::Index::load_or_init(
+            REMOTE_SCHEDULE_INDEX_PATH.to_path_buf()
+        ).unwrap();
+
+        Arc::new(RwLock::new(sc))
     };
     static ref REGEX: Arc<regex::Container> = {
         Arc::new(regex::Container::default())

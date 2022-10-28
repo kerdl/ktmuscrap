@@ -1,11 +1,13 @@
 pub mod table;
 
+use chrono::NaiveDate;
+use serde_derive::{Serialize, Deserialize};
+use serde_json;
 use zip::read::ZipArchive;
-use serde_derive::Serialize;
 use strum_macros::{EnumString, Display};
 use actix_web::web::Bytes;
 use tokio::sync::RwLock;
-use std::{path::PathBuf, io::Cursor, sync::Arc};
+use std::{path::PathBuf, io::Cursor, sync::Arc, collections::{HashMap, HashSet}};
 
 use crate::{
     DynResult, 
@@ -184,5 +186,43 @@ impl Default for Container {
         let r_weekly  = Arc::new(RwLock::new(Zip::new(Type::RWeekly, RwLock::new(None))));
 
         Container::new(ft_weekly, ft_daily, r_weekly)
+    }
+}
+
+
+#[derive(Serialize, Deserialize)]
+pub struct Index {
+    pub ignored: HashSet<PathBuf>
+}
+impl Index {
+    pub fn new(ignored: HashSet<PathBuf>) -> Index {
+        Index { ignored }
+    }
+
+    pub fn load(path: PathBuf) -> SyncResult<Index> {
+        let de = std::fs::read_to_string(path)?;
+        let index: Index = serde_json::de::from_str(&de)?;
+
+        Ok(index)
+    }
+
+    pub fn save(&self, path: PathBuf) -> SyncResult<()> {
+        let ser = serde_json::ser::to_string_pretty(&self)?;
+        std::fs::write(path, ser)?;
+
+        Ok(())
+    }
+
+    pub fn load_or_init(path: PathBuf) -> SyncResult<Index> {
+        let index;
+
+        if !path.exists() {
+            index = Index::new(HashSet::new());
+            index.save(path)?;
+        } else {
+            index = Index::load(path)?;
+        }
+
+        Ok(index)
     }
 }
