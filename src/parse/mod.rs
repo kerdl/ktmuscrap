@@ -1,6 +1,8 @@
 pub mod fulltime;
 pub mod remote;
 pub mod date;
+pub mod time;
+pub mod num;
 pub mod error;
 
 use chrono::NaiveDate;

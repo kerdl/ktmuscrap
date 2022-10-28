@@ -4,21 +4,29 @@ use html_parser::{Dom, Node};
 use tokio::sync::RwLock;
 use std::{sync::Arc, path::PathBuf, collections::HashMap};
 
-use crate::{data::schedule::{raw::Zip, weekday::Weekday}, DynResult, SyncResult};
-
+use crate::{
+    data::schedule::{
+        raw::Zip, 
+        weekday::Weekday, 
+        temp::NumTimeIndex
+    }, SyncResult
+};
+use super::{date, time, num};
 
 
 #[derive(Debug, Clone)]
 pub struct Html {
-    dom: Dom
+    dom: Dom,
+    base_date: Option<NaiveDate>,
+    time_table: Option<Vec<NumTimeIndex>>,
 
 }
 impl Html {
-    pub fn new(dom: Dom) -> Html {
-        Html { dom }
+    pub fn new(dom: Dom, base_date: Option<NaiveDate>, time_table: Option<Vec<NumTimeIndex>>) -> Html {
+        Html { dom, base_date, time_table }
     }
 
-    pub async fn from_string(string: String) -> DynResult<Html> {
+    pub async fn from_string(string: String) -> SyncResult<Html> {
         let dom = Arc::new(RwLock::new(Dom::default()));
 
         let dom_ref = dom.clone();
@@ -33,15 +41,15 @@ impl Html {
 
         let mut dom_write_lock = dom.write().await;
 
-        Ok(Html::new(std::mem::take(&mut *dom_write_lock)))
+        Ok(Html::new(std::mem::take(&mut *dom_write_lock), None, None))
     }
 
-    pub async fn from_path(path: &PathBuf) -> DynResult<Html> {
+    pub async fn from_path(path: &PathBuf) -> SyncResult<Html> {
         let string = tokio::fs::read_to_string(path).await?;
         Html::from_string(string).await
     }
 
-    async fn main_div(&self) -> Option<&Node> {
+    fn main_div(&self) -> Option<&Node> {
         self.dom.children.iter().find(|node| {
 
             if node.element().is_none() {
@@ -62,8 +70,8 @@ impl Html {
         })
     }
 
-    async fn main_table(&self) -> Option<&Node> {
-        self.main_div().await?.element()?.children.iter().find(|node| {
+    fn main_table(&self) -> Option<&Node> {
+        self.main_div()?.element()?.children.iter().find(|node| {
             if node.element().is_none() {
                 return false
             }
@@ -74,8 +82,8 @@ impl Html {
         })
     }
 
-    async fn main_tbody(&self) -> Option<&Node> {
-        self.main_table().await?.element()?.children.iter().find(|node| {
+    fn main_tbody(&self) -> Option<&Node> {
+        self.main_table()?.element()?.children.iter().find(|node| {
 
             if node.element().is_none() {
                 return false
@@ -89,54 +97,24 @@ impl Html {
 
     /// # Get node text
     /// 
-    /// < td ... >`text`< /td >
-    /// - where `text` is what being returned
-    fn get_node_text<'a>(&'a self, node: &'a Node) -> Option<&str> {
-        node.element()?.children.get(0)?.text()
-    }
+    /// < td ... >`text1` <br> `text2` < /td >
+    /// - where `text1 text2` is what being returned
+    fn get_node_text<'a>(&'a self, node: &'a Node) -> Option<String> {
+        let mut texts = vec![];
 
-    async fn weekdays_row(&self) -> Option<&Node> {
-        self.main_tbody().await?.element()?.children.iter().find(|node| {
-
-            if node.element().is_none() {
-                return false
-            }
-
-            let is_tr = node.element().unwrap().name == "tr";
-
-            if !is_tr {
-                return false;
-            }
-
-            let has_weekday = {
-                let mut is_found = false;
-
-                for node in node.element().unwrap().children.iter() {
-
-                    if self.get_node_text(node).is_none() {
-                        continue;
-                    }
-
-                    let text = self.get_node_text(node).unwrap();
-
-                    let weekday = super::date::remove(text);
-
-                    if Weekday::guess(&weekday).is_some() {
-                        is_found = true;
-                        break;
-                    }
-                }
-                
-                is_found
-            };
+        for node in node.element()?.children.iter() {
+            if node.text().is_none() { continue; }
             
-            has_weekday
-        })
+            texts.push(node.text().unwrap())
+        }
+
+        Some(texts.join(" "))
     }
 
-    /// ## Get base date this schedule is for
-    pub async fn base_date(&self) -> Option<NaiveDate> {
-        for node in self.weekdays_row().await? {
+    fn has_weekday(&self, node: &Node) -> bool {
+        let mut is_found = false;
+
+        for node in node.element().unwrap().children.iter() {
 
             let text = self.get_node_text(node);
 
@@ -144,62 +122,199 @@ impl Html {
                 continue;
             }
 
-            let date = super::date::parse_dmy(text?);
+            if text.as_ref().unwrap().is_empty() {
+                continue;
+            }
+
+            let weekday = date::remove(&text.unwrap());
+
+            if Weekday::guess(&weekday).is_some() {
+                is_found = true;
+                break;
+            }
+        }
+        
+        is_found
+    } 
+
+    fn weekdays_row(&self) -> Option<&Node> {
+        self.main_tbody()?.element()?.children.iter().find(|node| {
+
+            if node.element().is_none() {
+                return false
+            }
+
+            let is_tr = node.element().unwrap().name == "tr";
+            
+            is_tr && self.has_weekday(node)
+        })
+    }
+
+    /// ## Get base date this schedule is for
+    pub fn base_date(&mut self) -> Option<NaiveDate> {
+        if self.base_date.is_some() {
+            return self.base_date
+        }
+
+        for node in self.weekdays_row()? {
+
+            let text = self.get_node_text(node);
+
+            if text.is_none() {
+                continue;
+            }
+
+            let date = date::parse_dmy(&text?);
 
             if date.is_some() {
-                return date
+                self.base_date = date;
+                return self.base_date
             }
         }
 
         None
     }
+    
+    fn has_time(&self, node: &Node) -> bool {
+        let mut is_found = false;
+
+        if self.has_weekday(node) {
+            return false;
+        }
+
+        for node in node.element().unwrap().children.iter() {
+
+            let text = self.get_node_text(node);
+
+            if text.is_none() {
+                continue;
+            }
+
+            if text.as_ref().unwrap().is_empty() {
+                continue;
+            }
+
+            let range = time::parse_range_hm(&text.unwrap());
+
+            if range.is_some() {
+                is_found = true;
+                break;
+            }
+        }
+        is_found
+    }
+
+    pub fn time_row(&self) -> Option<&Node> {
+        self.main_tbody()?.element()?.children.iter().find(|node| {
+
+            if node.element().is_none() {
+                return false
+            }
+
+            let is_tr = node.element().unwrap().name == "tr";
+
+            is_tr && self.has_time(node)
+        })
+    }
+
+    pub fn time_table(&mut self) -> Option<&Vec<NumTimeIndex>> {
+        let mut table = vec![];
+
+        if self.time_table.is_some() {
+            return Some(self.time_table.as_ref().unwrap())
+        }
+
+        for (index, node) in self.time_row()?
+                            .element()?
+                            .children.iter()
+                            .enumerate() 
+        {
+            // "1 пара 8:30-9:55"
+            let text = self.get_node_text(node);
+
+            if text.is_none() {
+                continue;
+            }
+
+
+            //  "1 пара"
+            let named_num = time::remove(text.as_ref().unwrap());
+            //  1
+            let num = num::parse(&named_num);
+
+            if num.is_none() { continue; }
+
+
+            //  Option<NaiveTime(8, 30)..NaiveTime(9, 55)>
+            let time = time::parse_range_hm(text.as_ref().unwrap());
+
+            if time.is_none() { continue; }
+
+
+            let num_time_idx = NumTimeIndex::new(num?, time?, index);
+            table.push(num_time_idx);
+        }
+
+        self.time_table = Some(table);
+
+        Some(self.time_table.as_ref().unwrap())
+    }
 }
 
 
 pub struct HtmlContainer {
-    pub list: Arc<RwLock<Vec<Arc<Html>>>>
+    pub list: Vec<Html>,
+    pub old: Vec<Html>
 }
 impl HtmlContainer {
-    pub fn new(list: Arc<RwLock<Vec<Arc<Html>>>>) -> HtmlContainer {
-        HtmlContainer { list }
+    pub fn new(list: Vec<Html>, old: Vec<Html>) -> HtmlContainer {
+        HtmlContainer { list, old }
     }
 
-    pub async fn from_paths(paths: Vec<PathBuf>) -> SyncResult<Arc<HtmlContainer>> {
-        let this = Arc::new(HtmlContainer::default());
+    pub async fn from_paths(paths: Vec<PathBuf>) -> SyncResult<HtmlContainer> {
+        let mut this = HtmlContainer::default();
 
-        this.clone().add_from_paths(paths).await?;
+        this.add_from_paths(paths).await?;
 
         Ok(this)
     }
 
-    pub async fn add_html(self: Arc<Self>, html: Html) {
-        let mut list = self.list.write().await;
-        list.push(Arc::new(html));
+    pub fn add_html(&mut self, html: Html) {
+        self.list.push(html);
     }
 
     pub async fn add_from_path(
-        self: Arc<Self>, 
+        &mut self, 
         path: PathBuf
-    ) -> DynResult<()> {
+    ) -> SyncResult<()> {
 
         let html = Html::from_path(&path).await?;
-        self.add_html(html).await;
+        self.add_html(html);
 
         Ok(())
     }
 
     pub async fn add_from_paths(
-        self: Arc<Self>, 
+        &mut self, 
         paths: Vec<PathBuf>
     ) -> SyncResult<()> {
+
+        let htmls = Arc::new(RwLock::new(vec![]));
+        let htmls_ref = htmls.clone();
 
         let mut handles = vec![];
 
         for path in paths {
-            let self_ref = self.clone();
+            let htmls_ref = htmls_ref.clone();
 
             let handle = tokio::spawn(async move {
-                self_ref.add_from_path(path).await.unwrap();
+                let htmls_ref = htmls_ref.clone();
+                let path = path.clone();
+
+                let html = Html::from_path(&path).await.unwrap();
+
+                let mut htmls = htmls_ref.write().await;
+                htmls.push(html);
             });
 
             handles.push(handle);
@@ -210,24 +325,33 @@ impl HtmlContainer {
             handle.await?;
         }
 
+        // get writing lock for htmls list
+        let mut htmls_write = htmls.write().await;
+        // take everything from that list, move it
+        // to this one
+        let htmls = std::mem::take(&mut *htmls_write);
+
+        // add everything to `self` container
+        self.list.extend_from_slice(&htmls[..]);
+
         Ok(())
     }
 
-    pub async fn latest(self: Arc<Self>) -> Option<(NaiveDate, Arc<Html>)> {
-        let mut date_map: HashMap<NaiveDate, Arc<Html>> = HashMap::new();
+    pub async fn latest(&mut self) -> Option<(NaiveDate, &mut Html)> {
+        let mut date_map: HashMap<NaiveDate, &mut Html> = HashMap::new();
 
-        for html in self.list.clone().read().await.iter() {
-            let date = html.base_date().await;
+        for html in self.list.iter_mut() {
+            let date = html.base_date();
 
             if date.is_none() {
                 continue;
             }
 
-            date_map.insert(date.unwrap(), html.clone());
+            date_map.insert(date.unwrap(), html);
         }
 
         return date_map.into_iter()
-            .max_by_key(|date_html: &(NaiveDate, Arc<Html>)| {
+            .max_by_key(|date_html: &(NaiveDate, &mut Html)| {
                 let date = date_html.0;
                 date
             })
@@ -235,17 +359,20 @@ impl HtmlContainer {
 }
 impl Default for HtmlContainer {
     fn default() -> Self {
-        HtmlContainer::new(Arc::new(RwLock::new(vec![])))
+        HtmlContainer::new(vec![], vec![])
     }
 }
 
 pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     let schedule = schedule.read().await;
 
-    let html_container = schedule.to_html_container().await?;
-    let latest = html_container.latest().await;
+    let mut html_container = schedule.to_html_container().await?;
 
-    info!("latest: {}", latest.unwrap().0);
+    let mut latest = html_container.latest().await;
+    info!("latest: {}", latest.as_ref().unwrap().0);
+
+    let time_row = latest.as_mut().unwrap().1.time_table();
+    info!("time: {:?}", time_row.unwrap());
 
     Ok(())
 }

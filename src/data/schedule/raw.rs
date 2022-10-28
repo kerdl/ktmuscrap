@@ -125,7 +125,7 @@ impl Zip {
         Ok(filtered_htmls)
     }
 
-    pub async fn to_html_container(&self) -> SyncResult<Arc<HtmlContainer>> {
+    pub async fn to_html_container(&self) -> SyncResult<HtmlContainer> {
         let html_paths = self.html_paths().await?;
         let container = HtmlContainer::from_paths(html_paths).await?;
 

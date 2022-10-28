@@ -56,6 +56,7 @@ pub struct Container {
     /// - ...
     pub cabinet: Arc<Regex>,
     pub nonword: Arc<Regex>,
+    pub digit: Arc<Regex>
 }
 impl Default for Container {
     fn default() -> Container {
@@ -65,6 +66,7 @@ impl Default for Container {
         let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
         let cabinet = r"([аa][уy]д)[.].*(\d|\w)([.]|[,]){0,1}";
         let nonword = r"\W";
+        let digit   = r"\d";
 
         Container {
             group: Arc::new(Regex::new(group).unwrap()), 
@@ -72,7 +74,8 @@ impl Default for Container {
             time: Arc::new(Regex::new(time).unwrap()), 
             teacher: Arc::new(Regex::new(teacher).unwrap()), 
             cabinet: Arc::new(Regex::new(cabinet).unwrap()),
-            nonword: Arc::new(Regex::new(nonword).unwrap())
+            nonword: Arc::new(Regex::new(nonword).unwrap()),
+            digit: Arc::new(Regex::new(digit).unwrap()),
         }
     }
 }

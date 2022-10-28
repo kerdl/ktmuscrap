@@ -1,6 +1,7 @@
 pub mod error;
 pub mod raw;
 pub mod weekday;
+pub mod temp;
 
 use std::ops::Range;
 use serde_derive::{Serialize, Deserialize};
@@ -24,6 +25,7 @@ impl Typed {
     }
 }
 
+
 /// ## Stores last converted schedule
 /// - used for comparing schedules
 pub struct Last {
@@ -40,7 +42,6 @@ impl Default for Last {
         Last::new(None, None)
     }
 }
-
 
 
 /* SCHEDULE */
@@ -94,13 +95,7 @@ pub struct Subject {
     /// !!! (**D.C.** is **DICK**) !!!
     pub raw: String,
     /// ## Subject number
-    /// 
-    /// - since we don't have more than 
-    /// 255 lessons per day, `u8` is enough
-    /// - if you forked it and love studying 
-    /// (you fucking nerd), feel free 
-    /// to change it to `u128`
-    pub num: u8,
+    pub num: u32,
     /// ## Subject time range
     /// 
     /// - parsed from smth like
