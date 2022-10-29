@@ -7,17 +7,17 @@ use super::super::date;
 
 /// # 2nd, final step of parsing remote schedule
 #[derive(Debug, Clone)]
-pub struct Parser<'a> {
-    table: &'a table::Body,
+pub struct Parser {
+    schema: table::Body,
 
     base_date: Option<NaiveDate>
 }
-impl<'a> Parser<'a> {
-    pub fn new(table: &'a table::Body, base_date: Option<NaiveDate>) -> Parser<'a> {
-        Parser { table, base_date }
+impl Parser {
+    pub fn new(table: table::Body, base_date: Option<NaiveDate>) -> Parser {
+        Parser { schema: table, base_date }
     }
 
-    pub fn from_table(table: &'a table::Body) -> Parser<'a> {
+    pub fn from_table(table: table::Body) -> Parser {
         Parser::new(table, None)
     }
 
@@ -26,7 +26,7 @@ impl<'a> Parser<'a> {
             return Some(self.base_date.as_ref().unwrap())
         }
 
-        let weekday_row = self.table.schema.get(0)?;
+        let weekday_row = self.schema.schema.get(0)?;
 
         for weekday in weekday_row.iter() {
             let dmy = date::parse_dmy(&weekday.text);
@@ -41,6 +41,6 @@ impl<'a> Parser<'a> {
     }
 
     pub fn dick(&self) {
-        info!("{:?}", self.table);
+        //info!("{:?}", self.table);
     }
 }

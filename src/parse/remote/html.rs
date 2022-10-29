@@ -4,7 +4,8 @@ use std::{sync::Arc, path::PathBuf};
 
 use crate::{
     data::schedule::raw::table, 
-    SyncResult
+    SyncResult,
+    perf
 };
 use super::{node, table::Parser as TableParser};
 
@@ -62,13 +63,13 @@ use super::{node, table::Parser as TableParser};
 pub struct Parser {
     dom: Dom,
     pub path: PathBuf,
-    table: Option<table::Body>,
+    table: Option<TableParser>,
 }
 impl Parser {
     pub fn new(
         dom: Dom,
         path: PathBuf,
-        table: Option<table::Body>,
+        table: Option<TableParser>,
     ) -> Parser {
 
         Parser { dom, path, table }
@@ -196,12 +197,12 @@ impl Parser {
     /// we take only useful data for easier parsing
     ///     - how wide or tall the cells are: `colspan` and `rowspan`,
     ///     - the nested text inside cells, joined in one string
-    pub fn table(&mut self) -> Option<&table::Body> {
+    pub fn table(&mut self) -> Option<&mut TableParser> {
 
         // if the conversion had already been made
         if self.table.is_some() {
             // return reference to converted table
-            return Some(self.table.as_ref().unwrap())
+            return Some(self.table.as_mut().unwrap())
         }
 
         // 2d array, represents a table
@@ -337,18 +338,11 @@ impl Parser {
             }
         }
 
-        let body = table::Body::new(schema);
+        let tbody = table::Body::new(schema);
+        let parser = TableParser::from_table(tbody);
 
-        self.table = Some(body);
+        self.table = Some(parser);
 
-        Some(self.table.as_ref().unwrap())
-    }
-
-    /// # Create table parser
-    /// 
-    /// - `table::Parser` will refer to data
-    /// owned by this `html::Parser`
-    pub fn to_table_parser<'a>(&mut self) -> Option<TableParser> {
-        Some(TableParser::from_table(self.table()?))
+        Some(self.table.as_mut().unwrap())
     }
 }

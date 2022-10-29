@@ -1,8 +1,9 @@
+use log::info;
 use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc, collections::HashMap};
 
-use crate::{parse::remote::html, SyncResult};
+use crate::{parse::remote::html, SyncResult, perf};
 
 
 pub struct Container {
@@ -86,10 +87,10 @@ impl Container {
 
             let path = parser.path.clone();
 
-            let mut table_parser = parser.to_table_parser();
-            if table_parser.is_none() { continue; }
+            let table = parser.table();
+            if table.is_none() { continue; }
 
-            let base_date = table_parser.as_mut().unwrap().base_date();
+            let base_date = table.unwrap().base_date();
             if base_date.is_none() { continue; }
 
             date_path.insert(
@@ -147,6 +148,8 @@ impl Container {
 
             self.list.remove(old_index);
         }
+
+        info!("NEW LIST: {}", self.list.len());
 
         Some(removed_paths)
     }

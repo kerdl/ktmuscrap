@@ -1,19 +1,22 @@
 pub mod table;
 
-use chrono::NaiveDate;
+use log::info;
 use serde_derive::{Serialize, Deserialize};
 use serde_json;
 use zip::read::ZipArchive;
 use strum_macros::{EnumString, Display};
 use actix_web::web::Bytes;
 use tokio::sync::RwLock;
-use std::{path::PathBuf, io::Cursor, sync::Arc, collections::{HashMap, HashSet}};
+use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashSet};
 
 use crate::{
     DynResult, 
     fs, 
     data::schedule::remote::html::Container as HtmlContainer, 
-    SyncResult
+    SyncResult,
+    perf,
+    REMOTE_SCHEDULE_INDEX_PATH,
+    REMOTE_SCHEDULE_INDEX,
 };
 use super::error;
 
@@ -119,7 +122,19 @@ impl Zip {
     /// ## Get all paths to HTML files in this ZIP
     /// - not only in root, but in all subdirectories
     pub async fn html_paths(&self) -> SyncResult<Vec<PathBuf>> {
-        let all_file_paths = fs::collect_file_paths(self.path()).await?;
+        let mut all_file_paths = fs::collect_file_paths(self.path()).await?;
+
+        if all_file_paths.contains(&REMOTE_SCHEDULE_INDEX_PATH) {
+
+            for ignored_path in REMOTE_SCHEDULE_INDEX.read().await.ignored.iter() {
+
+                if let Some(index) = {
+                    all_file_paths.iter().position(|path| path == ignored_path)
+                } {
+                    all_file_paths.remove(index);
+                }
+            }
+        }
 
         let filtered_htmls = all_file_paths
             .into_iter()
@@ -192,11 +207,12 @@ impl Default for Container {
 
 #[derive(Serialize, Deserialize)]
 pub struct Index {
+    pub path: PathBuf,
     pub ignored: HashSet<PathBuf>
 }
 impl Index {
-    pub fn new(ignored: HashSet<PathBuf>) -> Index {
-        Index { ignored }
+    pub fn new(path: PathBuf, ignored: HashSet<PathBuf>) -> Index {
+        Index { path, ignored }
     }
 
     pub fn load(path: PathBuf) -> SyncResult<Index> {
@@ -206,9 +222,9 @@ impl Index {
         Ok(index)
     }
 
-    pub fn save(&self, path: PathBuf) -> SyncResult<()> {
+    pub fn save(&self) -> SyncResult<()> {
         let ser = serde_json::ser::to_string_pretty(&self)?;
-        std::fs::write(path, ser)?;
+        std::fs::write(&self.path, ser)?;
 
         Ok(())
     }
@@ -217,12 +233,24 @@ impl Index {
         let index;
 
         if !path.exists() {
-            index = Index::new(HashSet::new());
-            index.save(path)?;
+            index = Index::new(path.clone(), HashSet::new());
+            index.save()?;
         } else {
             index = Index::load(path)?;
         }
 
         Ok(index)
+    }
+
+    pub async fn remove_ignored(&self) {
+        for path in self.ignored.iter() {
+            let path = path.clone();
+
+            tokio::spawn(async move {
+                if path.exists() && path.is_file() {
+                    tokio::fs::remove_file(path).await.unwrap();
+                }
+            });
+        }
     }
 }

@@ -26,11 +26,3 @@ pub async fn collect_file_paths(dir_path: PathBuf) -> SyncResult<Vec<PathBuf>> {
 
     Ok(paths)
 }
-
-pub async fn mass_file_remove(paths: Vec<PathBuf>) {
-    for path in paths {
-        tokio::spawn(async move {
-            let _ = tokio::fs::remove_file(path).await;
-        });
-    }
-}
