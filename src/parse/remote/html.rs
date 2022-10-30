@@ -301,7 +301,7 @@ impl Parser {
                 // get colspan value in <td> attributes
                 // (how wide this cell is)
                 //
-                // colspan = 0
+                // colspan = 0 or 1
                 // ■ □ □ □ □
                 // □ □ □ □ □
                 // □ □ □ □ □
@@ -329,7 +329,7 @@ impl Parser {
                 // get rowspan value in <td> attributes
                 // (how tall this cell is)
                 //
-                // rowspan = 0
+                // rowspan = 0 or 1
                 // ■ □ □ □ □ □
                 // □ □ □ □ □ □
                 // □ □ □ □ □ □
@@ -391,14 +391,13 @@ impl Parser {
                     text
                 );
 
-                // if this cell affects rows below
-                if clean_cell.rowspan > 1 {
+                if clean_cell.hits_next_rows() {
                     // this cell definitely hits
                     // the next row
                     let mut future_y = y + 1;
 
                     // for each affected row
-                    for _ in 0..clean_cell.rowspan - 1 {
+                    for _ in 0..clean_cell.hits() {
 
                         // create X axis jump condition,
                         // that will execute later

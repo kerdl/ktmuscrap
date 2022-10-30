@@ -1,5 +1,8 @@
-use chrono::NaiveDate;
+use std::ops::RangeBounds;
+
 use log::info;
+use chrono::NaiveDate;
+use itertools::Itertools;
 
 use crate::{data::{
     schedule::{
@@ -23,7 +26,7 @@ pub struct Parser {
     base_date: Option<NaiveDate>,
     weekday_date_row: Option<Vec<WeekdayDate>>,
     num_time_row: Option<Vec<NumTime>>,
-    mapping: Option<SubjectMapping>,
+    mappings: Option<Vec<Vec<SubjectMapping>>>,
 }
 impl Parser {
     pub fn new(
@@ -31,7 +34,7 @@ impl Parser {
         base_date: Option<NaiveDate>,
         weekday_date_row: Option<Vec<WeekdayDate>>,
         num_time_row: Option<Vec<NumTime>>,
-        mapping: Option<SubjectMapping>,
+        mappings: Option<Vec<Vec<SubjectMapping>>>,
     ) -> Parser {
 
         Parser {
@@ -39,7 +42,7 @@ impl Parser {
             base_date,
             weekday_date_row,
             num_time_row,
-            mapping
+            mappings
         }
     }
 
@@ -130,21 +133,23 @@ impl Parser {
         Some(self.num_time_row.as_ref().unwrap())
     }
 
-    pub fn mapping(&mut self) -> Option<Page> {
+    pub fn mappings(&mut self) -> Option<&Vec<Vec<SubjectMapping>>> {
 
         self.weekday_date_row()?;
         self.num_time_row()?;
 
+        let mut grouped_mappings: Vec<Vec<SubjectMapping>> = vec![];
+        let mut hits: Vec<table::Hit> = vec![];
+
         for row in self.table.schema.iter() {
+
+            let y = row.get(0)?.y;
 
             let group = group::parse(&row.get(0)?.text);
             if group.is_none() { continue; }
+            let group = group.unwrap();
 
-            if group.as_ref().unwrap() == "1КМП2" {
-                info!("1КМП2");
-            }
-
-            let mut subject_mappings = vec![];
+            let mut mappings: Vec<SubjectMapping> = vec![];
 
 
             let mut past_cells_count = 0;
@@ -153,38 +158,89 @@ impl Parser {
             let mut num_time_index = 0;
 
             for (index, cell) in row[1..].iter().enumerate() {
+                let x = cell.x;
 
-                let cell_width = {
-                    if cell.colspan < 1 { 1 }
-                    else { cell.colspan as usize }
-                };
+                for hit in hits.iter_mut() {
 
-                let cell_height = {
-                    if cell.rowspan < 1 { 1 }
-                    else { cell.rowspan as usize }
-                };
+                    if hit.is_done { continue; }
+                    if hit.at_y != y { continue; }
 
-                let how_much_further_groups_affected = cell_height - 1;
+                    let last_map_cell_rng = { mappings.last().map(|map| map.cell.width()..x).unwrap_or(0..x) };
 
+                    if !last_map_cell_rng.contains(&hit.at_x) {
+                        continue;
+                    }
+
+                    let mut y_neighbour = None;
+
+                    for mappings in grouped_mappings.iter().rev() {
+
+                        let map = mappings.iter().find(|&map| 
+                            last_map_cell_rng.contains(&map.cell.x)
+                            && map.cell.y == hit.by.y
+                        );
+                        if map.is_none() { continue; }
+
+                        y_neighbour = map;
+                        break;
+                    }
+
+                    if y_neighbour.is_none() { continue; }
+                    let y_neighbour = y_neighbour.unwrap();
+
+                    let mapping = SubjectMapping::new(
+                        y_neighbour.cell.clone(),
+                        group.clone(),
+                        y_neighbour.num_time.clone(), 
+                        y_neighbour.weekday_date.clone(), 
+                        y_neighbour.subject.clone()
+                    );
+
+                    mappings.push(mapping);
+
+                    hit.done();
+                }
 
                 let weekday_date = {
-                    self.weekday_date_row.as_ref().unwrap().get(weekday_index)?
+                    self.weekday_date_row.as_ref().unwrap()
+                    .get(weekday_index)?
                 };
                 let num_time = {
-                    self.num_time_row.as_ref().unwrap().get(num_time_index)?
+                    self.num_time_row.as_ref().unwrap()
+                    .get(num_time_index)?
                 };
                 let subject = &cell.text;
 
 
                 let mapping = SubjectMapping::new(
+                    cell.clone(),
+                    group.clone(),
                     num_time.clone(), 
                     weekday_date.clone(), 
                     subject.clone()
                 );
-                subject_mappings.push(mapping);
+
+                mappings.push(mapping);
+
+                if cell.hits_next_rows() {
+                    let mut future_y = y + 1;
+
+                    for _ in 0..cell.hits() {
+                        let hit = table::Hit {
+                            by:      cell, 
+                            at_x:    x, 
+                            at_y:    future_y,
+                            is_done: false,
+                        };
+
+                        hits.push(hit);
+
+                        future_y += 1;
+                    }
+                }
 
 
-                past_cells_count += cell_width;
+                past_cells_count += cell.width();
                 weekday_index = {
                     past_cells_count / weekday_date.cell.colspan as usize
                 };
@@ -193,19 +249,11 @@ impl Parser {
                 };
             }
 
-            if ["1КМП2", "1КМП4"].contains(&group.as_ref().unwrap().as_str()) {
-                info!("{}: {:#?}", group.as_ref().unwrap(), subject_mappings);
-            }
-
-            if group.unwrap() == "1КМП4" {
-                todo!();
-            }
+            grouped_mappings.push(mappings);
         }
 
-        todo!()
-    }
+        self.mappings = Some(grouped_mappings);
 
-    pub fn dick(&self) {
-        info!("{:?}", self.table);
+        Some(self.mappings.as_ref().unwrap())
     }
 }
