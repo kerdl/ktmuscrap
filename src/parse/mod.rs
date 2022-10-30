@@ -4,6 +4,7 @@ pub mod node;
 pub mod date;
 pub mod time;
 pub mod num;
+pub mod group;
 pub mod error;
 
 use chrono::NaiveDate;

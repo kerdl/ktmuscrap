@@ -43,6 +43,7 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     table.dick();
     info!("{:?}", table.weekday_date_row());
     info!("{:?}", table.num_time_row());
+    info!("{:?}", table.mapping());
 
     //let time_row = latest.as_mut().unwrap().1.time_table();
     //info!("time: {:?}", time_row.unwrap());

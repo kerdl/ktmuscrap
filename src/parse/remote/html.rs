@@ -1,6 +1,6 @@
 use html_parser::{Dom, Node};
 use tokio::sync::RwLock;
-use std::{sync::Arc, path::PathBuf};
+use std::{sync::Arc, path::PathBuf, collections::HashMap};
 
 use crate::{
     data::schedule::raw::table, 
@@ -207,6 +207,7 @@ impl Parser {
 
         // 2d array, represents a table
         let mut schema: Vec<Vec<table::Cell>> = vec![];
+        let mut y = 0;
 
         // iterate rows
         //
@@ -214,15 +215,24 @@ impl Parser {
         //   □ □ □ □ □ □ ↓
         //   □ □ □ □ □ □ ↓
         for row in self.main_tbody()?.element()?.children.iter() {
-            
-            // cells of this row (columns)
-            let mut cells: Vec<table::Cell> = vec![];
 
             // skip if no element
             if row.element().is_none() { continue; }
             // skip if tag is not <tr>
             if row.element()?.name != "tr" { continue; }
+            // skip if entire row is made out
+            // of "freezebar-cell" cells
+            if row.element()?.children.iter().all(|cell| 
+                cell.element().is_some() 
+                && cell.element().unwrap().classes.contains(
+                    &"freezebar-cell".to_owned()
+                )
+            ) { continue; }
 
+
+            // cells of this row (columns)
+            let mut cells: Vec<table::Cell> = vec![];
+            let mut x = 0;
 
             // iterate cells (columns)
             // ⌄
@@ -322,12 +332,16 @@ impl Parser {
 
                 // construct clean cell only with data we need
                 let cell_i_would_like_to_fuck = table::Cell::new(
+                    x,
+                    y,
                     colspan, 
                     rowspan, 
                     text
                 );
 
                 cells.push(cell_i_would_like_to_fuck);
+
+                x = x + colspan + 1;
             }
 
             // if not all cells in this row 
@@ -336,12 +350,16 @@ impl Parser {
                 // push this row to the full table schema
                 schema.push(cells);
             }
+
+            y += 1;
         }
 
         let tbody = table::Body::new(schema);
         let parser = TableParser::from_table(tbody);
 
         self.table = Some(parser);
+
+        todo!();
 
         Some(self.table.as_mut().unwrap())
     }

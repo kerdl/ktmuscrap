@@ -46,12 +46,18 @@ impl NumTime {
 }
 
 #[derive(Debug, Clone)]
-pub struct Group {
-    pub cell: Cell,
-    pub valid: String
+pub struct SubjectMapping {
+    pub num_time: NumTime,
+    pub weekday_date: WeekdayDate,
+    pub subject: String,
 }
-impl Group {
-    pub fn new(cell: Cell, valid: String, ) -> Group {
-        Group { cell, valid, }
+impl SubjectMapping {
+    pub fn new(
+        num_time: NumTime, 
+        weekday_date: WeekdayDate, 
+        subject: String, 
+    ) -> SubjectMapping {
+
+        SubjectMapping { num_time, weekday_date, subject }
     }
 }
