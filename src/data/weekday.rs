@@ -21,7 +21,7 @@ lazy_static! {
 }
 
 
-#[derive(EnumString, Display, EnumIter, Debug)]
+#[derive(EnumString, Display, EnumIter, Debug, Clone)]
 pub enum Weekday {
     #[strum(to_string = "Понедельник")]
     Monday,

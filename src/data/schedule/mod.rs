@@ -144,7 +144,7 @@ pub struct Subject {
 
 /// ## Single weekday (Mon, Tue) in a week
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Weekday {
+pub struct Day {
     /// ## Raw name of a weekday
     /// ### Examples
     /// - **"Понедельник"** (*"Monday"*)
@@ -186,7 +186,7 @@ pub struct Group {
     /// - **"1КДД69"** (*"1KDD69"*)
     pub name: String,
     /// ## List of weekdays for this group
-    pub weekdays: Vec<Weekday>,
+    pub weekdays: Vec<Day>,
 }
 
 /// ## Whole schedule page

@@ -8,8 +8,7 @@ use std::sync::Arc;
 use crate::{
     REMOTE_SCHEDULE_INDEX,
     data::schedule::raw::Zip, 
-    SyncResult, 
-    fs,
+    SyncResult
 };
 use super::node;
 
@@ -42,6 +41,8 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     let table = latest.as_mut().unwrap().1.table().unwrap();
 
     table.dick();
+    info!("{:?}", table.weekday_date_row());
+    info!("{:?}", table.num_time_row());
 
     //let time_row = latest.as_mut().unwrap().1.time_table();
     //info!("time: {:?}", time_row.unwrap());
