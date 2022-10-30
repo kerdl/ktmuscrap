@@ -1,7 +1,7 @@
 use log::info;
 use chrono::NaiveDate;
 use tokio::sync::RwLock;
-use std::{path::PathBuf, sync::Arc, collections::HashMap};
+use std::{path::PathBuf, sync::Arc, collections::HashMap, future::Future};
 
 use crate::{parse::remote::html, SyncResult, perf};
 
@@ -54,10 +54,12 @@ impl Container {
                 let htmls_ref = htmls_ref.clone();
                 let path = path.clone();
 
-                let html = html::Parser::from_path(path).await.unwrap();
+                let html = html::Parser::from_path(path).await?;
 
                 let mut htmls = htmls_ref.write().await;
                 htmls.push(html);
+
+                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
             });
 
             handles.push(handle);
@@ -65,7 +67,7 @@ impl Container {
 
         // wait for all tasks to finish
         for handle in handles {
-            handle.await?;
+            handle.await??;
         }
 
         // get writing lock for htmls list

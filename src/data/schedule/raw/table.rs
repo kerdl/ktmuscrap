@@ -1,19 +1,19 @@
 #[derive(Debug, Clone)]
 pub struct Cell {
-    pub x: u32,
-    pub y: u32,
+    pub x: usize,
+    pub y: usize,
     /// # How wide the cell is
-    pub colspan: u32,
+    pub colspan: usize,
     /// # How tall the cell is
-    pub rowspan: u32,
+    pub rowspan: usize,
     pub text: String,
 }
 impl Cell {
     pub fn new(
-        x: u32,
-        y: u32,
-        colspan: u32,
-        rowspan: u32,
+        x: usize,
+        y: usize,
+        colspan: usize,
+        rowspan: usize,
         text: String,
     ) -> Cell {
 
@@ -24,6 +24,20 @@ impl Cell {
             rowspan,
             text,
         }
+    }
+}
+
+/// # `X` axis jumping conditions
+#[derive(Debug, Clone)]
+pub struct XJump {
+    pub at_x: usize,
+    pub at_y: usize,
+    pub by: usize,
+    pub is_done: bool,
+}
+impl XJump {
+    pub fn done(&mut self) {
+        self.is_done = true;
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{data::{
 use super::super::{date, time, num};
 
 
-/// # 2nd, final step of parsing remote schedule
+/// # 2nd step of parsing remote schedule
 #[derive(Debug, Clone)]
 pub struct Parser {
     table: table::Body,
@@ -23,7 +23,7 @@ pub struct Parser {
     base_date: Option<NaiveDate>,
     weekday_date_row: Option<Vec<WeekdayDate>>,
     num_time_row: Option<Vec<NumTime>>,
-    page: Option<Page>,
+    mapping: Option<SubjectMapping>,
 }
 impl Parser {
     pub fn new(
@@ -31,7 +31,7 @@ impl Parser {
         base_date: Option<NaiveDate>,
         weekday_date_row: Option<Vec<WeekdayDate>>,
         num_time_row: Option<Vec<NumTime>>,
-        page: Option<Page>,
+        mapping: Option<SubjectMapping>,
     ) -> Parser {
 
         Parser {
@@ -39,7 +39,7 @@ impl Parser {
             base_date,
             weekday_date_row,
             num_time_row,
-            page
+            mapping
         }
     }
 

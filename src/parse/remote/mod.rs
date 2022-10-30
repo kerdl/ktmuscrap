@@ -1,5 +1,6 @@
 pub mod html;
 pub mod table;
+pub mod mapping;
 
 use log::info;
 use tokio::sync::RwLock;

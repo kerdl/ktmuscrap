@@ -1,13 +1,15 @@
 use html_parser::{Dom, Node};
 use tokio::sync::RwLock;
-use std::{sync::Arc, path::PathBuf, collections::HashMap};
+use std::{sync::Arc, path::PathBuf};
 
 use crate::{
     data::schedule::raw::table, 
-    SyncResult,
-    perf
+    SyncResult
 };
-use super::{node, table::Parser as TableParser};
+use super::{
+    node, 
+    table::Parser as TableParser
+};
 
 
 /// # 1st step of parsing remote schedule
@@ -55,10 +57,11 @@ use super::{node, table::Parser as TableParser};
 /// 
 /// - `table()` converts it to 
 /// `crate::data::schedule::raw::table::Body`
-/// type, that is easier to process and
+/// type, that is easier to process, and
 /// stores this converted table body
 /// in `self.table`, a reference to which
-/// it will return later on
+/// it will return later on to not recalculate
+/// the same thing
 #[derive(Debug, Clone)]
 pub struct Parser {
     dom: Dom,
@@ -99,20 +102,21 @@ impl Parser {
         // `spawn_blocking` spawns the task 
         // in a separate thread,
         // but only allows synchronous code
-        let handle = tokio::task::spawn_blocking(move || {
+        let handle = tokio::task::spawn_blocking(move || -> SyncResult<()> {
 
             // actually parse it
-            let parsed_dom = Dom::parse(&string).unwrap();
+            let parsed_dom = Dom::parse(&string)?;
 
             // acquire lock on this `dom` variable
             let mut dom = dom_ref.blocking_write();
             // send data there
-            *dom = parsed_dom
+            *dom = parsed_dom;
 
+            Ok(())
         }); // `dom` lock releases
 
         // wait until the spawned task finishes
-        handle.await?;
+        handle.await??;
 
         // acquire lock on dom variable
         let mut dom_write_lock = dom.write().await;
@@ -207,6 +211,17 @@ impl Parser {
 
         // 2d array, represents a table
         let mut schema: Vec<Vec<table::Cell>> = vec![];
+
+        // info to indicate X axis jump:
+        //   - on what X
+        //   - on what Y
+        //   - by how much
+        //
+        // used for cells that are taking
+        // more than 1 row
+        let mut x_jumping_conds: Vec<table::XJump> = vec![];
+
+        // ↕ Y axis of a table cell
         let mut y = 0;
 
         // iterate rows
@@ -232,6 +247,8 @@ impl Parser {
 
             // cells of this row (columns)
             let mut cells: Vec<table::Cell> = vec![];
+
+            // ↔ X axis of a table cell
             let mut x = 0;
 
             // iterate cells (columns)
@@ -250,6 +267,32 @@ impl Parser {
                     &"freezebar-cell".to_owned()
                 ) { continue; }
 
+
+                // look for conditions that are
+                // sometimes put a the end
+                // of this "for cell" loop
+                for condition in x_jumping_conds.iter_mut() {
+                    if {
+                        // if isn't permormed
+                        // previously
+                        !condition.is_done
+                        // and if current X axis
+                        // is exactly the same 
+                        // as in condition
+                        && condition.at_x == x
+                        // and if current Y axis
+                        // is exactly the same 
+                        // as in condition
+                        && condition.at_y == y
+                    } {
+                        // increment X axis (jump)
+                        // by the value inside
+                        // condition
+                        x += condition.by;
+                        // mark this condition as done
+                        condition.done();
+                    }
+                };
 
                 let zero = "0".to_string();
                 let some_zero = Some(zero.clone());
@@ -277,7 +320,11 @@ impl Parser {
                     .unwrap_or(&some_zero).as_ref()
                     .unwrap_or(&zero)
                 };
-                let colspan = colspan.parse::<u32>().unwrap_or(0);
+                let colspan = colspan.parse::<usize>().unwrap_or(0);
+                let cell_width = {
+                    if colspan < 1 { 1 }
+                    else { colspan }
+                };
 
                 // get rowspan value in <td> attributes
                 // (how tall this cell is)
@@ -301,7 +348,12 @@ impl Parser {
                     .unwrap_or(&some_zero).as_ref()
                     .unwrap_or(&zero)
                 };
-                let rowspan = rowspan.parse::<u32>().unwrap_or(0);
+                let rowspan = rowspan.parse::<usize>().unwrap_or(0);
+                let cell_height = {
+                    if rowspan < 1 { 1 }
+                    else { rowspan }
+                };
+
 
                 // we need colspan and rowspan to tell
                 //
@@ -331,7 +383,7 @@ impl Parser {
                 let text = node::text::nested_as_string(cell, " ");
 
                 // construct clean cell only with data we need
-                let cell_i_would_like_to_fuck = table::Cell::new(
+                let clean_cell = table::Cell::new(
                     x,
                     y,
                     colspan, 
@@ -339,9 +391,35 @@ impl Parser {
                     text
                 );
 
-                cells.push(cell_i_would_like_to_fuck);
+                // if this cell affects rows below
+                if clean_cell.rowspan > 1 {
+                    // this cell definitely hits
+                    // the next row
+                    let mut future_y = y + 1;
 
-                x = x + colspan + 1;
+                    // for each affected row
+                    for _ in 0..clean_cell.rowspan - 1 {
+
+                        // create X axis jump condition,
+                        // that will execute later
+                        // in "for cell" loop
+                        let jump = table::XJump {
+                            at_x:    x,
+                            at_y:    future_y,
+                            by:      cell_width,
+                            is_done: false,
+                        };
+
+                        x_jumping_conds.push(jump);
+
+                        future_y += 1;
+                    }
+                }
+
+                cells.push(clean_cell);
+
+                // we're going to the next cell
+                x += cell_width;
             }
 
             // if not all cells in this row 
@@ -351,6 +429,7 @@ impl Parser {
                 schema.push(cells);
             }
 
+            // we're going to the next row
             y += 1;
         }
 
@@ -358,8 +437,6 @@ impl Parser {
         let parser = TableParser::from_table(tbody);
 
         self.table = Some(parser);
-
-        todo!();
 
         Some(self.table.as_mut().unwrap())
     }
