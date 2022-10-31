@@ -88,8 +88,7 @@ impl Parser {
     /// ## Why `Result`
     /// - spawned thread, 
     /// which runs `Dom` parsing, 
-    /// may fail 
-    /// (or it'll just panic cause i use unwrap there lol)
+    /// may fail
     pub async fn from_string(string: String, path: PathBuf) -> SyncResult<Parser> {
 
         // spawned thread will send converted data here
