@@ -3,10 +3,24 @@ pub mod raw;
 pub mod fulltime;
 pub mod remote;
 
-use std::ops::Range;
+use lazy_static::lazy_static;
+use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
+use std::ops::Range;
 
+lazy_static! {
+    static ref FULLTIME_WINDOW_CORPUS: Corpus = {
+        let mut corpus = CorpusBuilder::new()
+            .arity(2)
+            .pad_full(Pad::Auto)
+            .finish();
+        
+        corpus.add_text("Очные занятия");
+
+        corpus
+    };
+}
 
 
 /* CONTAINERS */
@@ -140,6 +154,26 @@ pub struct Subject {
     /// - **"ауд.69,78"** (*"cab.69,78"*)
     /// - ...
     pub cabinet: Option<String>,
+}
+impl Subject {
+    pub fn is_fulltime_window(&self) -> bool {
+
+        let is_similar_to_fulltime_window = {
+            FULLTIME_WINDOW_CORPUS
+            .search(&self.name, 0.5)
+            .first()
+            .is_some()
+        };
+        let no_teachers = self.teachers.is_empty();
+
+        is_similar_to_fulltime_window && no_teachers
+    }
+
+    pub fn is_unknown_window(&self) -> bool {
+        let no_teachers = self.teachers.is_empty();
+
+        !self.is_fulltime_window() && no_teachers
+    }
 }
 
 /// ## Single weekday (Mon, Tue) in a week
