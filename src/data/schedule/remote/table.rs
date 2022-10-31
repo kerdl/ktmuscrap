@@ -51,7 +51,6 @@ pub struct SubjectMapping {
     pub group: String,
     pub num_time: NumTime,
     pub weekday_date: WeekdayDate,
-    pub subject: String,
 }
 impl SubjectMapping {
     pub fn new(
@@ -59,9 +58,8 @@ impl SubjectMapping {
         group: String,
         num_time: NumTime, 
         weekday_date: WeekdayDate, 
-        subject: String, 
     ) -> SubjectMapping {
 
-        SubjectMapping { cell, group, num_time, weekday_date, subject }
+        SubjectMapping { cell, group, num_time, weekday_date }
     }
 }

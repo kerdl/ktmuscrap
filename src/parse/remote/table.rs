@@ -193,7 +193,6 @@ impl Parser {
                         group.clone(),
                         y_neighbour.num_time.clone(), 
                         y_neighbour.weekday_date.clone(), 
-                        y_neighbour.subject.clone()
                     );
 
                     mappings.push(mapping);
@@ -209,15 +208,13 @@ impl Parser {
                     self.num_time_row.as_ref().unwrap()
                     .get(num_time_index)?
                 };
-                let subject = &cell.text;
 
 
                 let mapping = SubjectMapping::new(
                     cell.clone(),
                     group.clone(),
                     num_time.clone(), 
-                    weekday_date.clone(), 
-                    subject.clone()
+                    weekday_date.clone(),
                 );
 
                 mappings.push(mapping);
