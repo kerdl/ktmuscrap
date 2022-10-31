@@ -5,6 +5,7 @@ pub mod date;
 pub mod time;
 pub mod num;
 pub mod group;
+pub mod teacher;
 pub mod error;
 
 use chrono::NaiveDate;

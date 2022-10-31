@@ -15,7 +15,7 @@ use crate::{data::{
     },
     weekday::Weekday,
 }, parse::group};
-use super::super::{date, time, num};
+use super::{super::{date, time, num}, mapping};
 
 
 /// # 2nd step of parsing remote schedule
@@ -26,7 +26,7 @@ pub struct Parser {
     base_date: Option<NaiveDate>,
     weekday_date_row: Option<Vec<WeekdayDate>>,
     num_time_row: Option<Vec<NumTime>>,
-    mappings: Option<Vec<Vec<SubjectMapping>>>,
+    mapping: Option<mapping::Parser>,
 }
 impl Parser {
     pub fn new(
@@ -34,7 +34,7 @@ impl Parser {
         base_date: Option<NaiveDate>,
         weekday_date_row: Option<Vec<WeekdayDate>>,
         num_time_row: Option<Vec<NumTime>>,
-        mappings: Option<Vec<Vec<SubjectMapping>>>,
+        mappings: Option<mapping::Parser>,
     ) -> Parser {
 
         Parser {
@@ -42,7 +42,7 @@ impl Parser {
             base_date,
             weekday_date_row,
             num_time_row,
-            mappings
+            mapping: mappings
         }
     }
 
@@ -133,7 +133,7 @@ impl Parser {
         Some(self.num_time_row.as_ref().unwrap())
     }
 
-    pub fn mappings(&mut self) -> Option<&Vec<Vec<SubjectMapping>>> {
+    pub fn mapping(&mut self) -> Option<&mapping::Parser> {
 
         self.weekday_date_row()?;
         self.num_time_row()?;
@@ -175,7 +175,7 @@ impl Parser {
 
                     for mappings in grouped_mappings.iter().rev() {
 
-                        let map = mappings.iter().find(|&map| 
+                        let map = mappings.iter().rev().find(|&map| 
                             last_map_cell_rng.contains(&map.cell.x)
                             && map.cell.y == hit.by.y
                         );
@@ -249,8 +249,8 @@ impl Parser {
             grouped_mappings.push(mappings);
         }
 
-        self.mappings = Some(grouped_mappings);
+        self.mapping = Some(mapping::Parser::from_schema(grouped_mappings));
 
-        Some(self.mappings.as_ref().unwrap())
+        Some(self.mapping.as_ref().unwrap())
     }
 }

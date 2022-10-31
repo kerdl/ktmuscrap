@@ -44,7 +44,7 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
 
     //info!("{:?}", table.weekday_date_row());
     //info!("{:?}", table.num_time_row());
-    perf!(let mappings = table.mappings());
+    perf!(let mappings = table.mapping());
     info!("{:?}", mappings);
 
     //let time_row = latest.as_mut().unwrap().1.time_table();
