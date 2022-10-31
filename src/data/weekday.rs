@@ -1,4 +1,5 @@
 use ngrammatic::{Corpus, CorpusBuilder, Pad, SearchResult};
+use serde_derive::{Serialize, Deserialize};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumString, EnumIter, Display};
 use lazy_static::lazy_static;
@@ -21,20 +22,27 @@ lazy_static! {
 }
 
 
-#[derive(EnumString, Display, EnumIter, Debug, Clone)]
+#[derive(Serialize, Deserialize, EnumString, Display, EnumIter, Debug, Clone, PartialEq, Eq)]
 pub enum Weekday {
+    #[serde(rename = "Понедельник")]
     #[strum(to_string = "Понедельник")]
     Monday,
+    #[serde(rename = "Вторник")]
     #[strum(to_string = "Вторник")]
     Tuesday,
+    #[serde(rename = "Среда")]
     #[strum(to_string = "Среда")]
     Wednesday,
+    #[serde(rename = "Четверг")]
     #[strum(to_string = "Четверг")]
     Thursday,
+    #[serde(rename = "Пятница")]
     #[strum(to_string = "Пятница")]
     Friday,
+    #[serde(rename = "Суббота")]
     #[strum(to_string = "Суббота")]
     Saturday,
+    #[serde(rename = "Воскресенье")]
     #[strum(to_string = "Воскресенье")]
     Sunday
 }

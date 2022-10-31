@@ -1,7 +1,7 @@
 use log::info;
 
 use crate::data::schedule::{
-    remote::table::SubjectMapping,
+    remote::table::{SubjectMapping, WeekdayDate},
     Subject,
     Day,
     Group,
@@ -31,8 +31,21 @@ impl Parser {
             return Some(self.page.as_ref().unwrap())
         }
 
+        let base_weekday: &WeekdayDate = &self.schema.get(0)?.get(0)?.weekday_date;
+
+        let mut groups: Vec<Group> = vec![];
+
+
         for group_row in self.schema.iter() {
-            for subject in group_row.iter() {
+
+            let group_name = &group_row.get(0)?.group;
+
+            let mut days: Vec<Day> = vec![];
+            let mut subjects: Vec<Subject> = vec![];
+
+
+            for (index, subject) in group_row.iter().enumerate() {
+                let next_subject = group_row.get(index + 1);
 
                 let mut subject_strings: Vec<String> = vec![];
 
@@ -47,24 +60,70 @@ impl Parser {
                 }
 
                 for subject_string in subject_strings.iter_mut() {
+
+                    if subject_string.is_empty() { continue; }
+
                     let teachers = teacher::extract_from_end(subject_string);
 
                     let subject = Subject {
-                        raw: subject.cell.text.clone(),
-                        num: subject.num_time.num,
-                        time: subject.num_time.time.clone(),
-                        name: subject_string.clone(),
-                        format: Format::Remote,
+                        raw:      subject.cell.text.clone(),
+                        num:      subject.num_time.num,
+                        time:     subject.num_time.time.clone(),
+                        name:     subject_string.clone(),
+                        format:   Format::Remote,
                         teachers,
-                        cabinet: None,
+                        cabinet:  None,
                     };
 
-                    info!("{:#?}", subject);
+                    if !subject.is_fulltime_window() {
+                        subjects.push(subject);
+                    }
+                }
+
+                
+                let is_changing_weekday = {
+                    next_subject.is_some()
+                    && next_subject.as_ref().unwrap().weekday_date != subject.weekday_date
+                };
+
+                let was_last = {
+                    next_subject.is_none()
+                };
+
+                if is_changing_weekday || was_last {
+
+                    let day = Day {
+                        raw:      subject.weekday_date.cell.text.clone(),
+                        weekday:  subject.weekday_date.weekday.clone(),
+                        date:     subject.weekday_date.date.clone(),
+                        subjects: {
+                            let mut subjs = vec![];
+                            subjs.append(&mut subjects);
+                            subjs
+                        }
+                    };
+                    days.push(day);
+
                 }
             }
-            todo!();
+
+            let group = Group {
+                raw:  group_name.raw.to_owned(),
+                name: group_name.valid.to_owned(),
+                days
+            };
+
+            groups.push(group);
         }
 
-        todo!()
+        let page = Page {
+            raw: base_weekday.cell.text.to_owned(),
+            date: base_weekday.date,
+            groups,
+        };
+
+        self.page = Some(page);
+
+        Some(self.page.as_ref().unwrap())
     }
 }

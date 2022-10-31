@@ -9,6 +9,8 @@ use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
 use std::ops::Range;
 
+use super::weekday::Weekday;
+
 lazy_static! {
     static ref FULLTIME_WINDOW_CORPUS: Corpus = {
         let mut corpus = CorpusBuilder::new()
@@ -25,7 +27,7 @@ lazy_static! {
 
 /* CONTAINERS */
 
-/// ## Container for typed schedule
+/// # Container for typed schedule
 /// - contains schedule data
 /// and tells what type it is:
 /// `Weekly` or `Daily`
@@ -40,7 +42,7 @@ impl Typed {
 }
 
 
-/// ## Stores last converted schedule
+/// # Stores last converted schedule
 /// - used for comparing schedules
 pub struct Last {
     pub weekly: Option<Typed>,
@@ -60,7 +62,7 @@ impl Default for Last {
 
 /* SCHEDULE */
 
-/// ## Format of a lesson
+/// # Format of a lesson
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Format {
     /// Means you take ur ass
@@ -84,7 +86,7 @@ pub enum Format {
     Remote
 }
 
-/// ## Schedule type
+/// # Schedule type
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     /// Was parsed from a weekly
@@ -95,12 +97,12 @@ pub enum Type {
     Daily
 }
 
-/// ## Single subject (lesson) in a `Weekday`
+/// # Single subject (lesson) in a `Weekday`
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Subject {
-    /// ## Raw representation, before parsing
+    /// # Raw representation, before parsing
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - **"ебанохулогия Ебанько Х.Й., ауд.69"**
     /// (*"fuckindicklogy Eban'ko D.C., cab.69"*)
     /// - **"Ебанохулогия. Ебанько Х.Й."**
@@ -108,47 +110,47 @@ pub struct Subject {
     /// 
     /// !!! (**D.C.** is **DICK**) !!!
     pub raw: String,
-    /// ## Subject number
+    /// # Subject number
     pub num: u32,
-    /// ## Subject time range
+    /// # Subject time range
     /// 
     /// - parsed from smth like
     /// `9:00-10:00`
     pub time: Range<NaiveTime>,
-    /// ## Subject name
+    /// # Subject name
     /// 
     /// - doesn't have a specific format,
     /// so comparing two same subjects 
     /// that are written different would
     /// be difficult
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - `Fulltime`s are usually written like
     ///     - **"ебанохулогия"** (*"fuckindicklogy"*)
     /// - `Remote`s are always written like
     ///     - **"Eбанохулогия."** (*"Fuckindicklogy."*)
     pub name: String,
-    /// ## Subject format
+    /// # Subject format
     /// 
     /// - see more in an enum itself
     pub format: Format,
-    /// ## Subject teachers
+    /// # Subject teachers
     /// 
     /// - yes, we have multiple teachers
     /// for a signle subject
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - **"`Ебанько Х.Й.`"** (*"Eban'ko D.C."*)
     /// - `Ебанько Х.` (*"Eban'ko D."*)
     /// 
     /// !!! (**D.C.** is **DICK**) !!!
     pub teachers: Vec<String>,
-    /// ## Subject's cabinet
+    /// # Subject's cabinet
     /// 
     /// - only makes sense if subject's
     /// format is `Fulltime`
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - **"ауд.69"** (*"cab.69"*)
     /// - **"ауд.69б"** (*"cab.69b"*)
     /// - **"ауд.69,78"** (*"cab.69,78"*)
@@ -176,33 +178,34 @@ impl Subject {
     }
 }
 
-/// ## Single weekday (Mon, Tue) in a week
+/// # Single weekday (Mon, Tue) in a week
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Day {
-    /// ## Raw name of a weekday
-    /// ### Examples
+    /// # Raw name of a weekday
+    /// ## Examples
     /// - **"Понедельник"** (*"Monday"*)
     /// - **"Вторник"** (*"Tuesday"*)
     /// - ...
     pub raw: String,
-    /// ## Its date
+    pub weekday: Weekday,
+    /// # Its date
     /// 
     /// - `year`, `month` and `day`
     /// - `time` is useless here
     pub date: NaiveDate,
-    /// ## List of subjects on this day
+    /// # List of subjects on this day
     pub subjects: Vec<Subject>,
 }
 
-/// ## Group's full schedule container
+/// # Group's full schedule container
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Group {
-    /// ## Raw header of a group
+    /// # Raw header of a group
     /// 
     /// - each group has its label
     /// in the big official schedule
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - for `Fulltime`: 
     ///     - **"РАСПИСАНИЕ ГРУППЫ 1КДД69 неделя C 01/01/69 по 07/01/69"**
     ///     (*"SCHEDULE FOR GROUP 1KDD69 week from 01/01/69 to 07/01/69"*)
@@ -210,29 +213,29 @@ pub struct Group {
     ///     - **"1-кДД-69"**
     ///     (*"1-kDD-69"*)
     pub raw: String,
-    /// ## Friendly group name
+    /// # Friendly group name
     /// 
     /// - taken and prettified from 
     /// a `raw` field, should always 
     /// be in the same format
     /// 
-    /// ### Example
+    /// ## Example
     /// - **"1КДД69"** (*"1KDD69"*)
     pub name: String,
     /// ## List of weekdays for this group
-    pub weekdays: Vec<Day>,
+    pub days: Vec<Day>,
 }
 
-/// ## Whole schedule page
+/// # Whole schedule page
 /// - contains a list of groups
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Page {
-    /// ## Raw page header
+    /// # Raw page header
     /// 
     /// - different for each 
     /// schedule type
     /// 
-    /// ### Examples
+    /// ## Examples
     /// - `ft_weekly`: takes first group's header
     ///     - **"РАСПИСАНИЕ ГРУППЫ 1КДД69 неделя C 01/01/69 по 07/01/69"**
     ///     (*"SCHEDULE FOR GROUP 1KDD69 week from 01/01/69 to 07/01/69"*)
@@ -253,11 +256,8 @@ pub struct Page {
     ///     - **"понедельник 01.01.69"**
     ///     (*"monday 01.01.69"*)
     pub raw: String,
-    /// ## The date this page relates to
-    /// 
-    /// ### Examples
-    /// - ``
+    /// # The date this page relates to
     pub date: NaiveDate,
-    /// ## List of groups on this page
+    /// # List of groups on this page
     pub groups: Vec<Group>,
 }

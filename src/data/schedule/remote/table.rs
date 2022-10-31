@@ -7,7 +7,7 @@ use crate::data::{
 };
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WeekdayDate {
     pub cell: Cell,
     pub index: usize,
@@ -46,16 +46,27 @@ impl NumTime {
 }
 
 #[derive(Debug, Clone)]
+pub struct Group {
+    pub raw: String,
+    pub valid: String,
+}
+impl Group {
+    pub fn new(raw: String, valid: String, ) -> Group {
+        Group { raw, valid }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SubjectMapping {
     pub cell: Cell,
-    pub group: String,
+    pub group: Group,
     pub num_time: NumTime,
     pub weekday_date: WeekdayDate,
 }
 impl SubjectMapping {
     pub fn new(
         cell: Cell,
-        group: String,
+        group: Group,
         num_time: NumTime, 
         weekday_date: WeekdayDate, 
     ) -> SubjectMapping {

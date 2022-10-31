@@ -47,8 +47,6 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     perf!(let mut mappings = table.mapping());
     perf!(let page = mappings.as_mut().unwrap().page());
 
-    info!("{:?}", page);
-
     //let time_row = latest.as_mut().unwrap().1.time_table();
     //info!("time: {:?}", time_row.unwrap());
 

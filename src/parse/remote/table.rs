@@ -1,17 +1,15 @@
-use std::ops::RangeBounds;
-
 use log::info;
 use chrono::NaiveDate;
-use itertools::Itertools;
 
 use crate::{data::{
     schedule::{
         raw::table, 
-        remote::table::{NumTime, WeekdayDate, SubjectMapping},
-        Page,
-        Group,
-        Day,
-        Subject,
+        remote::table::{
+            NumTime, 
+            WeekdayDate, 
+            Group, 
+            SubjectMapping, 
+        },
     },
     weekday::Weekday,
 }, parse::group};
@@ -143,21 +141,22 @@ impl Parser {
 
         for row in self.table.schema.iter() {
 
-            let y = row.get(0)?.y;
+            let y = row.get(0).unwrap().y;
 
-            let group = group::parse(&row.get(0)?.text);
-            if group.is_none() { continue; }
-            let group = group.unwrap();
+            
+            let raw_group = &row.get(0).unwrap().text;
+            let valid_group = group::parse(&raw_group);
+
+            if valid_group.is_none() { continue; }
+
+            let group = Group::new(
+                raw_group.to_string(),
+                valid_group.unwrap().to_string()
+            );
 
             let mut mappings: Vec<SubjectMapping> = vec![];
 
-
-            let mut past_cells_count = 0;
-
-            let mut weekday_index = 0;
-            let mut num_time_index = 0;
-
-            for (index, cell) in row[1..].iter().enumerate() {
+            for cell in row[1..].iter() {
                 let x = cell.x;
 
                 for hit in hits.iter_mut() {
@@ -165,7 +164,11 @@ impl Parser {
                     if hit.is_done { continue; }
                     if hit.at_y != y { continue; }
 
-                    let last_map_cell_rng = { mappings.last().map(|map| map.cell.width()..x).unwrap_or(0..x) };
+                    let last_map_cell_rng = {
+                        mappings.last().map(|map| 
+                            (map.cell.x + map.cell.width())..x
+                        ).unwrap_or(0..x)
+                    };
 
                     if !last_map_cell_rng.contains(&hit.at_x) {
                         continue;
@@ -173,9 +176,9 @@ impl Parser {
 
                     let mut y_neighbour = None;
 
-                    for mappings in grouped_mappings.iter().rev() {
+                    for maps in grouped_mappings.iter().rev() {
 
-                        let map = mappings.iter().rev().find(|&map| 
+                        let map = maps.iter().find(|&map| 
                             last_map_cell_rng.contains(&map.cell.x)
                             && map.cell.y == hit.by.y
                         );
@@ -200,13 +203,27 @@ impl Parser {
                     hit.done();
                 }
 
+                
+                let last_mapping_x = mappings.last().map(|map| map.cell.x).unwrap_or(0);
+                let last_mapping_colspan = mappings.last().map(|map| map.cell.colspan).unwrap_or(0);
+
+                let past_cells_count = {
+                    last_mapping_x + last_mapping_colspan.checked_sub(1).unwrap_or(0)
+                };
+
+
                 let weekday_date = {
-                    self.weekday_date_row.as_ref().unwrap()
-                    .get(weekday_index)?
+                    self.weekday_date_row.as_ref().unwrap().iter().find(|wkd| 
+                        (
+                            (wkd.cell.x)
+                            ..
+                            (wkd.cell.x + wkd.cell.colspan)
+                        ).contains(&(past_cells_count + 1))
+                    ).unwrap()
                 };
                 let num_time = {
                     self.num_time_row.as_ref().unwrap()
-                    .get(num_time_index)?
+                    .get(past_cells_count).unwrap()
                 };
 
 
@@ -235,15 +252,6 @@ impl Parser {
                         future_y += 1;
                     }
                 }
-
-
-                past_cells_count += cell.width();
-                weekday_index = {
-                    past_cells_count / weekday_date.cell.colspan as usize
-                };
-                num_time_index = {
-                    past_cells_count
-                };
             }
 
             grouped_mappings.push(mappings);
