@@ -133,7 +133,7 @@ impl Parser {
         Some(self.num_time_row.as_ref().unwrap())
     }
 
-    pub fn mapping(&mut self) -> Option<&mapping::Parser> {
+    pub fn mapping(&mut self) -> Option<&mut mapping::Parser> {
 
         self.weekday_date_row()?;
         self.num_time_row()?;
@@ -251,6 +251,6 @@ impl Parser {
 
         self.mapping = Some(mapping::Parser::from_schema(grouped_mappings));
 
-        Some(self.mapping.as_ref().unwrap())
+        Some(self.mapping.as_mut().unwrap())
     }
 }

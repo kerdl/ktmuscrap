@@ -44,8 +44,10 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
 
     //info!("{:?}", table.weekday_date_row());
     //info!("{:?}", table.num_time_row());
-    perf!(let mappings = table.mapping());
-    info!("{:?}", mappings);
+    perf!(let mut mappings = table.mapping());
+    perf!(let page = mappings.as_mut().unwrap().page());
+
+    info!("{:?}", page);
 
     //let time_row = latest.as_mut().unwrap().1.time_table();
     //info!("time: {:?}", time_row.unwrap());
