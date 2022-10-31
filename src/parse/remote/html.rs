@@ -273,7 +273,7 @@ impl Parser {
                 // of this "for cell" loop
                 for condition in x_jumping_conds.iter_mut() {
                     if {
-                        // if isn't permormed
+                        // if isn't performed
                         // previously
                         !condition.is_done
                         // and if current X axis
