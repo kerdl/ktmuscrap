@@ -1,4 +1,4 @@
-use html_parser::{Dom, Node};
+use html_parser::{Dom, Node, Error};
 use tokio::sync::RwLock;
 use std::{sync::Arc, path::PathBuf};
 
@@ -91,38 +91,15 @@ impl Parser {
     /// may fail
     pub async fn from_string(string: String, path: PathBuf) -> SyncResult<Parser> {
 
-        // spawned thread will send converted data here
-        let dom = Arc::new(RwLock::new(Dom::default()));
-
-        // make a reference to it,
-        // we'll pass this ref to separate thread
-        let dom_ref = dom.clone();
-
         // `spawn_blocking` spawns the task 
         // in a separate thread,
         // but only allows synchronous code
-        let handle = tokio::task::spawn_blocking(move || -> SyncResult<()> {
-
-            // actually parse it
-            let parsed_dom = Dom::parse(&string)?;
-
-            // acquire lock on this `dom` variable
-            let mut dom = dom_ref.blocking_write();
-            // send data there
-            *dom = parsed_dom;
-
-            Ok(())
+        let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
+            Dom::parse(&string)
         }); // `dom` lock releases
 
         // wait until the spawned task finishes
-        handle.await??;
-
-        // acquire lock on dom variable
-        let mut dom_write_lock = dom.write().await;
-
-        // get rid of all this Arc<RwLock> bullshit,
-        // leaving us with clean `Dom`
-        let dom = std::mem::take(&mut *dom_write_lock);
+        let dom = handle.await??;
         let table = None;
 
         Ok(Parser::new(dom, path, table))

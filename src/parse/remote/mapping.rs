@@ -90,7 +90,7 @@ impl Parser {
                     next_subject.is_none()
                 };
 
-                if is_changing_weekday || was_last {
+                if (is_changing_weekday || was_last) && !subjects.is_empty() {
 
                     let day = Day {
                         raw:      subject.weekday_date.cell.text.clone(),

@@ -5,8 +5,8 @@ use crate::RAW_SCHEDULE;
 
 #[post("/schedule/daily/convert")]
 async fn convert() -> impl Responder {
-    let parser = crate::parse::remote::parse;
-    let schedule = RAW_SCHEDULE.r_weekly.clone();
+    let parser = crate::parse::fulltime::parse_ft_weekly;
+    let schedule = RAW_SCHEDULE.ft_weekly.clone();
 
     super::generic_parse(parser, schedule).await
 }

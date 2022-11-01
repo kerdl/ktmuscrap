@@ -16,7 +16,7 @@ use crate::{
     SyncResult,
     perf,
     REMOTE_SCHEDULE_INDEX_PATH,
-    REMOTE_SCHEDULE_INDEX,
+    REMOTE_SCHEDULE_INDEX, parse::fulltime,
 };
 use super::error;
 
@@ -147,11 +147,19 @@ impl Zip {
         Ok(filtered_htmls)
     }
 
-    pub async fn to_html_container(&self) -> SyncResult<HtmlContainer> {
+    pub async fn to_remote_html_container(&self) -> SyncResult<HtmlContainer> {
         let html_paths = self.html_paths().await?;
         let container = HtmlContainer::from_paths(html_paths).await?;
 
         Ok(container)
+    }
+
+    pub async fn to_fulltime_parser(&self) -> SyncResult<fulltime::html::Parser> {
+        let html_paths = self.html_paths().await?;
+        let html_path = html_paths.get(0).unwrap();
+        let parser = fulltime::html::Parser::from_path(html_path.clone()).await;
+
+        parser
     }
 }
 
