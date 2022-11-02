@@ -1,6 +1,7 @@
 pub mod error;
 pub mod schedule;
 
+use derive_new::new;
 use actix_web::{web, http::StatusCode};
 use serde_derive::Serialize;
 
@@ -8,21 +9,17 @@ use crate::data::schedule as sc;
 use error::base::{ApiError, Kind};
 
 
-#[derive(Serialize)]
+#[derive(new, Serialize)]
 pub struct Data {
     pub schedule: Option<sc::Page>
 }
 impl Data {
-    pub fn new(schedule: Option<sc::Page>) -> Data {
-        Data { schedule }
-    }
-
     pub fn from_schedule(schedule: sc::Page) -> Data {
         Data::new(Some(schedule))
     }
 }
 
-#[derive(Serialize)]
+#[derive(new, Serialize)]
 pub struct Response {
     is_ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -31,10 +28,6 @@ pub struct Response {
     error: Option<ApiError>,
 }
 impl Response {
-    pub fn new(is_ok: bool, data: Option<Data>, error: Option<ApiError>) -> Response {
-        Response { is_ok, data, error }
-    }
-    
     pub fn ok() -> Response {
         Response::new(true, None, None)
     }

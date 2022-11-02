@@ -1,4 +1,5 @@
 use log::info;
+use derive_new::new;
 use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc, collections::HashMap, future::Future};
@@ -6,14 +7,11 @@ use std::{path::PathBuf, sync::Arc, collections::HashMap, future::Future};
 use crate::{parse::remote::html, SyncResult, perf};
 
 
+#[derive(new)]
 pub struct Container {
     pub list: Vec<html::Parser>
 }
 impl Container {
-    pub fn new(list: Vec<html::Parser>, ) -> Container {
-        Container { list }
-    }
-
     pub async fn from_paths(paths: Vec<PathBuf>) -> SyncResult<Container> {
         let mut this = Container::default();
 

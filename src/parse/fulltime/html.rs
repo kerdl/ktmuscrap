@@ -1,25 +1,24 @@
 use log::info;
+use derive_new::new;
 use html_parser::{Dom, Node, Error};
 use htmlescape;
 use std::path::PathBuf;
 
-use crate::SyncResult;
-use super::table::Parser as TableParser;
+use crate::{REGEX, SyncResult, data::schedule::fulltime::html::HeaderTable};
+use super::{tables::Parser as TablesParser, super::node};
 
 
+enum Lookup {
+    Header,
+    Table
+}
+
+#[derive(new)]
 pub struct Parser {
     dom: Dom,
-    table: Option<TableParser>,
+    tables: Option<TablesParser>,
 }
 impl Parser {
-    pub fn new(
-        dom: Dom,
-        table: Option<TableParser>,
-    ) -> Parser {
-
-        Parser { dom, table }
-    }
-
     pub async fn from_string(html_text: String, ) -> SyncResult<Parser> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
             Dom::parse(&html_text)
@@ -61,16 +60,79 @@ impl Parser {
         })
     }
 
-    pub fn table(&mut self) -> Option<&TableParser> {
+    fn html_table_to_vec(&self, node: &Node) -> Option<Vec<Vec<String>>> {
+        let mut rows: Vec<Vec<String>> = vec![];
 
-        if self.table.is_some() {
-            return Some(self.table.as_ref().unwrap())
+        for row in node.element()?.children.iter() {
+            let mut cells: Vec<String> = vec![];
+
+            for cell in row.element().unwrap().children.iter() {
+                cells.push(node::text::nested_as_string(cell, " "))
+            }
+
+            rows.append(&mut vec![cells]);
         }
+
+        Some(rows)
+    }
+
+    pub fn tables(&mut self) -> Option<&mut TablesParser> {
+
+        if self.tables.is_some() {
+            return Some(self.tables.as_mut().unwrap())
+        }
+
+        let mut lookup = Lookup::Header;
+
+        let mut header: Option<String> = None;
+
+        let mut header_tables: Vec<HeaderTable> = vec![];
+
 
         for node in self.main_body()?.element()?.children.iter() {
-            info!("{:?}", node)
+
+            if node.element().is_none() {
+                continue;
+            }
+
+            match lookup {
+                Lookup::Header => {
+                    if node.element().unwrap().name != "p" {
+                        continue;
+                    }
+
+                    let text = node::text::nested_as_string(node, " ");
+
+                    if !REGEX.group.is_match(&text) {
+                        continue;
+                    }
+
+                    header = Some(text);
+
+                    lookup = Lookup::Table;
+                    continue;
+                }
+                Lookup::Table => {
+                    if node.element().unwrap().name != "table" {
+                        continue;
+                    }
+
+                    let table = self.html_table_to_vec(node);
+
+                    let header_table = HeaderTable::new(
+                        header.take().unwrap(), 
+                        table.unwrap()
+                    );
+                    header_tables.push(header_table);
+
+                    lookup = Lookup::Header;
+                    continue;
+                }
+            }
         }
 
-        todo!()
+        self.tables = Some(TablesParser::from_header_tables(header_tables));
+
+        Some(self.tables.as_mut().unwrap())
     }
 }

@@ -3,6 +3,7 @@ pub mod raw;
 pub mod fulltime;
 pub mod remote;
 
+use derive_new::new;
 use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
@@ -31,27 +32,19 @@ lazy_static! {
 /// - contains schedule data
 /// and tells what type it is:
 /// `Weekly` or `Daily`
+#[derive(new)]
 pub struct Typed { 
     pub sc_type: Type,
     pub schedule: Page
-}
-impl Typed {
-    pub fn new(sc_type: Type, schedule: Page) -> Typed {
-        Typed { sc_type, schedule }
-    }
 }
 
 
 /// # Stores last converted schedule
 /// - used for comparing schedules
+#[derive(new)]
 pub struct Last {
     pub weekly: Option<Typed>,
     pub daily: Option<Typed>
-}
-impl Last {
-    pub fn new(weekly: Option<Typed>, daily: Option<Typed>) -> Last {
-        Last { weekly, daily }
-    }
 }
 impl Default for Last {
     fn default() -> Last {
@@ -97,7 +90,7 @@ pub enum Type {
     Daily
 }
 
-/// # Single subject (lesson) in a `Weekday`
+/// # Single subject (lesson) in a `Day`
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Subject {
     /// # Raw representation, before parsing
@@ -257,7 +250,7 @@ pub struct Page {
     ///     (*"monday 01.01.69"*)
     pub raw: String,
     /// # The date this page relates to
-    pub date: NaiveDate,
+    pub date: Range<NaiveDate>,
     /// # List of groups on this page
     pub groups: Vec<Group>,
 }

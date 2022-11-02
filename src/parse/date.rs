@@ -1,4 +1,5 @@
 use chrono::{NaiveDate, Datelike};
+use std::ops::Range;
 
 use super::error;
 use crate::{REGEX, DynResult};
@@ -62,6 +63,16 @@ pub fn parse_dmy(string: &str) -> Option<NaiveDate> {
     let day = dmy.get(0)?.parse::<u32>().ok()?;
 
     NaiveDate::from_ymd_opt(year, month, day)
+}
+
+pub fn parse_dmy_range(string: &str) -> Option<Range<NaiveDate>> {
+    let raw_start_date = REGEX.date.find(string)?;
+    let raw_end_date = REGEX.date.find_at(string, raw_start_date.end())?;
+
+    let start = parse_dmy(raw_start_date.as_str())?;
+    let end = parse_dmy(raw_end_date.as_str())?;
+
+    Some(start..end)
 }
 
 pub fn remove(string: &str) -> String {

@@ -1,4 +1,5 @@
 use log::info;
+use derive_new::new;
 use chrono::NaiveDate;
 
 use crate::{data::{
@@ -7,7 +8,6 @@ use crate::{data::{
         remote::table::{
             NumTime, 
             WeekdayDate, 
-            Group, 
             SubjectMapping, 
         },
     },
@@ -17,7 +17,7 @@ use super::{super::{date, time, num}, mapping};
 
 
 /// # 2nd step of parsing remote schedule
-#[derive(Debug, Clone)]
+#[derive(new, Debug, Clone)]
 pub struct Parser {
     table: table::Body,
 
@@ -27,23 +27,6 @@ pub struct Parser {
     mapping: Option<mapping::Parser>,
 }
 impl Parser {
-    pub fn new(
-        table: table::Body, 
-        base_date: Option<NaiveDate>,
-        weekday_date_row: Option<Vec<WeekdayDate>>,
-        num_time_row: Option<Vec<NumTime>>,
-        mappings: Option<mapping::Parser>,
-    ) -> Parser {
-
-        Parser {
-            table,
-            base_date,
-            weekday_date_row,
-            num_time_row,
-            mapping: mappings
-        }
-    }
-
     pub fn from_table(table: table::Body) -> Parser {
         Parser::new(table, None, None, None, None)
     }
@@ -149,7 +132,7 @@ impl Parser {
 
             if valid_group.is_none() { continue; }
 
-            let group = Group::new(
+            let group = table::Group::new(
                 raw_group.to_string(),
                 valid_group.unwrap().to_string()
             );

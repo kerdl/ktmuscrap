@@ -1,3 +1,4 @@
+use derive_new::new;
 use html_parser::{Dom, Node, Error};
 use tokio::sync::RwLock;
 use std::{sync::Arc, path::PathBuf};
@@ -62,22 +63,13 @@ use super::{
 /// in `self.table`, a reference to which
 /// it will return later on to not recalculate
 /// the same thing
-#[derive(Debug, Clone)]
+#[derive(new, Debug, Clone)]
 pub struct Parser {
     dom: Dom,
     pub path: PathBuf,
     table: Option<TableParser>,
 }
 impl Parser {
-    pub fn new(
-        dom: Dom,
-        path: PathBuf,
-        table: Option<TableParser>,
-    ) -> Parser {
-
-        Parser { dom, path, table }
-    }
-
     /// # Load from HTML text
     /// 
     /// ## Params

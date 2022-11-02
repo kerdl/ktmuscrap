@@ -1,9 +1,10 @@
+use chrono::{NaiveDate, Duration, Datelike};
 use ngrammatic::{Corpus, CorpusBuilder, Pad, SearchResult};
 use serde_derive::{Serialize, Deserialize};
 use strum::IntoEnumIterator;
 use strum_macros::{EnumString, EnumIter, Display};
 use lazy_static::lazy_static;
-use std::str::FromStr;
+use std::{str::FromStr, ops::Range, collections::HashMap};
 
 
 lazy_static! {
@@ -19,10 +20,36 @@ lazy_static! {
 
         corpus
     };
+
+    static ref CHRONO_WEEKDAY_MAP: HashMap<chrono::Weekday, Weekday> = {
+        let mut map = HashMap::new();
+
+        map.insert(chrono::Weekday::Mon, Weekday::Monday);
+        map.insert(chrono::Weekday::Tue, Weekday::Tuesday);
+        map.insert(chrono::Weekday::Wed, Weekday::Wednesday);
+        map.insert(chrono::Weekday::Thu, Weekday::Thursday);
+        map.insert(chrono::Weekday::Fri, Weekday::Friday);
+        map.insert(chrono::Weekday::Sat, Weekday::Saturday);
+        map.insert(chrono::Weekday::Sun, Weekday::Sunday);
+
+        map
+    };
 }
 
 
-#[derive(Serialize, Deserialize, EnumString, Display, EnumIter, Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    EnumString, 
+    Display, 
+    EnumIter, 
+    Debug, 
+    Clone, 
+    PartialEq, 
+    Eq,
+    PartialOrd,
+    Ord,
+)]
 pub enum Weekday {
     #[serde(rename = "Понедельник")]
     #[strum(to_string = "Понедельник")]
@@ -53,5 +80,23 @@ impl Weekday {
                 Weekday::from_str(&weekday.text).ok()
             }
         ).flatten()
+    }
+
+    pub fn date_from_range(
+        &self,
+        range: &Range<NaiveDate>
+    ) -> Option<NaiveDate> {
+
+        let mut date = range.start;
+
+        while range.start <= range.end {
+            if self == CHRONO_WEEKDAY_MAP.get(&date.weekday()).unwrap() {
+                return Some(date)
+            }
+
+            date = date + Duration::days(1);
+        }
+
+        None
     }
 }

@@ -1,4 +1,5 @@
 use log::info;
+use derive_new::new;
 
 use crate::data::schedule::{
     remote::table::{SubjectMapping, WeekdayDate},
@@ -11,17 +12,13 @@ use super::super::{teacher, subject};
 
 
 /// # 3rd, final step of parsing remote schedule
-#[derive(Debug, Clone)]
+#[derive(new, Debug, Clone)]
 pub struct Parser {
     schema: Vec<Vec<SubjectMapping>>,
 
     page: Option<Page>
 }
 impl Parser {
-    pub fn new(schema: Vec<Vec<SubjectMapping>>, page: Option<Page>) -> Parser {
-        Parser { schema, page, }
-    }
-
     pub fn from_schema(schema: Vec<Vec<SubjectMapping>>) -> Parser {
         Parser::new(schema, None)
     }
@@ -118,7 +115,14 @@ impl Parser {
 
         let page = Page {
             raw: base_weekday.cell.text.to_owned(),
-            date: base_weekday.date,
+            date: {
+                let header_row = self.schema.get(0).unwrap();
+
+                let start = header_row.first().unwrap().weekday_date.date;
+                let end = header_row.last().unwrap().weekday_date.date;
+
+                start..end
+            },
             groups,
         };
 

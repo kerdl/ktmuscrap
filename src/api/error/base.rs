@@ -1,3 +1,4 @@
+use derive_new::new;
 use serde_derive::Serialize;
 
 use crate::api::{Response, ToResponse};
@@ -18,16 +19,11 @@ pub enum Kind {
     DataFailure
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(new, Serialize, Clone, Debug)]
 pub struct ApiError {
     pub kind: Kind,
     pub error: ErrorNum,
     pub text: String
-}
-impl ApiError {
-    pub const fn new(kind: Kind, error: ErrorNum, text: String) -> ApiError {
-        ApiError { kind, error, text }
-    }
 }
 impl ToResponse for ApiError {
     fn to_response(self) -> Response {

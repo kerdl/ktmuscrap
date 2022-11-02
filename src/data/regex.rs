@@ -70,7 +70,7 @@ impl Default for Container {
         let teacher     = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
         let end_teacher = format!(r"({})$", teacher);
         let initial     = r"([А-ЯЁ][.])$";
-        let cabinet     = r"([аa][уy]д)[.].*(\d|\w)([.]|[,]){0,1}";
+        let cabinet     = r"([аa][уy]д)[.].+";
         let nonword     = r"\W";
         let digit       = r"\d";
 

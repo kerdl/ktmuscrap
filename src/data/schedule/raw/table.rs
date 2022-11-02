@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+use derive_new::new;
+
+#[derive(new, Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub x: usize,
     pub y: usize,
@@ -9,23 +11,6 @@ pub struct Cell {
     pub text: String,
 }
 impl Cell {
-    pub fn new(
-        x: usize,
-        y: usize,
-        colspan: usize,
-        rowspan: usize,
-        text: String,
-    ) -> Cell {
-
-        Cell {
-            x,
-            y,
-            colspan,
-            rowspan,
-            text,
-        }
-    }
-
     pub fn width(&self) -> usize {
         if self.colspan < 1 { 1 }
         else { self.colspan }
@@ -101,12 +86,13 @@ impl<'a> Hit<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(new, Debug, Clone)]
 pub struct Body {
     pub schema: Vec<Vec<Cell>>,
 }
-impl Body {
-    pub fn new(schema: Vec<Vec<Cell>>, ) -> Body {
-        Body { schema }
-    }
+
+#[derive(new, Debug, Clone)]
+pub struct Group {
+    pub raw: String,
+    pub valid: String,
 }

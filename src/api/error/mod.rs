@@ -6,7 +6,7 @@ use serde_derive::Serialize;
 use std::path::PathBuf;
 
 use base::{ApiError, Kind, ToApiError};
-use crate::data::schedule;
+use crate::{data::schedule, derive_new::new};
 
 
 /// # Less boilerplate API error
@@ -42,14 +42,9 @@ macro_rules! api_err {
         // |this| format!("fuck you {}", this.field1)
         error: $error_closure: expr
     ) => {
-        #[derive(Debug, Clone)]
+        #[derive(new, Debug, Clone)]
         pub struct $name {
             $($($visibility $field: $field_type),*)?
-        }
-        impl $name {
-            pub fn new($($($field: $field_type),*)?) -> $name {
-                $name { $($($field),*)? }
-            }
         }
         impl ToApiError for $name {
             fn to_api_error(&self) -> ApiError {

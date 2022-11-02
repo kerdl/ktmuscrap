@@ -1,6 +1,6 @@
 pub mod html;
-pub mod table;
-pub mod mapping;
+pub mod tables;
+pub mod mappings;
 
 use tokio::sync::RwLock;
 use std::sync::Arc;
@@ -18,7 +18,9 @@ pub async fn parse_ft_weekly(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
 
     let mut parser = schedule.to_fulltime_parser().await?;
 
-    parser.table();
+    let tables = parser.tables().unwrap();
+    let mappings = tables.mappings().unwrap();
+    let page = mappings.page();
 
     Ok(())
 }
@@ -26,7 +28,11 @@ pub async fn parse_ft_weekly(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
 pub async fn parse_ft_daily(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     let schedule = schedule.read().await;
 
-    let parser = schedule.to_fulltime_parser().await?;
+    let mut parser = schedule.to_fulltime_parser().await?;
+
+    let tables = parser.tables().unwrap();
+    let mappings = tables.mappings().unwrap();
+    let page = mappings.page();
 
     Ok(())
 }

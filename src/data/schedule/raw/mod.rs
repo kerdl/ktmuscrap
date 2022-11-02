@@ -1,6 +1,7 @@
 pub mod table;
 
 use log::info;
+use derive_new::new;
 use serde_derive::{Serialize, Deserialize};
 use serde_json;
 use zip::read::ZipArchive;
@@ -30,15 +31,12 @@ pub enum Type {
 }
 
 
+#[derive(new)]
 pub struct Zip {
     sc_type: Type,
     pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
-    pub fn new(sc_type: Type, content: RwLock<Option<Bytes>>) -> Zip {
-        Zip { sc_type, content }
-    }
-
     pub async fn set_content(&self, content: Bytes) {
         let mut field = self.content.write().await;
         *field = Some(content);
@@ -163,6 +161,7 @@ impl Zip {
     }
 }
 
+#[derive(new)]
 pub struct Container {
     /// ## `F`ull`t`ime `weekly` schdule ZIP file
     pub ft_weekly: Arc<RwLock<Zip>>,
@@ -172,14 +171,6 @@ pub struct Container {
     pub r_weekly: Arc<RwLock<Zip>>,
 }
 impl Container {
-    pub fn new(
-        ft_weekly: Arc<RwLock<Zip>>, 
-        ft_daily: Arc<RwLock<Zip>>, 
-        r_weekly: Arc<RwLock<Zip>>
-    ) -> Container {
-        Container { ft_weekly, ft_daily, r_weekly }
-    }
-
     /// ## Remove all folders of schedules
     pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
         self.ft_weekly.read().await.remove_folder_if_exists().await?;
@@ -213,16 +204,12 @@ impl Default for Container {
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(new, Serialize, Deserialize)]
 pub struct Index {
     pub path: PathBuf,
     pub ignored: HashSet<PathBuf>
 }
 impl Index {
-    pub fn new(path: PathBuf, ignored: HashSet<PathBuf>) -> Index {
-        Index { path, ignored }
-    }
-
     pub fn load(path: PathBuf) -> SyncResult<Index> {
         let de = std::fs::read_to_string(path)?;
         let index: Index = serde_json::de::from_str(&de)?;

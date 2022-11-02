@@ -5,8 +5,9 @@ pub mod date;
 pub mod time;
 pub mod num;
 pub mod group;
-pub mod teacher;
 pub mod subject;
+pub mod teacher;
+pub mod cabinet;
 pub mod error;
 
 use chrono::NaiveDate;
@@ -59,7 +60,7 @@ pub async fn weekly() -> Result<schedule::Page, ApiError> {
 
     Ok(schedule::Page {
         raw: "".to_owned(), 
-        date: NaiveDate::from_ymd(2020, 1, 1),
+        date: NaiveDate::from_ymd(2020, 1, 1)..NaiveDate::from_ymd(2020, 1, 1),
         groups: vec![]
     })
 }
@@ -69,7 +70,7 @@ pub async fn daily() -> Result<schedule::Page, ApiError> {
 
     Ok(schedule::Page {
         raw: "".to_owned(), 
-        date: NaiveDate::from_ymd(2020, 1, 1),
+        date: NaiveDate::from_ymd(2020, 1, 1)..NaiveDate::from_ymd(2020, 1, 1),
         groups: vec![]
     })
 }

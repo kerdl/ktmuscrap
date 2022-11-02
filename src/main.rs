@@ -8,6 +8,7 @@ pub mod debug;
 
 pub use log::info;
 pub use std::time::Instant;
+pub use derive_new;
 use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
 use tokio::sync::RwLock;
