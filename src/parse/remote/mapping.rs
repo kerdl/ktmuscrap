@@ -2,11 +2,14 @@ use log::info;
 use derive_new::new;
 
 use crate::data::schedule::{
+    raw,
     remote::table::{SubjectMapping, WeekdayDate},
+    Type,
     Subject,
     Day,
     Group,
-    Page, Format
+    Page, 
+    Format
 };
 use super::super::{teacher, subject};
 
@@ -114,7 +117,9 @@ impl Parser {
         }
 
         let page = Page {
-            raw: base_weekday.cell.text.to_owned(),
+            raw:       base_weekday.cell.text.to_owned(),
+            raw_types: vec![raw::Type::RWeekly],
+            sc_type:   Type::Weekly,
             date: {
                 let header_row = self.schema.get(0).unwrap();
 

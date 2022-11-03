@@ -1,6 +1,6 @@
-use crate::err;
+use thiserror::Error;
 
-err!(
-    YearTooLarge,
-    "year is larger than 4 digits"
-);
+
+#[derive(Error, Debug)]
+#[error("year is larger than 4 digits")]
+pub struct YearTooLarge;

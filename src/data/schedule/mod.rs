@@ -1,7 +1,8 @@
-pub mod error;
 pub mod raw;
 pub mod fulltime;
 pub mod remote;
+pub mod debug;
+pub mod error;
 
 use derive_new::new;
 use lazy_static::lazy_static;
@@ -28,23 +29,12 @@ lazy_static! {
 
 /* CONTAINERS */
 
-/// # Container for typed schedule
-/// - contains schedule data
-/// and tells what type it is:
-/// `Weekly` or `Daily`
-#[derive(new)]
-pub struct Typed { 
-    pub sc_type: Type,
-    pub schedule: Page
-}
-
-
 /// # Stores last converted schedule
 /// - used for comparing schedules
 #[derive(new)]
 pub struct Last {
-    pub weekly: Option<Typed>,
-    pub daily: Option<Typed>
+    pub weekly: Option<Page>,
+    pub daily: Option<Page>
 }
 impl Default for Last {
     fn default() -> Last {
@@ -80,7 +70,14 @@ pub enum Format {
 }
 
 /// # Schedule type
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone, 
+    PartialEq, 
+    Eq
+)]
 pub enum Type {
     /// Was parsed from a weekly
     /// (`ft_weekly` and `r_weekly`) schedule
@@ -241,14 +238,17 @@ pub struct Page {
     /// somehow corrupted (cutted) it, 
     /// breaking bad the whole parser,
     /// so just for stability we'll
-    /// still search for group headers
-    /// in case the primary one isn't found
+    /// only search for group headers
     /// 
     /// - `r_weekly`: we take the 1B table cell
     /// (too sad not 2B i wanted her to step on my dick)
     ///     - **"понедельник 01.01.69"**
     ///     (*"monday 01.01.69"*)
     pub raw: String,
+    /// # Raw schedule types used to make this `Page`
+    pub raw_types: Vec<raw::Type>,
+    /// # What schedule type this `Page` is
+    pub sc_type: Type,
     /// # The date this page relates to
     pub date: Range<NaiveDate>,
     /// # List of groups on this page

@@ -12,6 +12,7 @@ use crate::{data::{
                 CellType
             }
         }, 
+        Type,
         Page, 
         Group,
         Day,
@@ -129,7 +130,15 @@ impl<'a> Parser<'a> {
         }
 
         let page = Page {
-            raw: groups.get(0).unwrap().raw.clone(),
+            raw:       groups.get(0).unwrap().raw.clone(),
+            raw_types: vec![self.sc_type.clone()],
+            sc_type: {
+                match self.sc_type {
+                    raw::Type::FtDaily => Type::Daily,
+                    raw::Type::FtWeekly => Type::Weekly,
+                    _ => unreachable!()
+                }
+            },
             date: {
                 let first_group = groups.get(0).unwrap();
 

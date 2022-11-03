@@ -1,9 +1,9 @@
 pub mod api;
 pub mod data;
 pub mod parse;
+pub mod merge;
 pub mod fs;
 pub mod logger;
-pub mod error;
 pub mod debug;
 
 pub use log::info;
@@ -15,7 +15,7 @@ use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
-use data::{schedule, regex};
+use data::{schedule::{self, debug::Dummy}, regex};
 
 
 static LOGGER: Logger = Logger;
@@ -68,6 +68,14 @@ async fn main() -> std::io::Result<()> {
         tokio::fs::create_dir(TEMP_PATH.as_path()).await?;
         info!("created {:?}", TEMP_PATH.as_path());
     }
+
+    let ft_weekly = data::schedule::Page::dummy();
+
+    let r_weekly = data::schedule::Page::dummy();
+
+    merge::weekly::merge(ft_weekly, r_weekly).await;
+
+    std::process::exit(0);
 
     // start http server
     HttpServer::new(|| {

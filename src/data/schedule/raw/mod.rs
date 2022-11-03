@@ -22,7 +22,16 @@ use crate::{
 use super::error;
 
 
-#[derive(Serialize, Debug, Display, Clone, PartialEq, Eq, EnumString)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Display, 
+    Clone, 
+    PartialEq, 
+    Eq, 
+    EnumString
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum Type {
     FtWeekly,

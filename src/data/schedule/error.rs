@@ -1,7 +1,6 @@
-use crate::err;
+use thiserror::Error;
 
-err!(
-    ExtractingEmptyContent, 
-    "cannot extract empty content"
-);
 
+#[derive(Error, Debug)]
+#[error("cannot extract empty content")]
+pub struct ExtractingEmptyContent;

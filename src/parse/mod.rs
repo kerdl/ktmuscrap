@@ -58,19 +58,11 @@ async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
 pub async fn weekly() -> Result<schedule::Page, ApiError> {
     pre_check(schedule::Type::Weekly).await?;
 
-    Ok(schedule::Page {
-        raw: "".to_owned(), 
-        date: NaiveDate::from_ymd(2020, 1, 1)..NaiveDate::from_ymd(2020, 1, 1),
-        groups: vec![]
-    })
+    todo!()
 }
 
 pub async fn daily() -> Result<schedule::Page, ApiError> {
     pre_check(schedule::Type::Daily).await?;
 
-    Ok(schedule::Page {
-        raw: "".to_owned(), 
-        date: NaiveDate::from_ymd(2020, 1, 1)..NaiveDate::from_ymd(2020, 1, 1),
-        groups: vec![]
-    })
+    todo!()
 }

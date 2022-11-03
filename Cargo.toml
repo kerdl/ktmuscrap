@@ -13,6 +13,7 @@ actix-web = "4"
 log = "0.4"
 colored = "2"
 lazy_static = "1.4.0"
+thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"]}
 zip = "0.6.3"
 itertools = "0.10.5"
