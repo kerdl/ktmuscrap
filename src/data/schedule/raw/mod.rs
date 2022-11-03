@@ -152,10 +152,13 @@ impl Zip {
         Ok(container)
     }
 
-    pub async fn to_fulltime_parser(&self) -> SyncResult<fulltime::html::Parser> {
+    pub async fn to_fulltime_parser(&self, sc_type: Type) -> SyncResult<fulltime::html::Parser> {
         let html_paths = self.html_paths().await?;
         let html_path = html_paths.get(0).unwrap();
-        let parser = fulltime::html::Parser::from_path(html_path.clone()).await;
+        let parser = fulltime::html::Parser::from_path(
+            html_path.clone(), 
+            sc_type
+        ).await;
 
         parser
     }

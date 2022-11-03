@@ -7,16 +7,16 @@ use std::sync::Arc;
 
 use crate::{
     REMOTE_SCHEDULE_INDEX,
-    data::schedule::raw::Zip, 
+    data::schedule::{raw}, 
     SyncResult,
     perf
 };
 
 
-pub async fn parse_ft_weekly(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
+pub async fn generic_parse(schedule: Arc<RwLock<raw::Zip>>, sc_type: raw::Type) -> SyncResult<()> {
     let schedule = schedule.read().await;
 
-    let mut parser = schedule.to_fulltime_parser().await?;
+    let mut parser = schedule.to_fulltime_parser(sc_type).await?;
 
     let tables = parser.tables().unwrap();
     let mappings = tables.mappings().unwrap();
@@ -25,14 +25,14 @@ pub async fn parse_ft_weekly(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     Ok(())
 }
 
-pub async fn parse_ft_daily(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
-    let schedule = schedule.read().await;
+pub async fn parse_ft_weekly(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<()> {
+    let sc_type = raw::Type::FtWeekly;
 
-    let mut parser = schedule.to_fulltime_parser().await?;
+    generic_parse(schedule, sc_type).await
+}
 
-    let tables = parser.tables().unwrap();
-    let mappings = tables.mappings().unwrap();
-    let page = mappings.page();
+pub async fn parse_ft_daily(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<()> {
+    let sc_type = raw::Type::FtDaily;
 
-    Ok(())
+    generic_parse(schedule, sc_type).await
 }

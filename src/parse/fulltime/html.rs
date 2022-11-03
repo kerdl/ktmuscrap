@@ -4,7 +4,7 @@ use html_parser::{Dom, Node, Error};
 use htmlescape;
 use std::path::PathBuf;
 
-use crate::{REGEX, SyncResult, data::schedule::fulltime::html::HeaderTable};
+use crate::{REGEX, SyncResult, data::schedule::{fulltime::html::HeaderTable, raw}};
 use super::{tables::Parser as TablesParser, super::node};
 
 
@@ -15,11 +15,12 @@ enum Lookup {
 
 #[derive(new)]
 pub struct Parser {
+    sc_type: raw::Type,
     dom: Dom,
     tables: Option<TablesParser>,
 }
 impl Parser {
-    pub async fn from_string(html_text: String, ) -> SyncResult<Parser> {
+    pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
             Dom::parse(&html_text)
         });
@@ -27,15 +28,15 @@ impl Parser {
         let dom = handle.await??;
         let table = None;
 
-        let parser = Parser::new(dom, table);
+        let parser = Parser::new(sc_type, dom, table);
 
         Ok(parser)
     }
 
-    pub async fn from_path(path: PathBuf) -> SyncResult<Parser> {
+    pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> SyncResult<Parser> {
         let html_text = tokio::fs::read_to_string(path).await?;
         let decoded_html_text = htmlescape::decode_html(&html_text).unwrap();
-        Parser::from_string(decoded_html_text).await
+        Parser::from_string(decoded_html_text, sc_type).await
     }
 
     fn main_html(&self) -> Option<&Node> {
