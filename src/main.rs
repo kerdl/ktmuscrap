@@ -6,6 +6,7 @@ pub mod fs;
 pub mod logger;
 pub mod debug;
 
+use chrono::NaiveDate;
 pub use log::info;
 pub use std::time::Instant;
 pub use derive_new;
@@ -71,9 +72,13 @@ async fn main() -> std::io::Result<()> {
 
     let ft_weekly = data::schedule::Page::dummy();
 
-    let r_weekly = data::schedule::Page::dummy();
+    let mut r_weekly = data::schedule::Page::dummy();
 
-    merge::weekly::merge(ft_weekly, r_weekly).await;
+    r_weekly.date = NaiveDate::from_ymd(2022, 11, 3)..NaiveDate::from_ymd(2022, 11, 5);
+
+    let a = merge::weekly::merge(ft_weekly, r_weekly).await;
+
+    info!("{:?}", a);
 
     std::process::exit(0);
 

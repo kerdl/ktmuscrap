@@ -1,7 +1,7 @@
 use log::info;
 use chrono::{Datelike, Weekday};
 
-use crate::{data::schedule::Page, SyncResult};
+use crate::{data::schedule::{Page, debug::Dummy}, SyncResult};
 use super::error;
 
 
@@ -19,12 +19,10 @@ pub async fn merge(
         week.first_day()..week.last_day()
     };
 
-    info!("{:?} {:?}", ft_week, r_week);
-
     if ft_week != r_week {
         return Err(error::DifferentWeeks.into())
     }
 
 
-    todo!()
+    Ok(Page::dummy())
 }
