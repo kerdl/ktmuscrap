@@ -32,17 +32,19 @@ use super::{
 
 
 #[derive(new)]
-pub struct Parser {
+pub struct Parser<'a> {
+    sc_type: &'a raw::Type,
     pub groups_subjects: Vec<GroupSubjects>,
 
     pub page: Option<Page>
 }
-impl Parser {
+impl<'a> Parser<'a> {
     pub fn from_groups_subjects(
         groups_subjects: Vec<GroupSubjects>,
-    ) -> Parser {
+        sc_type: &'a raw::Type
+    ) -> Parser<'a> {
 
-        Parser::new(groups_subjects, None)
+        Parser::new(sc_type, groups_subjects, None)
     }
 
     pub fn page(&mut self) -> Option<&Page> {
@@ -134,7 +136,11 @@ impl Parser {
                 let start = first_group.days.first().unwrap().date;
                 let end = first_group.days.last().unwrap().date;
 
-                start..end
+                match self.sc_type {
+                    raw::Type::FtWeekly => start..end,
+                    raw::Type::FtDaily => start..start,
+                    _ => unreachable!()
+                }
             },
             groups
         };

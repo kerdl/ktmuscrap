@@ -29,17 +29,18 @@ use super::{
 
 
 #[derive(new)]
-pub struct Parser {
+pub struct Parser<'a> {
+    sc_type: &'a raw::Type,
     header_tables: Vec<HeaderTable>,
 
-    mappings: Option<MappingsParser>
+    mappings: Option<MappingsParser<'a>>
 }
-impl Parser {
-    pub fn from_header_tables(header_tables: Vec<HeaderTable>) -> Parser {
-        Parser::new(header_tables, None)
+impl<'a> Parser<'a> {
+    pub fn from_header_tables(header_tables: Vec<HeaderTable>, sc_type: &raw::Type) -> Parser {
+        Parser::new(sc_type, header_tables, None)
     }
 
-    pub fn mappings(&mut self) -> Option<&mut MappingsParser> {
+    pub fn mappings(&'a mut self) -> Option<&mut MappingsParser> {
         if self.mappings.is_some() {
             return Some(self.mappings.as_mut().unwrap())
         }
@@ -121,7 +122,8 @@ impl Parser {
         }
 
         let parser = MappingsParser::from_groups_subjects(
-            groups_maps
+            groups_maps,
+            &self.sc_type
         );
 
         self.mappings = Some(parser);
