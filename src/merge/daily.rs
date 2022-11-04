@@ -36,6 +36,8 @@ pub fn group(
             day(ft_day, &mut r_day);
         }
     }
+
+    ft_group.days.sort();
 }
 
 
@@ -64,6 +66,7 @@ pub fn page(
         ) {
             group(&ft_date, ft_group, &mut r_group);
         } else {
+            r_group.remove_days_except(ft_date);
             ft_daily.groups.push(r_group);
         }
     }

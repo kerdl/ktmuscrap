@@ -37,26 +37,21 @@ async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
     let ft_daily = crate::RAW_SCHEDULE.ft_daily.read().await;
     let r_weekly = crate::RAW_SCHEDULE.r_weekly.read().await;
 
-    let ft_weekly_content = ft_weekly.content.read().await;
-    let ft_daily_content = ft_daily.content.read().await;
-    let r_weekly_content = r_weekly.content.read().await;
-
-
-    let weekly_schedules_loaded = {
-        ft_weekly_content.is_some() 
-        && r_weekly_content.is_some()
+    let has_weekly_schedules = {
+        ft_weekly.path().exists()
+        && r_weekly.path().exists()
     };
-    let daily_schedules_loaded = {
-        ft_daily_content.is_some() 
-        && r_weekly_content.is_some()
+    let has_daily_schedules = {
+        ft_daily.path().exists()
+        && r_weekly.path().exists()
     };
 
 
-    if sc_type == schedule::Type::Weekly && !weekly_schedules_loaded {
+    if sc_type == schedule::Type::Weekly && !has_weekly_schedules {
         return Err(api_err::NoWeeklySchedulesLoaded::new().to_api_error())
     }
 
-    if sc_type == schedule::Type::Daily && !daily_schedules_loaded {
+    if sc_type == schedule::Type::Daily && !has_daily_schedules {
         return Err(api_err::NoDailySchedulesLoaded::new().to_api_error())
     }
 

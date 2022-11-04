@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
-use std::ops::Range;
+use std::{ops::Range, cmp::Ordering};
 
 use super::weekday::Weekday;
 
@@ -46,7 +46,14 @@ impl Default for Last {
 /* SCHEDULE */
 
 /// # Format of a lesson
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone,
+    PartialEq,
+    Eq
+)]
 pub enum Format {
     /// Means you take ur ass
     /// and go to this fucking
@@ -88,7 +95,13 @@ pub enum Type {
 }
 
 /// # Single subject (lesson) in a `Day`
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone,
+    Eq
+)]
 pub struct Subject {
     /// # Raw representation, before parsing
     /// 
@@ -167,9 +180,30 @@ impl Subject {
         !self.is_fulltime_window() && no_teachers
     }
 }
+impl Ord for Subject {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.num.cmp(&other.num)
+    }
+}
+impl PartialOrd for Subject {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl PartialEq for Subject {
+    fn eq(&self, other: &Self) -> bool {
+        self.num == other.num
+    }
+}
 
 /// # Single weekday (Mon, Tue) in a week
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone,
+    Eq,
+)]
 pub struct Day {
     /// # Raw name of a weekday
     /// ## Examples
@@ -185,6 +219,22 @@ pub struct Day {
     pub date: NaiveDate,
     /// # List of subjects on this day
     pub subjects: Vec<Subject>,
+}
+impl Ord for Day {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.weekday.cmp(&other.weekday)
+    }
+}
+impl PartialOrd for Day {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Day {
+    fn eq(&self, other: &Self) -> bool {
+        self.weekday == other.weekday
+    }
 }
 
 /// # Group's full schedule container
@@ -214,6 +264,15 @@ pub struct Group {
     pub name: String,
     /// ## List of weekdays for this group
     pub days: Vec<Day>,
+}
+impl Group {
+    pub fn remove_days_except(&mut self, date: NaiveDate) {
+        while let Some(index) = self.days.iter().position(
+            |day| day.date != date
+        ) {
+            self.days.remove(index);
+        }
+    }
 }
 
 /// # Whole schedule page

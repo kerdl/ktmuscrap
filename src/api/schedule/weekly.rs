@@ -1,9 +1,14 @@
 use actix_web::{get, delete, post, Responder, web};
-use crate::parse;
+use crate::{RAW_SCHEDULE, parse};
 
 
 #[post("/schedule/weekly/convert")]
 async fn convert() -> impl Responder {
+    parse::weekly(
+        RAW_SCHEDULE.ft_weekly.clone(), 
+        RAW_SCHEDULE.r_weekly.clone()
+    ).await.unwrap();
+
     ""
 }
 

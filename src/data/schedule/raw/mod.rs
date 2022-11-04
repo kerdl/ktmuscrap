@@ -46,17 +46,6 @@ pub struct Zip {
     pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
-    pub async fn load(&self) -> SyncResult<()> {
-        let path = self.zip_path();
-
-        let file_vec = tokio::fs::read(path).await?;
-        let file_bytes = Bytes::from(file_vec);
-
-        self.set_content(file_bytes).await;
-
-        Ok(())
-    }
-
     pub async fn set_content(&self, content: Bytes) -> SyncResult<()> {
         let mut field = self.content.write().await;
         *field = Some(content);
@@ -205,18 +194,6 @@ pub struct Container {
     pub r_weekly: Arc<RwLock<Zip>>,
 }
 impl Container {
-    pub async fn load(&self) -> SyncResult<()> {
-        let ft_daily = self.ft_daily.read().await;
-        let ft_weekly = self.ft_weekly.read().await;
-        let r_weekly = self.r_weekly.read().await;
-
-        ft_daily.load().await?;
-        ft_weekly.load().await?;
-        r_weekly.load().await?;
-
-        Ok(())
-    }
-
     /// ## Remove all folders of schedules
     pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
         self.ft_weekly.read().await.remove_folder_if_exists().await?;

@@ -4,17 +4,48 @@ use chrono::{Datelike, Weekday};
 use crate::{
     data::schedule::{
         Page,
-        Group,
+        Group, Day,
     },
     SyncResult
 };
 use super::error;
 
+pub fn day(
+    ft_day: &mut Day,
+    r_day: &mut Day,
+) {
+    let r_subjects = {
+        let mut v = vec![];
+        v.append(&mut r_day.subjects);
+        v
+    };
+
+    for r_subject in r_subjects.into_iter() {
+        ft_day.subjects.push(r_subject);
+    }
+}
+
 pub fn group(
     ft_group: &mut Group,
     r_group: &mut Group,
 ) {
-    
+    let r_days = {
+        let mut v = vec![];
+        v.append(&mut r_group.days);
+        v
+    };
+
+    for mut r_day in r_days.into_iter() {
+        if let Some(ft_day) = ft_group.days.iter_mut().find(
+            |day| day.date == r_day.date
+        ) {
+            day(ft_day, &mut r_day);
+        } else {
+            ft_group.days.push(r_day);
+        }
+    }
+
+    ft_group.days.sort();
 }
 
 pub fn page(
