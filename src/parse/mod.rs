@@ -10,11 +10,20 @@ pub mod teacher;
 pub mod cabinet;
 pub mod error;
 
-use chrono::NaiveDate;
+use tokio::sync::RwLock;
+use std::sync::Arc;
 
-use crate::api::error::base::ToApiError;
-use crate::data::schedule;
-use crate::api::error::{self as api_err, base::ApiError};
+use crate::{
+    SyncResult, 
+    api::error::{
+        self as api_err, 
+        base::{
+            ToApiError, 
+            ApiError
+        }
+    }, 
+    data::schedule::{self, raw}
+};
 
 
 /// ## Pre-check if everything necessary is set
@@ -55,8 +64,14 @@ async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
 }
 
 
-pub async fn weekly() -> Result<schedule::Page, ApiError> {
+pub async fn weekly(
+    ft_weekly: Arc<RwLock<raw::Zip>>,
+    r_weekly: Arc<RwLock<raw::Zip>>
+) -> SyncResult<schedule::Page> {
     pre_check(schedule::Type::Weekly).await?;
+
+    let ft_weekly_page = fulltime::parse_ft_weekly(ft_weekly).await?;
+    let r_weekly_page = remote::parse(r_weekly).await?;
 
     todo!()
 }

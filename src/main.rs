@@ -41,6 +41,9 @@ lazy_static! {
     static ref RAW_SCHEDULE: Arc<schedule::raw::Container> = {
         Arc::new(schedule::raw::Container::default())
     };
+    static ref LAST_SCHEDULE: Arc<schedule::Last> = {
+        Arc::new(schedule::Last::default())
+    };
     static ref REMOTE_SCHEDULE_INDEX: Arc<RwLock<schedule::raw::Index>> = {
         let sc = schedule::raw::Index::load_or_init(
             REMOTE_SCHEDULE_INDEX_PATH.to_path_buf()
@@ -50,9 +53,6 @@ lazy_static! {
     };
     static ref REGEX: Arc<regex::Container> = {
         Arc::new(regex::Container::default())
-    };
-    static ref LAST_SCHEDULE: Arc<schedule::Last> = {
-        Arc::new(schedule::Last::default())
     };
 }
 
