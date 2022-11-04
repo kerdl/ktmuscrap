@@ -24,6 +24,7 @@ use crate::{
     }, 
     data::schedule::{self, raw}
 };
+use super::merge;
 
 
 /// ## Pre-check if everything necessary is set
@@ -70,14 +71,30 @@ pub async fn weekly(
 ) -> SyncResult<schedule::Page> {
     pre_check(schedule::Type::Weekly).await?;
 
-    let ft_weekly_page = fulltime::parse_ft_weekly(ft_weekly).await?;
-    let r_weekly_page = remote::parse(r_weekly).await?;
+    let mut ft_weekly_page = fulltime::parse_ft_weekly(ft_weekly).await?;
+    let mut r_weekly_page = remote::parse(r_weekly).await?;
 
-    todo!()
+    merge::weekly::page(
+        &mut ft_weekly_page, 
+        &mut r_weekly_page
+    )?;
+
+    Ok(ft_weekly_page)
 }
 
-pub async fn daily() -> Result<schedule::Page, ApiError> {
+pub async fn daily(
+    ft_daily: Arc<RwLock<raw::Zip>>,
+    r_weekly: Arc<RwLock<raw::Zip>>
+) -> SyncResult<schedule::Page> {
     pre_check(schedule::Type::Daily).await?;
 
-    todo!()
+    let mut ft_daily_page = fulltime::parse_ft_daily(ft_daily).await?;
+    let mut r_weekly_page = remote::parse(r_weekly).await?;
+
+    merge::daily::page(
+        &mut ft_daily_page, 
+        &mut r_weekly_page
+    )?;
+
+    Ok(ft_daily_page)
 }

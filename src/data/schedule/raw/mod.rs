@@ -46,9 +46,27 @@ pub struct Zip {
     pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
-    pub async fn set_content(&self, content: Bytes) {
+    pub async fn load(&self) -> SyncResult<()> {
+        let path = self.zip_path();
+
+        let file_vec = tokio::fs::read(path).await?;
+        let file_bytes = Bytes::from(file_vec);
+
+        self.set_content(file_bytes).await;
+
+        Ok(())
+    }
+
+    pub async fn set_content(&self, content: Bytes) -> SyncResult<()> {
         let mut field = self.content.write().await;
         *field = Some(content);
+
+        tokio::fs::write(
+            self.zip_path(), 
+            field.as_ref().unwrap()
+        ).await?;
+
+        Ok(())
     }
 
     pub async fn clear_content(&self) {
@@ -56,7 +74,7 @@ impl Zip {
         field.take();
     }
 
-    /// ## Generate path for this schedule type
+    /// ## Generate path for this schedule type's folder
     pub fn path(&self) -> PathBuf {
         // naming the directory the same as schedule type
         let dir_name = self.sc_type.to_string();
@@ -64,6 +82,10 @@ impl Zip {
         let dir_path = crate::TEMP_PATH.join(dir_name);
 
         dir_path
+    }
+
+    pub fn zip_path(&self) -> PathBuf {
+        self.path().with_extension("zip")
     }
 
     pub async fn create_folder(&self) -> tokio::io::Result<()> {
@@ -183,6 +205,18 @@ pub struct Container {
     pub r_weekly: Arc<RwLock<Zip>>,
 }
 impl Container {
+    pub async fn load(&self) -> SyncResult<()> {
+        let ft_daily = self.ft_daily.read().await;
+        let ft_weekly = self.ft_weekly.read().await;
+        let r_weekly = self.r_weekly.read().await;
+
+        ft_daily.load().await?;
+        ft_weekly.load().await?;
+        r_weekly.load().await?;
+
+        Ok(())
+    }
+
     /// ## Remove all folders of schedules
     pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
         self.ft_weekly.read().await.remove_folder_if_exists().await?;

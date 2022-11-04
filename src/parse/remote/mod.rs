@@ -8,14 +8,14 @@ use std::sync::Arc;
 
 use crate::{
     REMOTE_SCHEDULE_INDEX,
-    data::schedule::raw::Zip, 
+    data::schedule::{raw, Page}, 
     SyncResult,
     perf
 };
-use super::node;
+use super::{node, error};
 
 
-pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
+pub async fn parse(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<Page> {
     let schedule = schedule.read().await;
 
     let mut html_container = schedule.to_remote_html_container().await?;
@@ -38,18 +38,16 @@ pub async fn parse(schedule: Arc<RwLock<Zip>>) -> SyncResult<()> {
     index.remove_ignored().await;
 
     let mut latest = html_container.latest().await;
-    info!("latest: {}", latest.as_ref().unwrap().0);
 
     let table = latest.as_mut().unwrap().1.table().unwrap();
 
-    //info!("{:?}", table.weekday_date_row());
-    //info!("{:?}", table.num_time_row());
-    perf!(let mut mappings = table.mapping());
-    perf!(let page = mappings.as_mut().unwrap().page());
+    let mapping = table.mapping();
+    if mapping.is_none() {
+        return Err(error::NoMappings::new(raw::Type::RWeekly).into())
+    }
+    let mapping = mapping.unwrap();
 
-    //let time_row = latest.as_mut().unwrap().1.time_table();
-    //info!("time: {:?}", time_row.unwrap());
+    mapping.page();
 
-    
-    Ok(())
+    Ok(mapping.page.take().unwrap())
 }

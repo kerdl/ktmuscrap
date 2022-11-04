@@ -77,6 +77,7 @@ pub enum ErrorNum {
 
     NoWeeklySchedulesLoaded = 200,
     NoDailySchedulesLoaded,
+    ScheduleSavingFailed,
     ScheduleExtractionFailed,
     ScheduleDeletionFailed,
     MassScheduleDeletionFailed,
@@ -145,6 +146,18 @@ api_err!(
     fields:  (pub error: String, pub sc_type: String),
     error:   |this| format!(
         "failed to decode raw bytes to utf-8 with error {:?}", 
+        this.error
+    )
+);
+
+api_err!(
+    name:    ScheduleSavingFailed,
+    as_enum: ErrorNum::ScheduleSavingFailed,
+    kind:    Kind::InternalFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to save with error {:?}", 
+        this.sc_type.to_string(), 
         this.error
     )
 );

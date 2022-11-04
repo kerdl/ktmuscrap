@@ -5,7 +5,10 @@ use crate::{RAW_SCHEDULE, parse};
 
 #[post("/schedule/daily/convert")]
 async fn convert() -> impl Responder {
-    parse::daily().await;
+    parse::daily(
+        RAW_SCHEDULE.ft_daily.clone(), 
+        RAW_SCHEDULE.r_weekly.clone()
+    ).await.unwrap();
 
     ""
 }

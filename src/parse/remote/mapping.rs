@@ -19,7 +19,7 @@ use super::super::{teacher, subject};
 pub struct Parser {
     schema: Vec<Vec<SubjectMapping>>,
 
-    page: Option<Page>
+    pub page: Option<Page>
 }
 impl Parser {
     pub fn from_schema(schema: Vec<Vec<SubjectMapping>>) -> Parser {

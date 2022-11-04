@@ -1,7 +1,6 @@
 pub mod html;
 pub mod tables;
 pub mod mappings;
-pub mod error;
 
 use tokio::sync::RwLock;
 use std::sync::Arc;
@@ -13,6 +12,7 @@ use crate::{
     merge,
     perf
 };
+use super::error;
 
 
 async fn generic_parse(
