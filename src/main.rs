@@ -70,18 +70,6 @@ async fn main() -> std::io::Result<()> {
         info!("created {:?}", TEMP_PATH.as_path());
     }
 
-    let ft_weekly = data::schedule::Page::dummy();
-
-    let mut r_weekly = data::schedule::Page::dummy();
-
-    r_weekly.date = NaiveDate::from_ymd(2022, 11, 3)..NaiveDate::from_ymd(2022, 11, 5);
-
-    let a = merge::weekly::merge(ft_weekly, r_weekly).await;
-
-    info!("{:?}", a);
-
-    std::process::exit(0);
-
     // start http server
     HttpServer::new(|| {
         App::new()
