@@ -9,9 +9,11 @@ use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
-use std::{ops::Range, cmp::Ordering};
+use tokio::sync::RwLock;
+use std::{ops::Range, cmp::Ordering, sync::Arc};
 
 use super::weekday::Weekday;
+
 
 lazy_static! {
     static ref FULLTIME_WINDOW_CORPUS: Corpus = {
@@ -33,12 +35,15 @@ lazy_static! {
 /// - used for comparing schedules
 #[derive(new)]
 pub struct Last {
-    pub weekly: Option<Page>,
-    pub daily: Option<Page>
+    pub weekly: Arc<RwLock<Option<Arc<Page>>>>,
+    pub daily: Arc<RwLock<Option<Arc<Page>>>>
 }
 impl Default for Last {
     fn default() -> Last {
-        Last::new(None, None)
+        Last::new(
+            Arc::new(RwLock::new(None)),
+            Arc::new(RwLock::new(None))
+        )
     }
 }
 

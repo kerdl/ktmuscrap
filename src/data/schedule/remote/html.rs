@@ -149,8 +149,6 @@ impl Container {
             self.list.remove(old_index);
         }
 
-        info!("NEW LIST: {}", self.list.len());
-
         Some(removed_paths)
     }
 }

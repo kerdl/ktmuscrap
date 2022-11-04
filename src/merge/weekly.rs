@@ -1,16 +1,19 @@
 use log::info;
-use chrono::{Datelike, Weekday};
+use chrono::Weekday;
 
 use crate::{
     data::schedule::{
+        raw,
         Page,
-        Group, Day,
+        Group,
+        Day,
     },
     SyncResult
 };
 use super::error;
 
-pub fn day(
+
+pub async fn day(
     ft_day: &mut Day,
     r_day: &mut Day,
 ) {
@@ -25,7 +28,7 @@ pub fn day(
     }
 }
 
-pub fn group(
+pub async fn group(
     ft_group: &mut Group,
     r_group: &mut Group,
 ) {
@@ -39,7 +42,7 @@ pub fn group(
         if let Some(ft_day) = ft_group.days.iter_mut().find(
             |day| day.date == r_day.date
         ) {
-            day(ft_day, &mut r_day);
+            day(ft_day, &mut r_day).await;
         } else {
             ft_group.days.push(r_day);
         }
@@ -48,7 +51,7 @@ pub fn group(
     ft_group.days.sort();
 }
 
-pub fn page(
+pub async fn page(
     ft_weekly: &mut Page, 
     r_weekly: &mut Page,
 ) -> SyncResult<()> {
@@ -77,11 +80,16 @@ pub fn page(
         if let Some(ft_group) = ft_weekly.groups.iter_mut().find(
             |ft_group| ft_group.name == r_group.name
         ) {
-            group(ft_group, &mut r_group);
+            group(ft_group, &mut r_group).await;
         } else {
             ft_weekly.groups.push(r_group);
         }
     }
+
+    ft_weekly.raw_types = vec![
+        raw::Type::FtWeekly, 
+        raw::Type::RWeekly
+    ];
 
     Ok(())
 }

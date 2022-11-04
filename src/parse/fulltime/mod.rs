@@ -16,14 +16,14 @@ use super::error;
 
 
 async fn generic_parse(
-    schedule: Arc<RwLock<raw::Zip>>, 
+    schedule: Arc<raw::Schedule>, 
     sc_type: raw::Type
-) -> SyncResult<Page> {
+) -> SyncResult<()> {
 
-    let schedule = schedule.read().await;
+    let zip = schedule.zip.read().await;
 
     // get html parser
-    let mut parser = schedule.to_fulltime_parser(sc_type.clone()).await?;
+    let mut parser = zip.to_fulltime_parser(sc_type.clone()).await?;
 
 
     // get all tables from html page
@@ -44,16 +44,18 @@ async fn generic_parse(
     // generate page
     mappings.page();
 
-    Ok(mappings.page.take().unwrap())
+    *schedule.parsed.write().await = mappings.page.take();
+    
+    Ok(())
 }
 
-pub async fn parse_ft_weekly(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<Page> {
+pub async fn parse_ft_weekly(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
     let sc_type = raw::Type::FtWeekly;
 
     generic_parse(schedule, sc_type).await
 }
 
-pub async fn parse_ft_daily(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<Page> {
+pub async fn parse_ft_daily(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
     let sc_type = raw::Type::FtDaily;
 
     generic_parse(schedule, sc_type).await

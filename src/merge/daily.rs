@@ -5,7 +5,7 @@ use super::error;
 
 
 /// # Moves data from `r_day` to `ft_day`
-pub fn day(
+pub async fn day(
     ft_day: &mut Day,
     r_day: &mut Day
 ) {
@@ -13,7 +13,7 @@ pub fn day(
 }
 
 /// # Moves data from `r_group` to `ft_group`
-pub fn group(
+pub async fn group(
     ft_date: &NaiveDate,
     ft_group: &mut Group,
     r_group: &mut Group,
@@ -33,7 +33,7 @@ pub fn group(
         if let Some(ft_day) = ft_group.days.iter_mut().find(
             |ft_day| &ft_day.date == ft_date
         ) {
-            day(ft_day, &mut r_day);
+            day(ft_day, &mut r_day).await;
         }
     }
 
@@ -42,7 +42,7 @@ pub fn group(
 
 
 /// # Moves data from `r_weekly` to `ft_daily`
-pub fn page(
+pub async fn page(
     ft_daily: &mut Page, 
     r_weekly: &mut Page,
 ) -> SyncResult<()> {
@@ -64,7 +64,7 @@ pub fn page(
         if let Some(ft_group) = ft_daily.groups.iter_mut().find(
             |ft_group| ft_group.name == r_group.name
         ) {
-            group(&ft_date, ft_group, &mut r_group);
+            group(&ft_date, ft_group, &mut r_group).await;
         } else {
             r_group.remove_days_except(ft_date);
             ft_daily.groups.push(r_group);

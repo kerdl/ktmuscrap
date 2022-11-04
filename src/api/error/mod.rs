@@ -151,18 +151,6 @@ api_err!(
 );
 
 api_err!(
-    name:    ScheduleSavingFailed,
-    as_enum: ErrorNum::ScheduleSavingFailed,
-    kind:    Kind::InternalFailure,
-    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
-    error:   |this| format!(
-        "{} failed to save with error {:?}", 
-        this.sc_type.to_string(), 
-        this.error
-    )
-);
-
-api_err!(
     name:    ScheduleExtractionFailed,
     as_enum: ErrorNum::ScheduleExtractionFailed,
     kind:    Kind::UserFailure,

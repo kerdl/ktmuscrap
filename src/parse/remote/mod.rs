@@ -15,10 +15,10 @@ use crate::{
 use super::{node, error};
 
 
-pub async fn parse(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<Page> {
-    let schedule = schedule.read().await;
+pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
+    let zip = schedule.zip.read().await;
 
-    let mut html_container = schedule.to_remote_html_container().await?;
+    let mut html_container = zip.to_remote_html_container().await?;
 
     if let Some(removed_paths) = html_container.clear_old().await {
 
@@ -49,5 +49,7 @@ pub async fn parse(schedule: Arc<RwLock<raw::Zip>>) -> SyncResult<Page> {
 
     mapping.page();
 
-    Ok(mapping.page.take().unwrap())
+    *schedule.parsed.write().await = mapping.page.take();
+
+    Ok(())
 }

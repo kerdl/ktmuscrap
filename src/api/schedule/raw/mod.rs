@@ -32,17 +32,7 @@ async fn generic_load(
     // read lock for this field
     let field_read = field.read().await;
     // call content setter
-    let setting_result = field_read.set_content(bytes).await;
-
-    if setting_result.is_err() {
-        return error::ScheduleSavingFailed::new(
-            sc_type, 
-            setting_result.unwrap_err().to_string()
-        )
-            .to_api_error()
-            .to_response()
-            .to_json()
-    }
+    field_read.set_content(bytes).await;
 
     // extract ZIP
     let extraction_result = field_read.extract().await;

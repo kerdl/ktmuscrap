@@ -1,6 +1,6 @@
 use actix_web::{get, delete, post, Responder, web};
 
-use crate::{RAW_SCHEDULE, parse, api::Response};
+use crate::{RAW_SCHEDULE, LAST_SCHEDULE, parse, api::Response};
 use super::error_response;
 
 
@@ -16,9 +16,10 @@ async fn convert() -> impl Responder {
             parsing_result.unwrap_err()
         ).await;
     }
-    let parsed = parsing_result.unwrap();
+    let parsed = LAST_SCHEDULE.daily.read().await;
+    let page = parsed.as_ref().unwrap().clone();
 
-    Response::from_schedule(parsed).to_json()
+    Response::from_schedule(page).to_json()
 }
 
 #[get("/schedule/daily")]

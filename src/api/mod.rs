@@ -4,6 +4,7 @@ pub mod schedule;
 use derive_new::new;
 use actix_web::{web, http::StatusCode};
 use serde_derive::Serialize;
+use std::sync::Arc;
 
 use crate::data::schedule as sc;
 use error::base::{ApiError, Kind};
@@ -11,10 +12,10 @@ use error::base::{ApiError, Kind};
 
 #[derive(new, Serialize)]
 pub struct Data {
-    pub schedule: Option<sc::Page>
+    pub schedule: Option<Arc<sc::Page>>
 }
 impl Data {
-    pub fn from_schedule(schedule: sc::Page) -> Data {
+    pub fn from_schedule(schedule: Arc<sc::Page>) -> Data {
         Data::new(Some(schedule))
     }
 }
@@ -32,7 +33,7 @@ impl Response {
         Response::new(true, None, None)
     }
 
-    pub fn from_schedule(schedule: sc::Page) -> Response {
+    pub fn from_schedule(schedule: Arc<sc::Page>) -> Response {
         let data = Data::from_schedule(schedule);
 
         Response::new(true, Some(data), None)

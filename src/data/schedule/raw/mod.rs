@@ -13,9 +13,11 @@ use std::{path::PathBuf, io::Cursor, sync::Arc, collections::HashSet};
 use crate::{
     DynResult, 
     fs, 
-    data::schedule::remote::html::Container as HtmlContainer, 
+    data::schedule::{
+        remote::html::Container as HtmlContainer,
+        Page
+    }, 
     SyncResult,
-    perf,
     REMOTE_SCHEDULE_INDEX_PATH,
     REMOTE_SCHEDULE_INDEX, parse::fulltime,
 };
@@ -46,16 +48,9 @@ pub struct Zip {
     pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
-    pub async fn set_content(&self, content: Bytes) -> SyncResult<()> {
+    pub async fn set_content(&self, content: Bytes) {
         let mut field = self.content.write().await;
         *field = Some(content);
-
-        tokio::fs::write(
-            self.zip_path(), 
-            field.as_ref().unwrap()
-        ).await?;
-
-        Ok(())
     }
 
     pub async fn clear_content(&self) {
@@ -71,10 +66,6 @@ impl Zip {
         let dir_path = crate::TEMP_PATH.join(dir_name);
 
         dir_path
-    }
-
-    pub fn zip_path(&self) -> PathBuf {
-        self.path().with_extension("zip")
     }
 
     pub async fn create_folder(&self) -> tokio::io::Result<()> {
@@ -185,29 +176,35 @@ impl Zip {
 }
 
 #[derive(new)]
+pub struct Schedule {
+    pub zip: Arc<RwLock<Zip>>,
+    pub parsed: Arc<RwLock<Option<Page>>>
+}
+
+#[derive(new)]
 pub struct Container {
     /// ## `F`ull`t`ime `weekly` schdule ZIP file
-    pub ft_weekly: Arc<RwLock<Zip>>,
+    pub ft_weekly: Arc<Schedule>,
     /// ## `F`ull`t`ime `daily` schedule ZIP file
-    pub ft_daily: Arc<RwLock<Zip>>,
+    pub ft_daily: Arc<Schedule>,
     /// ## `R`emote `weekly` schedule ZIP file
-    pub r_weekly: Arc<RwLock<Zip>>,
+    pub r_weekly: Arc<Schedule>,
 }
 impl Container {
     /// ## Remove all folders of schedules
     pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
-        self.ft_weekly.read().await.remove_folder_if_exists().await?;
-        self.ft_daily.read().await.remove_folder_if_exists().await?;
-        self.r_weekly.read().await.remove_folder_if_exists().await?;
+        self.ft_weekly.zip.read().await.remove_folder_if_exists().await?;
+        self.ft_daily.zip.read().await.remove_folder_if_exists().await?;
+        self.r_weekly.zip.read().await.remove_folder_if_exists().await?;
 
         Ok(())
     }
 
     /// ## Clear all content loaded into RAM
     pub async fn clear_loaded(self: Arc<Self>) {
-        self.ft_weekly.read().await.clear_content().await;
-        self.ft_daily.read().await.clear_content().await;
-        self.r_weekly.read().await.clear_content().await;
+        self.ft_weekly.zip.read().await.clear_content().await;
+        self.ft_daily.zip.read().await.clear_content().await;
+        self.r_weekly.zip.read().await.clear_content().await;
     }
 
     /// ## Remove all folders and clear all content loaded into RAM
@@ -218,9 +215,24 @@ impl Container {
 }
 impl Default for Container {
     fn default() -> Container {
-        let ft_weekly = Arc::new(RwLock::new(Zip::new(Type::FtWeekly, RwLock::new(None))));
-        let ft_daily  = Arc::new(RwLock::new(Zip::new(Type::FtDaily, RwLock::new(None))));
-        let r_weekly  = Arc::new(RwLock::new(Zip::new(Type::RWeekly, RwLock::new(None))));
+        let ft_weekly = Arc::new(
+            Schedule::new(
+                Arc::new(RwLock::new(Zip::new(Type::FtWeekly, RwLock::new(None)))),
+                Arc::new(RwLock::new(None))
+            )
+        );
+        let ft_daily  = Arc::new(
+            Schedule::new(
+                Arc::new(RwLock::new(Zip::new(Type::FtDaily, RwLock::new(None)))),
+                Arc::new(RwLock::new(None))
+            )
+        );
+        let r_weekly  = Arc::new(
+            Schedule::new(
+                Arc::new(RwLock::new(Zip::new(Type::RWeekly, RwLock::new(None)))),
+                Arc::new(RwLock::new(None))
+            )
+        );
 
         Container::new(ft_weekly, ft_daily, r_weekly)
     }
