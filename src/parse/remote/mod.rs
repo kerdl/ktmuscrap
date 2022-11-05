@@ -41,32 +41,38 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
     }
     let latest = latest.as_mut().unwrap();
 
-
-    tokio::task::spawn_blocking(move || -> SyncResult<()> {
-        Ok(())
-    });
-
-    let table = latest.1.table();
-    if table.is_none() {
-        return Err(error::NoTables::new(
-            raw::Type::RWeekly
-        ).into())
-    }
-    let table = table.unwrap();
+    let latest_parser = latest.1.clone();
 
 
-    let mapping = table.mapping();
-    if mapping.is_none() {
-        return Err(error::NoMappings::new(
-            raw::Type::RWeekly
-        ).into())
-    }
-    let mapping = mapping.unwrap();
+    let mut mapping = tokio::task::spawn_blocking(move || -> SyncResult<mapping::Parser> {
+
+        let mut latest_parser = latest_parser;
+
+        let table = latest_parser.table();
+        if table.is_none() {
+            return Err(error::NoTables::new(
+                raw::Type::RWeekly
+            ).into())
+        }
+        let table = table.unwrap();
 
 
-    mapping.page();
+        let mapping = table.mapping();
+        if mapping.is_none() {
+            return Err(error::NoMappings::new(
+                raw::Type::RWeekly
+            ).into())
+        }
+        let mapping = mapping.unwrap();
+
+        mapping.page();
 
 
+        Ok(mapping.clone())
+
+    }).await??;
+
+    
     *schedule.parsed.write().await = {
         mapping.page.take().map(|page| Arc::new(page))
     };

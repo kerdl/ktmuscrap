@@ -21,7 +21,7 @@ impl CellType {
     }
 }
 
-#[derive(new)]
+#[derive(new, Debug, Clone)]
 pub struct NumTime {
     pub num: u32,
     pub time: Range<NaiveTime>,
@@ -33,7 +33,7 @@ pub struct WeekdayWithOrigin {
     pub guessed: Weekday,
 }
 
-#[derive(new)]
+#[derive(new, Debug, Clone)]
 pub struct SubjectMapping {
     pub name: String,
     pub weekday: WeekdayWithOrigin,
@@ -65,7 +65,7 @@ impl PartialEq for SubjectMapping {
 }
 
 
-#[derive(new)]
+#[derive(new, Debug, Clone)]
 pub struct GroupSubjects {
     pub group: raw::table::Group,
     pub date_range: Range<NaiveDate>,

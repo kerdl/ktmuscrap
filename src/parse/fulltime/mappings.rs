@@ -32,18 +32,18 @@ use super::{
 };
 
 
-#[derive(new)]
-pub struct Parser<'a> {
-    sc_type: &'a raw::Type,
+#[derive(new, Debug, Clone)]
+pub struct Parser {
+    sc_type: raw::Type,
     pub groups_subjects: Vec<GroupSubjects>,
 
     pub page: Option<Page>
 }
-impl<'a> Parser<'a> {
+impl Parser {
     pub fn from_groups_subjects(
         groups_subjects: Vec<GroupSubjects>,
-        sc_type: &'a raw::Type
-    ) -> Parser<'a> {
+        sc_type: raw::Type
+    ) -> Parser {
 
         Parser::new(sc_type, groups_subjects, None)
     }

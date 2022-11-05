@@ -66,20 +66,41 @@ pub async fn weekly(
     ft_weekly: Arc<raw::Schedule>,
     r_weekly: Arc<raw::Schedule>
 ) -> SyncResult<()> {
+
     pre_check(schedule::Type::Weekly).await?;
+
 
     if LAST_SCHEDULE.get().unwrap().weekly.read().await.is_some() {
         return Ok(())
     }
 
+    let mut parsing_processes = vec![];
+
     if ft_weekly.parsed.read().await.is_none() {
-        fulltime::parse_ft_weekly(ft_weekly).await?;
+
+        let process = tokio::spawn(async move {
+            fulltime::parse_ft_weekly(ft_weekly).await?;
+
+            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        });
+
+        parsing_processes.push(process);
     }
     
     if r_weekly.parsed.read().await.is_none() {
-        remote::parse(r_weekly).await?;
+
+        let process = tokio::spawn(async move {
+            remote::parse(r_weekly).await?;
+
+            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        });
+
+        parsing_processes.push(process);
     }
 
+    for process in parsing_processes {
+        process.await??;
+    }
 
     // yes, actually clone large
     // large `Page` struct
@@ -113,18 +134,40 @@ pub async fn daily(
     ft_daily: Arc<raw::Schedule>,
     r_weekly: Arc<raw::Schedule>
 ) -> SyncResult<()> {
+
     pre_check(schedule::Type::Daily).await?;
+
 
     if LAST_SCHEDULE.get().unwrap().daily.read().await.is_some() {
         return Ok(())
     }
 
+    let mut parsing_processes = vec![];
+
     if ft_daily.parsed.read().await.is_none() {
-        fulltime::parse_ft_daily(ft_daily).await?;
+    
+        let process = tokio::spawn(async move {
+            fulltime::parse_ft_daily(ft_daily).await?;
+
+            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        });
+
+        parsing_processes.push(process);
     }
     
     if r_weekly.parsed.read().await.is_none() {
-        remote::parse(r_weekly).await?;
+
+        let process = tokio::spawn(async move {
+            remote::parse(r_weekly).await?;
+
+            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        });
+
+        parsing_processes.push(process);
+    }
+
+    for process in parsing_processes {
+        process.await??;
     }
 
 

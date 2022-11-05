@@ -13,14 +13,14 @@ enum Lookup {
     Table
 }
 
-#[derive(new)]
-pub struct Parser<'a> {
+#[derive(new, Debug, Clone)]
+pub struct Parser {
     sc_type: raw::Type,
     dom: Dom,
-    tables: Option<TablesParser<'a>>,
+    tables: Option<TablesParser>,
 }
-impl<'a> Parser<'a> {
-    pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser<'a>> {
+impl Parser {
+    pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
             Dom::parse(&html_text)
         });
@@ -33,7 +33,7 @@ impl<'a> Parser<'a> {
         Ok(parser)
     }
 
-    pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> SyncResult<Parser<'a>> {
+    pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> SyncResult<Parser> {
         let html_text = tokio::fs::read_to_string(path).await?;
         let decoded_html_text = htmlescape::decode_html(&html_text).unwrap();
         Parser::from_string(decoded_html_text, sc_type).await
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         Some(rows)
     }
 
-    pub fn tables(&'a mut self) -> Option<&mut TablesParser> {
+    pub fn tables(&mut self) -> Option<&mut TablesParser> {
 
         if self.tables.is_some() {
             return Some(self.tables.as_mut().unwrap())
@@ -132,7 +132,12 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.tables = Some(TablesParser::from_header_tables(header_tables, &self.sc_type, ));
+        self.tables = Some(
+            TablesParser::from_header_tables(
+                header_tables,
+                self.sc_type.clone(),
+            )
+        );
 
         Some(self.tables.as_mut().unwrap())
     }

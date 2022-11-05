@@ -74,13 +74,13 @@ impl XJump {
 }
 
 #[derive(Debug, Clone)]
-pub struct Hit<'a> {
-    pub by: &'a Cell,
+pub struct Hit {
+    pub by: Cell,
     pub at_x: usize,
     pub at_y: usize,
     pub is_done: bool,
 }
-impl<'a> Hit<'a> {
+impl Hit {
     pub fn done(&mut self) {
         self.is_done = true;
     }
