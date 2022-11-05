@@ -157,4 +157,8 @@ impl Parser {
 
         Some(self.mappings.as_mut().unwrap())
     }
+
+    pub fn take_mappings(&mut self) -> Option<MappingsParser> {
+        self.mappings.take()
+    }
 }

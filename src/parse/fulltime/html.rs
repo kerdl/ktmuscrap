@@ -4,7 +4,7 @@ use html_parser::{Dom, Node, Error};
 use htmlescape;
 use std::path::PathBuf;
 
-use crate::{REGEX, SyncResult, data::schedule::{fulltime::html::HeaderTable, raw}};
+use crate::{REGEX, SyncResult, data::schedule::{fulltime::html::HeaderTable, raw}, perf};
 use super::{tables::Parser as TablesParser, super::node};
 
 
@@ -22,6 +22,8 @@ pub struct Parser {
 impl Parser {
     pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
+            // SLOW AS FUCK
+            // ~1s ON 480 KB HTML
             Dom::parse(&html_text)
         });
 
@@ -36,7 +38,9 @@ impl Parser {
     pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> SyncResult<Parser> {
         let html_text = tokio::fs::read_to_string(path).await?;
         let decoded_html_text = htmlescape::decode_html(&html_text).unwrap();
-        Parser::from_string(decoded_html_text, sc_type).await
+        let parser = Parser::from_string(decoded_html_text, sc_type).await?;
+
+        Ok(parser)
     }
 
     fn main_html(&self) -> Option<&Node> {

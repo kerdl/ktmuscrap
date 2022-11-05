@@ -6,6 +6,6 @@ macro_rules! perf {
         $statement
         let end = start.elapsed();
 
-        crate::info!("{:?} took {:?}", stringify!($statement), end);
+        crate::debug!("{:?} took {:?}", stringify!($statement), end);
     };
 }

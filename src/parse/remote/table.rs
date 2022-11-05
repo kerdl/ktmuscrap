@@ -1,7 +1,7 @@
-use log::info;
+use log::{info, debug};
 use derive_new::new;
 use chrono::NaiveDate;
-use std::sync::{Arc, RwLock};
+use std::{sync::{Arc, RwLock}, time::Instant};
 
 use crate::{data::{
     schedule::{
@@ -80,6 +80,7 @@ impl Parser {
 
         self.weekday_date_row = Some(row);
 
+
         Some(self.weekday_date_row.as_ref().unwrap())
     }
 
@@ -112,6 +113,7 @@ impl Parser {
 
         self.num_time_row = Some(row);
 
+
         Some(self.num_time_row.as_ref().unwrap())
     }
 
@@ -139,7 +141,7 @@ impl Parser {
             v
         };
 
-        for row in schema.into_iter() {
+        for (index, row) in schema.into_iter().enumerate() {
 
             let y = row.get(0).unwrap().y;
 
@@ -161,6 +163,8 @@ impl Parser {
 
         
             let task = std::thread::spawn(move || -> Vec<SubjectMapping> {
+
+                let start = Instant::now();
 
                 let row = row;
 
@@ -278,11 +282,17 @@ impl Parser {
                     }
                 }
 
+                let dur = start.elapsed();
+                debug!("mapping at row {} took {:?}", index, dur);
+
                 mappings
             });
 
             tasks.push(task);
         }
+
+
+        let start = Instant::now();
 
         for result in tasks {
             let mappings = result.join().unwrap();
@@ -290,12 +300,22 @@ impl Parser {
             grouped_mappings.write().unwrap().push(mappings);
         }
 
+        let dur = start.elapsed();
+        debug!("mapping task joining took {:?}", dur);
+
+
         let grouped_mappings = {
             std::mem::take(&mut *grouped_mappings.write().unwrap())
         };
 
-        self.mapping = Some(mapping::Parser::from_schema(grouped_mappings));
+        self.mapping = Some(
+            mapping::Parser::from_schema(grouped_mappings)
+        );
 
         Some(self.mapping.as_mut().unwrap())
+    }
+
+    pub fn take_mapping(&mut self) -> Option<mapping::Parser> {
+        self.mapping.take()
     }
 }

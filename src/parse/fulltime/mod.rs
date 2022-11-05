@@ -2,8 +2,9 @@ pub mod html;
 pub mod tables;
 pub mod mappings;
 
+use log::debug;
 use tokio::sync::RwLock;
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use crate::{
     REMOTE_INDEX,
@@ -23,14 +24,15 @@ async fn generic_parse(
     let zip = schedule.zip.read().await;
 
     // get html parser
-    let parser = zip.to_fulltime_parser(sc_type.clone()).await?;
+    perf!(let parser = zip.to_fulltime_parser(sc_type.clone()).await?);
+
 
     let mut mappings = tokio::task::spawn_blocking(move || -> SyncResult<mappings::Parser> {
 
         let mut parser = parser;
 
         // get all tables from html page
-        let tables = parser.tables();
+        perf!(let tables = parser.tables());
         if tables.is_none() {
             return Err(error::NoTables::new(sc_type).into())
         }
@@ -38,16 +40,16 @@ async fn generic_parse(
 
 
         // map tables (connect each subject to time, num and weekday)
-        let mappings = tables.mappings();
+        perf!(let mappings = tables.mappings());
         if mappings.is_none() {
             return Err(error::NoMappings::new(sc_type).into())
         }
         let mappings = mappings.unwrap();
 
         // generate page
-        mappings.page();
+        perf!(let _ = mappings.page());
 
-        Ok(mappings.clone())
+        Ok(tables.take_mappings().unwrap())
 
     }).await??;
 

@@ -48,7 +48,7 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
 
         let mut latest_parser = latest_parser;
 
-        let table = latest_parser.table();
+        perf!(let table = latest_parser.table());
         if table.is_none() {
             return Err(error::NoTables::new(
                 raw::Type::RWeekly
@@ -57,7 +57,7 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
         let table = table.unwrap();
 
 
-        let mapping = table.mapping();
+        perf!(let mapping = table.mapping());
         if mapping.is_none() {
             return Err(error::NoMappings::new(
                 raw::Type::RWeekly
@@ -65,10 +65,10 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
         }
         let mapping = mapping.unwrap();
 
-        mapping.page();
+        perf!(let _ = mapping.page());
 
 
-        Ok(mapping.clone())
+        Ok(table.take_mapping().unwrap())
 
     }).await??;
 

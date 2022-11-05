@@ -7,7 +7,7 @@ pub mod logger;
 pub mod debug;
 
 use chrono::NaiveDate;
-pub use log::info;
+pub use log::{info, debug};
 pub use std::time::Instant;
 pub use derive_new;
 use actix_web::{web, App, HttpServer};

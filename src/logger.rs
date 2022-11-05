@@ -12,20 +12,30 @@ impl Logger {
 }
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= Level::Info
+        metadata.level() <= Level::Debug
     }
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
             let date = chrono::Local::now();
+
             let fmt_date = date.format("%Y-%m-%d at %H:%M:%S")
                 .to_string()
                 .bright_cyan();
 
-            println!("{} [{}] {}", 
+            let path = record.file()
+                .unwrap()
+                .bright_blue();
+
+            let line = format!("{}", record.line().unwrap())
+                .bright_blue();
+
+            println!("{} [{}] {} ({}:{})", 
                 fmt_date, 
                 record.level(), 
-                record.args()
+                record.args(),
+                path,
+                line
             );
         }
     }

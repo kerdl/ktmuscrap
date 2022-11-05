@@ -24,7 +24,7 @@ use crate::{
             ApiError
         }
     }, 
-    data::schedule::{self, raw}
+    data::schedule::{self, raw}, perf
 };
 use super::merge;
 
@@ -79,7 +79,7 @@ pub async fn weekly(
     if ft_weekly.parsed.read().await.is_none() {
 
         let process = tokio::spawn(async move {
-            fulltime::parse_ft_weekly(ft_weekly).await?;
+            perf!(fulltime::parse_ft_weekly(ft_weekly).await?);
 
             Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
         });
@@ -90,7 +90,7 @@ pub async fn weekly(
     if r_weekly.parsed.read().await.is_none() {
 
         let process = tokio::spawn(async move {
-            remote::parse(r_weekly).await?;
+            perf!(remote::parse(r_weekly).await?);
 
             Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
         });
@@ -147,7 +147,7 @@ pub async fn daily(
     if ft_daily.parsed.read().await.is_none() {
     
         let process = tokio::spawn(async move {
-            fulltime::parse_ft_daily(ft_daily).await?;
+            perf!(fulltime::parse_ft_daily(ft_daily).await?);
 
             Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
         });
@@ -158,7 +158,7 @@ pub async fn daily(
     if r_weekly.parsed.read().await.is_none() {
 
         let process = tokio::spawn(async move {
-            remote::parse(r_weekly).await?;
+            perf!(remote::parse(r_weekly).await?);
 
             Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
         });
