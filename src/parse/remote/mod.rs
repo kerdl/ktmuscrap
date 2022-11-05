@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 use std::sync::Arc;
 
 use crate::{
-    REMOTE_SCHEDULE_INDEX,
+    REMOTE_INDEX,
     data::schedule::{raw, Page}, 
     SyncResult,
     perf
@@ -23,33 +23,54 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
     if let Some(removed_paths) = html_container.clear_old().await {
 
         if removed_paths.len() > 0 {
-            let mut index = REMOTE_SCHEDULE_INDEX.write().await;
-            index.ignored.extend(removed_paths.clone());
+            let index = REMOTE_INDEX.get().unwrap();
+            index.ignored.write().await.extend(removed_paths.clone());
 
-            tokio::task::spawn_blocking(move || {
-                let index = REMOTE_SCHEDULE_INDEX.blocking_read();
-                index.save().unwrap()
-            });
+            index.save().await;
         }
 
     }
 
-    let index = REMOTE_SCHEDULE_INDEX.read().await;
+    let index = REMOTE_INDEX.get().unwrap();
     index.remove_ignored().await;
 
-    let mut latest = html_container.latest().await;
 
-    let table = latest.as_mut().unwrap().1.table().unwrap();
+    let mut latest = html_container.latest().await;
+    if latest.is_none() {
+        return Err(error::NoLatestRemote.into())
+    }
+    let latest = latest.as_mut().unwrap();
+
+
+    tokio::task::spawn_blocking(move || -> SyncResult<()> {
+        Ok(())
+    });
+
+    let table = latest.1.table();
+    if table.is_none() {
+        return Err(error::NoTables::new(
+            raw::Type::RWeekly
+        ).into())
+    }
+    let table = table.unwrap();
+
 
     let mapping = table.mapping();
     if mapping.is_none() {
-        return Err(error::NoMappings::new(raw::Type::RWeekly).into())
+        return Err(error::NoMappings::new(
+            raw::Type::RWeekly
+        ).into())
     }
     let mapping = mapping.unwrap();
 
+
     mapping.page();
 
-    *schedule.parsed.write().await = mapping.page.take();
+
+    *schedule.parsed.write().await = {
+        mapping.page.take().map(|page| Arc::new(page))
+    };
+
 
     Ok(())
 }

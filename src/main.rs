@@ -12,6 +12,7 @@ pub use std::time::Instant;
 pub use derive_new;
 use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
+use once_cell::{sync::OnceCell, race::OnceBool};
 use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc};
 
@@ -30,31 +31,37 @@ lazy_static! {
         path
     };
     /// ./temp/r_weekly/index.json
-    static ref REMOTE_SCHEDULE_INDEX_PATH: PathBuf = {
+    static ref REMOTE_INDEX_PATH: PathBuf = {
         let mut temp_path = TEMP_PATH.clone();
         temp_path.push(data::schedule::raw::Type::RWeekly.to_string());
         temp_path.push("index.json");
     
         temp_path
     };
+    /// ./temp/last_raw.json
+    static ref RAW_SCHEDULE_PATH: PathBuf = {
+        let mut temp_path = TEMP_PATH.clone();
+        temp_path.push("last_raw.json");
 
-    static ref RAW_SCHEDULE: Arc<schedule::raw::Container> = {
-        Arc::new(schedule::raw::Container::default())
+        temp_path
     };
-    static ref LAST_SCHEDULE: Arc<schedule::Last> = {
-        Arc::new(schedule::Last::default())
-    };
-    static ref REMOTE_SCHEDULE_INDEX: Arc<RwLock<schedule::raw::Index>> = {
-        let sc = schedule::raw::Index::load_or_init(
-            REMOTE_SCHEDULE_INDEX_PATH.to_path_buf()
-        ).unwrap();
+    /// ./temp/last.json
+    static ref LAST_SCHEDULE_PATH: PathBuf = {
+        let mut temp_path = TEMP_PATH.clone();
+        temp_path.push("last.json");
 
-        Arc::new(RwLock::new(sc))
+        temp_path
     };
+
     static ref REGEX: Arc<regex::Container> = {
         Arc::new(regex::Container::default())
     };
 }
+
+static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>> = OnceCell::new();
+static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>           = OnceCell::new();
+static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::Index>>     = OnceCell::new();
+
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -69,6 +76,22 @@ async fn main() -> std::io::Result<()> {
         tokio::fs::create_dir(TEMP_PATH.as_path()).await?;
         info!("created {:?}", TEMP_PATH.as_path());
     }
+
+    let raw_schedule = schedule::raw::Container::load_or_init(
+        RAW_SCHEDULE_PATH.to_owned()
+    ).await.unwrap();
+    RAW_SCHEDULE.set(Arc::new(raw_schedule)).unwrap();
+
+    let last_schedule = schedule::Last::load_or_init(
+        LAST_SCHEDULE_PATH.to_owned()
+    ).await.unwrap();
+    LAST_SCHEDULE.set(Arc::new(last_schedule)).unwrap();
+
+    let remote_index = schedule::raw::Index::load_or_init(
+        REMOTE_INDEX_PATH.to_path_buf()
+    ).await.unwrap();
+    REMOTE_INDEX.set(Arc::new(remote_index)).unwrap();
+
 
     // start http server
     HttpServer::new(|| {

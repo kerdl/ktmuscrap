@@ -1,6 +1,6 @@
 pub mod table;
 
-use log::info;
+use log::{info, warn};
 use derive_new::new;
 use serde_derive::{Serialize, Deserialize};
 use serde_json;
@@ -18,8 +18,8 @@ use crate::{
         Page
     }, 
     SyncResult,
-    REMOTE_SCHEDULE_INDEX_PATH,
-    REMOTE_SCHEDULE_INDEX, parse::fulltime,
+    REMOTE_INDEX_PATH,
+    REMOTE_INDEX, parse::fulltime,
 };
 use super::error;
 
@@ -42,12 +42,16 @@ pub enum Type {
 }
 
 
-#[derive(new)]
+#[derive(new, Debug)]
 pub struct Zip {
     sc_type: Type,
     pub content: RwLock<Option<Bytes>>,
 }
 impl Zip {
+    pub fn from_sc_type(sc_type: Type) -> Zip {
+        Zip::new(sc_type, RwLock::new(None))
+    }
+
     pub async fn set_content(&self, content: Bytes) {
         let mut field = self.content.write().await;
         *field = Some(content);
@@ -133,9 +137,9 @@ impl Zip {
     pub async fn html_paths(&self) -> SyncResult<Vec<PathBuf>> {
         let mut all_file_paths = fs::collect_file_paths(self.path()).await?;
 
-        if all_file_paths.contains(&REMOTE_SCHEDULE_INDEX_PATH) {
+        if all_file_paths.contains(&REMOTE_INDEX_PATH) {
 
-            for ignored_path in REMOTE_SCHEDULE_INDEX.read().await.ignored.iter() {
+            for ignored_path in REMOTE_INDEX.get().unwrap().ignored.read().await.iter() {
 
                 if let Some(index) = {
                     all_file_paths.iter().position(|path| path == ignored_path)
@@ -175,14 +179,27 @@ impl Zip {
     }
 }
 
-#[derive(new)]
+#[derive(new, Clone, Debug)]
 pub struct Schedule {
     pub zip: Arc<RwLock<Zip>>,
-    pub parsed: Arc<RwLock<Option<Page>>>
+    pub parsed: Arc<RwLock<Option<Arc<Page>>>>
+}
+impl Schedule {
+    pub fn from_sc_type(sc_type: Type) -> Schedule {
+        Schedule {
+            zip:    Arc::new(RwLock::new(Zip::from_sc_type(sc_type))),
+            parsed: Arc::new(RwLock::new(None))
+        }
+    }
+
+    pub async fn clear_parsed(&self) {
+        *self.parsed.write().await = None;
+    }
 }
 
-#[derive(new)]
+#[derive(new, Clone, Debug)]
 pub struct Container {
+    path: PathBuf,
     /// ## `F`ull`t`ime `weekly` schdule ZIP file
     pub ft_weekly: Arc<Schedule>,
     /// ## `F`ull`t`ime `daily` schedule ZIP file
@@ -191,6 +208,70 @@ pub struct Container {
     pub r_weekly: Arc<Schedule>,
 }
 impl Container {
+    fn from_serde_container(serde_container: SerdeContainer) -> Container {
+        let ft_weekly = Schedule {
+            zip:    Arc::new(RwLock::new(Zip::from_sc_type(Type::FtWeekly))),
+            parsed: Arc::new(RwLock::new(serde_container.ft_weekly))
+        };
+
+        let ft_daily = Schedule {
+            zip:    Arc::new(RwLock::new(Zip::from_sc_type(Type::FtDaily))),
+            parsed: Arc::new(RwLock::new(serde_container.ft_daily))
+        };
+
+        let r_weekly = Schedule {
+            zip:    Arc::new(RwLock::new(Zip::from_sc_type(Type::RWeekly))),
+            parsed: Arc::new(RwLock::new(serde_container.r_weekly))
+        };
+
+        Container::new(
+            serde_container.path,
+            Arc::new(ft_weekly),
+            Arc::new(ft_daily),
+            Arc::new(r_weekly)
+        )
+    }
+
+    pub fn from_path(path: PathBuf) -> Container {
+        Container {
+            path,
+            ft_weekly: Arc::new(Schedule::from_sc_type(Type::FtWeekly)),
+            ft_daily: Arc::new(Schedule::from_sc_type(Type::FtDaily)),
+            r_weekly: Arc::new(Schedule::from_sc_type(Type::RWeekly))
+        }
+    }
+
+    pub async fn save(&self) {
+        let serde_container = Arc::new(
+            SerdeContainer::from_container(&self).await
+        );
+
+        tokio::spawn(async move {
+            serde_container.save().await
+        });
+    }
+
+    pub fn load(path: PathBuf) -> SyncResult<Container> {
+
+        let serde_container = SerdeContainer::load(path)?;
+        let container = Container::from_serde_container(serde_container);
+
+        Ok(container)
+    }
+
+    pub async fn load_or_init(path: PathBuf) -> SyncResult<Container> {
+        let container;
+
+        if !path.exists() {
+            container = Container::from_path(path);
+            container.save().await;
+        } else {
+            container = Container::load(path)?;
+        }
+
+        Ok(container)
+    }
+
     /// ## Remove all folders of schedules
     pub async fn remove_folders_if_exists(self: Arc<Self>) -> DynResult<()> {
         self.ft_weekly.zip.read().await.remove_folder_if_exists().await?;
@@ -213,67 +294,97 @@ impl Container {
         self.clone().clear_loaded().await;
     }
 }
-impl Default for Container {
-    fn default() -> Container {
-        let ft_weekly = Arc::new(
-            Schedule::new(
-                Arc::new(RwLock::new(Zip::new(Type::FtWeekly, RwLock::new(None)))),
-                Arc::new(RwLock::new(None))
-            )
-        );
-        let ft_daily  = Arc::new(
-            Schedule::new(
-                Arc::new(RwLock::new(Zip::new(Type::FtDaily, RwLock::new(None)))),
-                Arc::new(RwLock::new(None))
-            )
-        );
-        let r_weekly  = Arc::new(
-            Schedule::new(
-                Arc::new(RwLock::new(Zip::new(Type::RWeekly, RwLock::new(None)))),
-                Arc::new(RwLock::new(None))
-            )
-        );
-
-        Container::new(ft_weekly, ft_daily, r_weekly)
-    }
-}
-
 
 #[derive(new, Serialize, Deserialize)]
-pub struct Index {
-    pub path: PathBuf,
-    pub ignored: HashSet<PathBuf>
+struct SerdeContainer {
+    path: PathBuf,
+    ft_weekly: Option<Arc<Page>>,
+    ft_daily: Option<Arc<Page>>,
+    r_weekly: Option<Arc<Page>>,
 }
-impl Index {
-    pub fn load(path: PathBuf) -> SyncResult<Index> {
-        let de = std::fs::read_to_string(path)?;
-        let index: Index = serde_json::de::from_str(&de)?;
-
-        Ok(index)
+impl SerdeContainer {
+    pub async fn from_container(container: &Container) -> SerdeContainer {
+        SerdeContainer::new(
+            container.path.clone(),
+            container.ft_weekly.parsed.read().await.as_ref().map(|page| page.clone()),
+            container.ft_daily.parsed.read().await.as_ref().map(|page| page.clone()),
+            container.r_weekly.parsed.read().await.as_ref().map(|page| page.clone()),
+        )
     }
 
-    pub fn save(&self) -> SyncResult<()> {
-        let ser = serde_json::ser::to_string_pretty(&self)?;
-        std::fs::write(&self.path, ser)?;
+    pub async fn save(self: Arc<Self>) -> SyncResult<()> {
+    
+        if let Err(err) = tokio::task::spawn_blocking(move || -> SyncResult<()> {
+            let ser = serde_json::ser::to_string_pretty(&self)?;
+            std::fs::write(&self.path, ser)?;
+
+            Ok(())
+        }).await? {
+            warn!("error while saving data::schedule::raw::SerdeContainer {:?}", err);
+        }
 
         Ok(())
     }
 
-    pub fn load_or_init(path: PathBuf) -> SyncResult<Index> {
+    pub fn load(path: PathBuf) -> SyncResult<SerdeContainer> {
+        let de = std::fs::read_to_string(path)?;
+        let last: SerdeContainer = serde_json::de::from_str(&de)?;
+
+        Ok(last)
+    }
+}
+
+
+#[derive(new, Debug)]
+pub struct Index {
+    pub path: PathBuf,
+    pub ignored: Arc<RwLock<HashSet<PathBuf>>>
+}
+impl Index {
+    fn from_serde_index(serde_index: SerdeIndex) -> Index {
+        Index::new(
+            serde_index.path,
+            Arc::new(RwLock::new(serde_index.ignored))
+        )
+    }
+
+    pub fn from_path(path: PathBuf) -> Index {
+        Index::new(path, Arc::new(RwLock::new(HashSet::new())))
+    }
+
+    pub async fn save(&self) {
+        let serde_index = Arc::new(
+            SerdeIndex::from_index(&self).await
+        );
+
+        tokio::spawn(async move {
+            serde_index.save().await
+        });
+    }
+
+    pub async fn load(path: PathBuf) -> SyncResult<Index> {
+        let serde_index = SerdeIndex::load(path).await?;
+
+        let index = Index::from_serde_index(serde_index);
+
+        Ok(index)
+    }
+
+    pub async fn load_or_init(path: PathBuf) -> SyncResult<Index> {
         let index;
 
         if !path.exists() {
-            index = Index::new(path.clone(), HashSet::new());
-            index.save()?;
+            index = Index::from_path(path);
+            index.save().await;
         } else {
-            index = Index::load(path)?;
+            index = Index::load(path).await?;
         }
 
         Ok(index)
     }
 
     pub async fn remove_ignored(&self) {
-        for path in self.ignored.iter() {
+        for path in self.ignored.read().await.iter() {
             let path = path.clone();
 
             tokio::spawn(async move {
@@ -282,5 +393,45 @@ impl Index {
                 }
             });
         }
+    }
+}
+
+#[derive(new, Serialize, Deserialize)]
+struct SerdeIndex {
+    path: PathBuf,
+    pub ignored: HashSet<PathBuf>
+}
+impl SerdeIndex {
+    pub async fn from_index(index: &Index) -> SerdeIndex {
+        SerdeIndex::new(
+            index.path.clone(), 
+            index.ignored.read().await.clone()
+        )
+    }
+
+    pub async fn save(self: Arc<Self>) -> SyncResult<()> {
+        if let Err(err) = tokio::task::spawn_blocking(move || -> SyncResult<()> {
+
+            let ser = serde_json::ser::to_string_pretty(&self)?;
+            std::fs::write(&self.path, ser)?;
+
+            Ok(())
+
+        }).await? {
+            warn!("error while saving data::schedule::raw::SerdeIndex {:?}", err);
+        };
+
+        Ok(())
+    }
+
+    pub async fn load(path: PathBuf) -> SyncResult<SerdeIndex> {
+        let de = tokio::fs::read_to_string(path).await?;
+        let index: SerdeIndex = tokio::task::spawn_blocking(
+            move || -> serde_json::Result<SerdeIndex> {
+                serde_json::de::from_str(&de)
+            }
+        ).await??;
+
+        Ok(index)
     }
 }

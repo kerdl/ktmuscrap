@@ -35,9 +35,9 @@ use super::merge;
 /// - `sc_type=Daily` requires `ft_daily` and `r_weekly`
 async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
     
-    let ft_weekly = crate::RAW_SCHEDULE.ft_weekly.zip.read().await;
-    let ft_daily = crate::RAW_SCHEDULE.ft_daily.zip.read().await;
-    let r_weekly = crate::RAW_SCHEDULE.r_weekly.zip.read().await;
+    let ft_weekly = crate::RAW_SCHEDULE.get().unwrap().ft_weekly.zip.read().await;
+    let ft_daily = crate::RAW_SCHEDULE.get().unwrap().ft_daily.zip.read().await;
+    let r_weekly = crate::RAW_SCHEDULE.get().unwrap().r_weekly.zip.read().await;
 
     let has_weekly_schedules = {
         ft_weekly.path().exists()
@@ -68,6 +68,10 @@ pub async fn weekly(
 ) -> SyncResult<()> {
     pre_check(schedule::Type::Weekly).await?;
 
+    if LAST_SCHEDULE.get().unwrap().weekly.read().await.is_some() {
+        return Ok(())
+    }
+
     if ft_weekly.parsed.read().await.is_none() {
         fulltime::parse_ft_weekly(ft_weekly).await?;
     }
@@ -77,19 +81,21 @@ pub async fn weekly(
     }
 
 
-    if LAST_SCHEDULE.weekly.read().await.is_some() {
-        return Ok(())
-    }
-
     // yes, actually clone large
     // large `Page` struct
     let mut ft_weekly_page = {
-        RAW_SCHEDULE.ft_weekly.parsed
-        .read().await.clone().unwrap()
+        let arc_page = {
+            RAW_SCHEDULE.get().unwrap().ft_weekly.parsed
+            .read().await.clone().unwrap()
+        };
+        (*arc_page).clone()
     };
     let mut r_weekly_page = {
-        RAW_SCHEDULE.r_weekly.parsed
-        .read().await.clone().unwrap()
+        let arc_page = {
+            RAW_SCHEDULE.get().unwrap().r_weekly.parsed
+            .read().await.clone().unwrap()
+        };
+        (*arc_page).clone()
     };
 
     merge::weekly::page(
@@ -97,7 +103,8 @@ pub async fn weekly(
         &mut r_weekly_page
     ).await?;
 
-    *LAST_SCHEDULE.weekly.write().await = Some(Arc::new(ft_weekly_page));
+    *LAST_SCHEDULE.get().unwrap().weekly.write().await = Some(Arc::new(ft_weekly_page));
+    LAST_SCHEDULE.get().unwrap().save().await?;
 
     Ok(())
 }
@@ -108,6 +115,10 @@ pub async fn daily(
 ) -> SyncResult<()> {
     pre_check(schedule::Type::Daily).await?;
 
+    if LAST_SCHEDULE.get().unwrap().daily.read().await.is_some() {
+        return Ok(())
+    }
+
     if ft_daily.parsed.read().await.is_none() {
         fulltime::parse_ft_daily(ft_daily).await?;
     }
@@ -117,19 +128,21 @@ pub async fn daily(
     }
 
 
-    if LAST_SCHEDULE.daily.read().await.is_some() {
-        return Ok(())
-    }
-
     // yes, actually clone large
     // large `Page` struct
     let mut ft_daily_page = {
-        RAW_SCHEDULE.ft_daily.parsed
-        .read().await.clone().unwrap()
+        let arc_page = {
+            RAW_SCHEDULE.get().unwrap().ft_daily.parsed
+            .read().await.clone().unwrap()
+        };
+        (*arc_page).clone()
     };
     let mut r_weekly_page = {
-        RAW_SCHEDULE.r_weekly.parsed
-        .read().await.clone().unwrap()
+        let arc_page = {
+            RAW_SCHEDULE.get().unwrap().r_weekly.parsed
+            .read().await.clone().unwrap()
+        };
+        (*arc_page).clone()
     };
 
     merge::daily::page(
@@ -137,7 +150,8 @@ pub async fn daily(
         &mut r_weekly_page
     ).await?;
 
-    *LAST_SCHEDULE.daily.write().await = Some(Arc::new(ft_daily_page));
+    *LAST_SCHEDULE.get().unwrap().daily.write().await = Some(Arc::new(ft_daily_page));
+    LAST_SCHEDULE.get().unwrap().save().await?;
 
     Ok(())
 }

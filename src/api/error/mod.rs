@@ -79,6 +79,8 @@ pub enum ErrorNum {
     NoDailySchedulesLoaded,
     ScheduleSavingFailed,
     ScheduleExtractionFailed,
+    ScheduleClearFailed,
+    RawScheduleDeletionFailed,
     ScheduleDeletionFailed,
     MassScheduleDeletionFailed,
     NoHtmls,
@@ -163,10 +165,39 @@ api_err!(
 );
 
 api_err!(
+    name:    ScheduleClearFailed,
+    as_enum: ErrorNum::ScheduleClearFailed,
+    kind:    Kind::InternalFailure,
+    fields:  (
+        pub sc_type: schedule::raw::Type,
+        pub dep_sc_types: Vec<schedule::Type>,
+        pub error: String
+    ),
+    error:   |this| format!(
+        "while loading {}, the dependent {:?} failed to clear with error {:?}", 
+        this.sc_type.to_string(), 
+        this.dep_sc_types,
+        this.error
+    )
+);
+
+api_err!(
+    name:    RawScheduleDeletionFailed,
+    as_enum: ErrorNum::RawScheduleDeletionFailed,
+    kind:    Kind::InternalFailure,
+    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    error:   |this| format!(
+        "{} failed to delete from disk with error {:?}", 
+        this.sc_type.to_string(), 
+        this.error
+    )
+);
+
+api_err!(
     name:    ScheduleDeletionFailed,
     as_enum: ErrorNum::ScheduleDeletionFailed,
     kind:    Kind::InternalFailure,
-    fields:  (pub sc_type: schedule::raw::Type, pub error: String),
+    fields:  (pub sc_type: schedule::Type, pub error: String),
     error:   |this| format!(
         "{} failed to delete from disk with error {:?}", 
         this.sc_type.to_string(), 

@@ -6,7 +6,7 @@ use tokio::sync::RwLock;
 use std::sync::Arc;
 
 use crate::{
-    REMOTE_SCHEDULE_INDEX,
+    REMOTE_INDEX,
     data::schedule::{raw, Page}, 
     SyncResult,
     merge,
@@ -44,7 +44,7 @@ async fn generic_parse(
     // generate page
     mappings.page();
 
-    *schedule.parsed.write().await = mappings.page.take();
+    *schedule.parsed.write().await = mappings.page.take().map(|page| Arc::new(page));
     
     Ok(())
 }

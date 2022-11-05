@@ -2,7 +2,7 @@ pub mod ft_weekly;
 pub mod ft_daily;
 pub mod r_weekly;
 
-use log::info;
+use log::{info, warn};
 use actix_web::{post, delete, Responder, web};
 use tokio::sync::RwLock;
 use std::sync::Arc;
@@ -12,7 +12,7 @@ use crate::{
         error::{self, base::ToApiError}, 
         ToResponse, Response
     }, 
-    data::schedule::raw
+    data::schedule::{self, raw, Type}
 };
 
 
@@ -23,23 +23,25 @@ use crate::{
 async fn generic_load(
     // The request body
     bytes: web::Bytes,
+    container: Arc<raw::Container>,
     // One of the fields inside `raw::Container`
-    field: Arc<RwLock<raw::Zip>>,
+    schedule: Arc<raw::Schedule>,
+    last_schedule: Arc<schedule::Last>,
     // Schedule type currently processing
     sc_type: raw::Type
 ) -> impl Responder {
 
-    // read lock for this field
-    let field_read = field.read().await;
+    let zip = schedule.zip.read().await;
+
     // call content setter
-    field_read.set_content(bytes).await;
+    zip.set_content(bytes).await;
 
     // extract ZIP
-    let extraction_result = field_read.extract().await;
+    let extraction_result = zip.extract().await;
 
     if extraction_result.is_err() {
         // clean up the mess we just created
-        field_read.delete().await.unwrap();
+        zip.delete().await.unwrap();
 
         return error::ScheduleExtractionFailed::new(
             sc_type,
@@ -50,19 +52,40 @@ async fn generic_load(
             .to_json()
     }
 
+    schedule.clear_parsed().await;
+
+    if let Err(err) = last_schedule.clear_from_raw_type(&sc_type).await {
+        return error::ScheduleClearFailed::new(
+            sc_type.clone(),
+            match sc_type {
+                raw::Type::FtDaily => vec![Type::Daily],
+                raw::Type::FtWeekly => vec![Type::Weekly],
+                raw::Type::RWeekly => vec![Type::Daily, Type::Weekly]
+            },
+            err.to_string()
+        )
+            .to_api_error()
+            .to_response()
+            .to_json()
+    }
+
+    container.save().await;
+
     Response::ok().to_json()
 }
 
 async fn generic_delete(
     // One of the fields inside `raw::Container`
-    field: Arc<RwLock<raw::Zip>>,
+    field: Arc<raw::Schedule>,
     // Schedule type currently processing
     sc_type: raw::Type
 ) -> impl Responder {
-    let deletion_result = field.read().await.delete().await;
+    let zip = field.zip.read().await;
+
+    let deletion_result = zip.delete().await;
 
     if deletion_result.is_err() {
-        return error::ScheduleDeletionFailed::new(
+        return error::RawScheduleDeletionFailed::new(
             sc_type, 
             deletion_result.unwrap_err().to_string()
         )
@@ -71,13 +94,15 @@ async fn generic_delete(
             .to_json()
     }
 
+    *field.parsed.write().await = None;
+
     Response::ok().to_json()
 }
 
 
 #[delete("/schedule/raw")]
 async fn delete() -> impl Responder {
-    crate::RAW_SCHEDULE.clone().delete().await;
+    crate::RAW_SCHEDULE.get().unwrap().clone().delete().await;
 
     Response::ok().to_json()
 }

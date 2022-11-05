@@ -6,12 +6,15 @@ pub mod error;
 
 use derive_new::new;
 use lazy_static::lazy_static;
+use log::warn;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
+use strum_macros::{EnumString, Display};
 use tokio::sync::RwLock;
-use std::{ops::Range, cmp::Ordering, sync::Arc};
+use std::{ops::Range, cmp::Ordering, sync::Arc, path::PathBuf};
 
+use crate::SyncResult;
 use super::weekday::Weekday;
 
 
@@ -33,20 +36,120 @@ lazy_static! {
 
 /// # Stores last converted schedule
 /// - used for comparing schedules
-#[derive(new)]
+#[derive(new, Clone, Debug)]
 pub struct Last {
+    path: PathBuf,
     pub weekly: Arc<RwLock<Option<Arc<Page>>>>,
     pub daily: Arc<RwLock<Option<Arc<Page>>>>
 }
-impl Default for Last {
-    fn default() -> Last {
+impl Last {
+    fn from_serde_last(temp_last: SerdeLast) -> Last {
         Last::new(
-            Arc::new(RwLock::new(None)),
-            Arc::new(RwLock::new(None))
+            temp_last.path,
+            Arc::new(RwLock::new(temp_last.weekly)),
+            Arc::new(RwLock::new(temp_last.daily)),
         )
+    }
+
+    pub async fn save(&self) -> SyncResult<()> {
+    
+        let serde_last = Arc::new(SerdeLast::from_last(&self).await);
+
+        tokio::spawn(async move {
+            serde_last.save().await
+        });
+
+        Ok(())
+    }
+
+    pub fn load(path: PathBuf) -> SyncResult<Last> {
+
+        let serde_last = SerdeLast::load(path)?;
+        let last = Last::from_serde_last(serde_last);
+
+        Ok(last)
+    }
+
+    pub async fn load_or_init(path: PathBuf) -> SyncResult<Last> {
+        let last;
+
+        if !path.exists() {
+            last = Last::new(
+                path, 
+                Arc::new(RwLock::new(None)),
+                Arc::new(RwLock::new(None))
+            );
+            last.save().await?;
+        } else {
+            last = Last::load(path)?;
+        }
+
+        Ok(last)
+    }
+
+    pub async fn clear_weekly(&self) -> SyncResult<()> {
+        *self.weekly.write().await = None;
+        self.save().await
+    }
+
+    pub async fn clear_daily(&self) -> SyncResult<()> {
+        *self.daily.write().await = None;
+        self.save().await
+    }
+
+    pub async fn clear_from_raw_type(&self, sc_type: &raw::Type) -> SyncResult<()> {
+        match sc_type {
+            raw::Type::FtDaily => {
+                self.clear_daily().await
+            }
+            raw::Type::FtWeekly => {
+                self.clear_weekly().await
+            }
+            raw::Type::RWeekly => {
+                self.clear_daily().await?;
+                self.clear_weekly().await
+            }
+        }
     }
 }
 
+#[derive(new, Serialize, Deserialize)]
+struct SerdeLast {
+    path: PathBuf,
+    weekly: Option<Arc<Page>>,
+    daily: Option<Arc<Page>>
+}
+impl SerdeLast {
+    pub async fn from_last(last: &Last) -> SerdeLast {
+        SerdeLast::new(
+            last.path.clone(),
+            last.weekly.read().await.as_ref().map(|page| page.clone()),
+            last.daily.read().await.as_ref().map(|page| page.clone()),
+        )
+    }
+
+    pub async fn save(self: Arc<Self>) -> SyncResult<()> {
+
+        if let Err(err) = tokio::task::spawn_blocking(move || -> SyncResult<()> {
+
+            let ser = serde_json::ser::to_string_pretty(&self)?;
+            std::fs::write(&self.path.clone(), ser)?;
+
+            Ok(())
+        }).await? {
+            warn!("error saving data::schedule::Last {:?}", err)
+        }
+
+        Ok(())
+    }
+
+    pub fn load(path: PathBuf) -> SyncResult<SerdeLast> {
+        let de = std::fs::read_to_string(path)?;
+        let last: SerdeLast = serde_json::de::from_str(&de)?;
+
+        Ok(last)
+    }
+}
 
 /* SCHEDULE */
 
@@ -88,7 +191,9 @@ pub enum Format {
     Debug, 
     Clone, 
     PartialEq, 
-    Eq
+    Eq,
+    EnumString,
+    Display
 )]
 pub enum Type {
     /// Was parsed from a weekly
@@ -272,10 +377,10 @@ pub struct Group {
 }
 impl Group {
     pub fn remove_days_except(&mut self, date: NaiveDate) {
-        while let Some(index) = self.days.iter().position(
+        while let Some(last) = self.days.iter().position(
             |day| day.date != date
         ) {
-            self.days.remove(index);
+            self.days.remove(last);
         }
     }
 }
