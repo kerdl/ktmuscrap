@@ -95,6 +95,8 @@ async fn main() -> std::io::Result<()> {
     REMOTE_INDEX.set(Arc::new(remote_index)).unwrap();
 
 
+    /*
+
     let mut old = parse::remote::html::Parser::from_path(
         TEMP_PATH.join("r_weekly").join("31.10-06.11.html")
     ).await.unwrap();
@@ -119,6 +121,8 @@ async fn main() -> std::io::Result<()> {
     info!("comparing took {:?}", dur);
 
     std::process::exit(0);
+
+    */
 
     // start http server
     HttpServer::new(|| {
