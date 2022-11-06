@@ -26,6 +26,10 @@ pub async fn day(
     for r_subject in r_subjects.into_iter() {
         ft_day.subjects.push(r_subject);
     }
+
+    ft_day.subjects.sort_by(
+        |subj_a, subj_b| subj_a.num.cmp(&subj_b.num)
+    );
 }
 
 pub async fn group(
@@ -48,7 +52,9 @@ pub async fn group(
         }
     }
 
-    ft_group.days.sort();
+    ft_group.days.sort_by(
+        |day_a, day_b| day_a.weekday.cmp(&day_b.weekday)
+    );
 }
 
 pub async fn page(

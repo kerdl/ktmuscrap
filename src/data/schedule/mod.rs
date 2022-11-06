@@ -212,7 +212,6 @@ pub enum Type {
     Deserialize, 
     Debug, 
     Clone,
-    Eq,
     Hash
 )]
 pub struct Subject {
@@ -293,19 +292,9 @@ impl Subject {
         !self.is_fulltime_window() && no_teachers
     }
 }
-impl Ord for Subject {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.num.cmp(&other.num)
-    }
-}
-impl PartialOrd for Subject {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
 impl PartialEq for Subject {
     fn eq(&self, other: &Self) -> bool {
-        self.num == other.num
+        self.name == other.name
     }
 }
 
@@ -315,8 +304,6 @@ impl PartialEq for Subject {
     Deserialize, 
     Debug, 
     Clone,
-    Eq,
-    Hash
 )]
 pub struct Day {
     /// # Raw name of a weekday
@@ -334,22 +321,6 @@ pub struct Day {
     /// # List of subjects on this day
     pub subjects: Vec<Subject>,
 }
-impl Ord for Day {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.weekday.cmp(&other.weekday)
-    }
-}
-impl PartialOrd for Day {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl PartialEq for Day {
-    fn eq(&self, other: &Self) -> bool {
-        self.weekday == other.weekday
-    }
-}
 
 /// # Group's full schedule container
 #[derive(
@@ -357,7 +328,6 @@ impl PartialEq for Day {
     Deserialize,
     Debug,
     Clone,
-    Hash
 )]
 pub struct Group {
     /// # Raw header of a group
@@ -397,7 +367,7 @@ impl Group {
 
 /// # Whole schedule page
 /// - contains a list of groups
-#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Page {
     /// # Raw page header
     /// 
