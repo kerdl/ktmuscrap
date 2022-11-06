@@ -49,6 +49,7 @@ lazy_static! {
     Eq,
     PartialOrd,
     Ord,
+    Hash
 )]
 pub enum Weekday {
     #[serde(rename = "Понедельник")]

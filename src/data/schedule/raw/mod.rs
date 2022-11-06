@@ -32,7 +32,8 @@ use super::error;
     Clone, 
     PartialEq, 
     Eq, 
-    EnumString
+    EnumString,
+    Hash
 )]
 #[strum(serialize_all = "snake_case")]
 pub enum Type {

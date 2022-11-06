@@ -2,6 +2,7 @@ pub mod api;
 pub mod data;
 pub mod parse;
 pub mod merge;
+pub mod compare;
 pub mod fs;
 pub mod logger;
 pub mod debug;

@@ -160,7 +160,8 @@ impl SerdeLast {
     Debug, 
     Clone,
     PartialEq,
-    Eq
+    Eq,
+    Hash
 )]
 pub enum Format {
     /// Means you take ur ass
@@ -193,7 +194,8 @@ pub enum Format {
     PartialEq, 
     Eq,
     EnumString,
-    Display
+    Display,
+    Hash
 )]
 pub enum Type {
     /// Was parsed from a weekly
@@ -210,7 +212,8 @@ pub enum Type {
     Deserialize, 
     Debug, 
     Clone,
-    Eq
+    Eq,
+    Hash
 )]
 pub struct Subject {
     /// # Raw representation, before parsing
@@ -313,6 +316,7 @@ impl PartialEq for Subject {
     Debug, 
     Clone,
     Eq,
+    Hash
 )]
 pub struct Day {
     /// # Raw name of a weekday
@@ -348,7 +352,13 @@ impl PartialEq for Day {
 }
 
 /// # Group's full schedule container
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Hash
+)]
 pub struct Group {
     /// # Raw header of a group
     /// 
@@ -387,7 +397,7 @@ impl Group {
 
 /// # Whole schedule page
 /// - contains a list of groups
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 pub struct Page {
     /// # Raw page header
     /// 
