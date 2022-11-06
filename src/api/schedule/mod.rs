@@ -47,13 +47,12 @@ pub async fn generic_compare(
     let last_page = last_page.as_ref().unwrap().clone();
 
     let comparison = compare::schedule::Page::compare(
-        &users_page,
-        &*last_page
+        users_page,
+        (*last_page).clone()
     );
 
-    let comparison_json = serde_json::to_string(&comparison);
-
-    Response::ok().to_json()
+    Response::from_comparison(comparison.clone())
+        .to_json()
 }
 
 pub async fn error_response(

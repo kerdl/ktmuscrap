@@ -1,3 +1,8 @@
+//! # I DON'T CARE ABOUT CLONING, NIGGERS
+//! # "UOOOGH BRO!! YOU COULD USE &'a EVERYWHERE IN YOUR CODE!! UOOOGH!!!!!"
+//! # SHUT UP BITCH, I'VE HAD ENOUGH, GO FUCK YOUR &'aSS
+
+
 use derive_new::new;
 use serde::Serialize;
 use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
@@ -10,25 +15,25 @@ pub trait DetailedCmp<ToCompare, Compared> {
 }
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DetailedChanges<Primary, Detailed> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
     pub changed:     Vec<Detailed>,
     pub unchanged:   Vec<Detailed>,
 }
-impl<'a, Primary, Detailed> DetailedChanges<&'a Primary, &'a Detailed> 
+impl<Primary, Detailed> DetailedChanges<Primary, Detailed> 
 where 
-    Primary: Hash + PartialEq,
-    Detailed: DetailedCmp<&'a Primary, Detailed>
+    Primary: Hash + PartialEq + Clone,
+    Detailed: DetailedCmp<Primary, Detailed>
 {
     pub fn compare(
-        old: &'a Vec<Primary>,
-        new: &'a Vec<Primary>
-    ) -> DetailedChanges<&'a Primary, Detailed> {
+        old: Vec<Primary>,
+        new: Vec<Primary>
+    ) -> DetailedChanges<Primary, Detailed> {
 
-        let mut appeared:    Vec<&Primary> = vec![];
-        let mut disappeared: Vec<&Primary> = vec![];
+        let mut appeared:    Vec<Primary> = vec![];
+        let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Detailed> = vec![];
         let mut unchanged:   Vec<Detailed> = vec![];
 
@@ -38,7 +43,7 @@ where
             );
 
             if new_value.is_none() {
-                disappeared.push(old_value);
+                disappeared.push(old_value.clone());
                 continue;
             }
         }
@@ -49,13 +54,13 @@ where
             );
             
             if old_value.is_none() {
-                appeared.push(new_value);
+                appeared.push(new_value.clone());
                 continue;
             }
 
             let detailed = Detailed::compare(
-                old_value.unwrap(),
-                new_value
+                old_value.unwrap().clone(),
+                new_value.clone()
             );
 
             let primitive = Primitive::new(
@@ -81,26 +86,26 @@ where
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Changes<Primary> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
     pub changed:     Vec<Primary>,
     pub unchanged:   Vec<Primary>,
 }
-impl<'a, Primary> Changes<&'a Primary> 
+impl<Primary> Changes<Primary> 
 where 
-    Primary: Hash + PartialEq
+    Primary: Hash + PartialEq + Clone
 {
     pub fn compare(
-        old: &'a Vec<Primary>,
-        new: &'a Vec<Primary>
-    ) -> Changes<&'a Primary> {
+        old: Vec<Primary>,
+        new: Vec<Primary>
+    ) -> Changes<Primary> {
 
-        let mut appeared:    Vec<&Primary> = vec![];
-        let mut disappeared: Vec<&Primary> = vec![];
-        let mut changed:     Vec<&Primary> = vec![];
-        let mut unchanged:   Vec<&Primary> = vec![];
+        let mut appeared:    Vec<Primary> = vec![];
+        let mut disappeared: Vec<Primary> = vec![];
+        let mut changed:     Vec<Primary> = vec![];
+        let mut unchanged:   Vec<Primary> = vec![];
 
         for old_value in old.iter() {
             let new_value = new.iter().find(
@@ -108,7 +113,7 @@ where
             );
 
             if new_value.is_none() {
-                disappeared.push(old_value);
+                disappeared.push(old_value.clone());
                 continue;
             }
         }
@@ -119,7 +124,7 @@ where
             );
             
             if old_value.is_none() {
-                appeared.push(new_value);
+                appeared.push(new_value.clone());
                 continue;
             }
 
@@ -129,10 +134,10 @@ where
             );
 
             if primitive.is_same_hash() {
-                unchanged.push(new_value);
+                unchanged.push(new_value.clone());
                 continue;
             } else {
-                changed.push(new_value);
+                changed.push(new_value.clone());
                 continue;
             }
         }
@@ -147,7 +152,7 @@ where
 }
 
 
-#[derive(new, Debug, Serialize)]
+#[derive(new, Debug, Clone, Serialize)]
 pub struct Primitive<T> {
     pub old: T,
     pub new: T

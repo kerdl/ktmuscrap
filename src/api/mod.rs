@@ -6,17 +6,24 @@ use actix_web::{web, http::StatusCode};
 use serde_derive::Serialize;
 use std::sync::Arc;
 
-use crate::data::schedule as sc;
+use crate::{data::schedule as sc, compare::schedule as cmp};
 use error::base::{ApiError, Kind};
 
 
 #[derive(new, Serialize)]
 pub struct Data {
-    pub schedule: Option<Arc<sc::Page>>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schedule: Option<Arc<sc::Page>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comparison: Option<cmp::Page>
 }
 impl Data {
     pub fn from_schedule(schedule: Arc<sc::Page>) -> Data {
-        Data::new(Some(schedule))
+        Data::new(Some(schedule), None)
+    }
+
+    pub fn from_comparison(comparison: cmp::Page) -> Data {
+        Data::new(None, Some(comparison))
     }
 }
 
@@ -39,6 +46,12 @@ impl Response {
         Response::new(true, Some(data), None)
     }
 
+    pub fn from_comparison(comparison: cmp::Page) -> Response {
+        let data = Data::from_comparison(comparison);
+
+        Response::new(true, Some(data), None)
+    }
+
     pub fn to_json(self) -> web::Json<Self> {
         let mut status = StatusCode::OK;
 
@@ -47,7 +60,6 @@ impl Response {
                 Kind::UserFailure =>     StatusCode::BAD_REQUEST,
                 Kind::InternalFailure => StatusCode::INTERNAL_SERVER_ERROR,
                 Kind::DataFailure =>     StatusCode::NOT_IMPLEMENTED
-
             }
         );
 
