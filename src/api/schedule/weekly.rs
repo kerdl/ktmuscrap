@@ -1,8 +1,24 @@
-use actix_web::{get, delete, post, Responder, web};
 use log::warn;
+use actix_web::{get, delete, post, Responder, web};
 
-use crate::{RAW_SCHEDULE, LAST_SCHEDULE, parse, api::{Response, error::{self, base::ToApiError}, ToResponse}, data::schedule::Type};
-use super::error_response;
+use crate::{
+    RAW_SCHEDULE,
+    LAST_SCHEDULE,
+    parse,
+    api::{
+        Response,
+        error::{
+            self,
+            base::ToApiError
+        },
+        ToResponse
+    },
+    data::schedule::Type
+};
+use super::{
+    generic_compare,
+    error_response
+};
 
 
 #[post("/schedule/weekly/convert")]
@@ -49,5 +65,5 @@ async fn delete() -> impl Responder {
 
 #[post("/schedule/weekly/compare")]
 async fn compare(bytes: web::Bytes) -> impl Responder {
-    ""
+    generic_compare(Type::Weekly, bytes).await
 }

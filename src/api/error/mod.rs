@@ -85,7 +85,8 @@ pub enum ErrorNum {
     MassScheduleDeletionFailed,
     NoHtmls,
     MultipleHtmls,
-    ScheduleParsingFailed,
+    PageParsingFailed,
+    NoLastSchedule,
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -236,5 +237,28 @@ api_err!(
         "{} contains multiple html files inside archive: {:?}, wtf dude",
         this.sc_type.to_string(),
         this.index
+    )
+);
+
+api_err!(
+    name:    PageParsingFailed,
+    as_enum: ErrorNum::PageParsingFailed,
+    kind:    Kind::UserFailure,
+    fields:  (pub sc_type: schedule::Type, pub error: String),
+    error:   |this| format!(
+        "the {} page you sent to compare cannot be parsed: {:?}",
+        this.sc_type.to_string(),
+        this.error
+    )
+);
+
+api_err!(
+    name:    NoLastSchedule,
+    as_enum: ErrorNum::NoLastSchedule,
+    kind:    Kind::UserFailure,
+    fields:  (pub sc_type: schedule::Type),
+    error:   |this| format!(
+        "the {} cannot be compared since there's nothing to compare with",
+        this.sc_type.to_string(),
     )
 );

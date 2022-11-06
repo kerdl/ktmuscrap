@@ -5,10 +5,20 @@ use crate::{
     RAW_SCHEDULE,
     LAST_SCHEDULE,
     parse,
-    api::{Response, error::{self, base::ToApiError}, ToResponse},
+    api::{
+        Response,
+        error::{
+            self,
+            base::ToApiError
+        },
+        ToResponse
+    },
     data::schedule::Type,
 };
-use super::error_response;
+use super::{
+    generic_compare,
+    error_response
+};
 
 
 #[post("/schedule/daily/convert")]
@@ -55,7 +65,7 @@ async fn delete() -> impl Responder {
     Response::ok().to_json()
 }
 
-#[post("/schedule/weekly/compare")]
+#[post("/schedule/daily/compare")]
 async fn compare(bytes: web::Bytes) -> impl Responder {
-    ""
+    generic_compare(Type::Daily, bytes).await
 }

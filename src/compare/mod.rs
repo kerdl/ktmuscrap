@@ -1,4 +1,5 @@
 use derive_new::new;
+use serde::Serialize;
 use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
 
 pub mod schedule;
@@ -9,7 +10,7 @@ pub trait DetailedCmp<ToCompare, Compared> {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct DetailedChanges<Primary, Detailed> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
@@ -80,7 +81,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Changes<Primary> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
@@ -146,7 +147,7 @@ where
 }
 
 
-#[derive(new, Debug)]
+#[derive(new, Debug, Serialize)]
 pub struct Primitive<T> {
     pub old: T,
     pub new: T
