@@ -3,11 +3,13 @@ use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
 
 pub mod schedule;
 
+
 pub trait DetailedCmp<ToCompare, Compared> {
     fn compare(old: ToCompare, new: ToCompare) -> Compared;
 }
 
 
+#[derive(Debug)]
 pub struct DetailedChanges<Primary, Detailed> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
@@ -78,6 +80,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Changes<Primary> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
@@ -143,7 +146,7 @@ where
 }
 
 
-#[derive(new)]
+#[derive(new, Debug)]
 pub struct Primitive<T> {
     pub old: T,
     pub new: T

@@ -8,6 +8,7 @@ pub mod logger;
 pub mod debug;
 
 use chrono::NaiveDate;
+use compare::DetailedCmp;
 pub use log::{info, debug};
 pub use std::time::Instant;
 pub use derive_new;
@@ -93,6 +94,31 @@ async fn main() -> std::io::Result<()> {
     ).await.unwrap();
     REMOTE_INDEX.set(Arc::new(remote_index)).unwrap();
 
+
+    let mut old = parse::remote::html::Parser::from_path(
+        TEMP_PATH.join("r_weekly").join("31.10-06.11.html")
+    ).await.unwrap();
+
+    let table = old.table().unwrap();
+    let mapping = table.mapping().unwrap();
+    let old_page = mapping.page().unwrap();
+
+    let mut new = parse::remote::html::Parser::from_path(
+        TEMP_PATH.join("r_weekly").join("07-12.11.html")
+    ).await.unwrap();
+
+    let table = new.table().unwrap();
+    let mapping = table.mapping().unwrap();
+    let new_page = mapping.page().unwrap();
+
+
+    let start = Instant::now();
+    let compared = compare::schedule::Page::compare(old_page, new_page);
+
+    let dur = start.elapsed();
+    info!("comparing took {:?}", dur);
+
+    std::process::exit(0);
 
     // start http server
     HttpServer::new(|| {

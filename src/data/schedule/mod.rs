@@ -304,6 +304,7 @@ impl PartialEq for Subject {
     Deserialize, 
     Debug, 
     Clone,
+    Hash
 )]
 pub struct Day {
     /// # Raw name of a weekday
@@ -321,6 +322,11 @@ pub struct Day {
     /// # List of subjects on this day
     pub subjects: Vec<Subject>,
 }
+impl PartialEq for Day {
+    fn eq(&self, other: &Self) -> bool {
+        self.weekday == other.weekday
+    }
+}
 
 /// # Group's full schedule container
 #[derive(
@@ -328,6 +334,7 @@ pub struct Day {
     Deserialize,
     Debug,
     Clone,
+    Hash,
 )]
 pub struct Group {
     /// # Raw header of a group
@@ -362,6 +369,11 @@ impl Group {
         ) {
             self.days.remove(last);
         }
+    }
+}
+impl PartialEq for Group {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
     }
 }
 

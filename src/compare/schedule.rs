@@ -6,10 +6,14 @@ use crate::data::schedule as regular;
 use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
 
 
+#[derive(Debug)]
 pub struct Subject<'a> {
-    teachers: Changes<&'a String>,
-    cabinet: Primitive<&'a Option<String>>,
-    time: Primitive<&'a Range<NaiveTime>>
+    pub old: &'a regular::Subject,
+    pub new: &'a regular::Subject,
+
+    pub teachers: Changes<&'a String>,
+    pub cabinet: Primitive<&'a Option<String>>,
+    pub time: Primitive<&'a Range<NaiveTime>>
 }
 impl<'a> DetailedCmp<&'a regular::Subject, Subject<'a>> for Subject<'a> {
     fn compare(
@@ -31,57 +35,77 @@ impl<'a> DetailedCmp<&'a regular::Subject, Subject<'a>> for Subject<'a> {
         );
 
         Subject {
+            old,
+            new,
             teachers,
             cabinet,
             time
         }
     }
-
-    /* 
-    pub fn compare_vec(
-        vector: &'a Vec<Primitive<&regular::Subject>>
-    ) -> Vec<Subject<'a>> {
-
-        let mut compared = vec![];
-
-        for changed in vector.iter() {
-            let subject = Subject::compare(
-                changed.old,
-                changed.new
-            );
-            compared.push(subject);
-        }
-
-        compared
-    }
-    */
 }
 
+#[derive(Debug)]
 pub struct Day<'a> {
-    subjects: DetailedChanges<&'a regular::Subject, Subject<'a>>
+    pub old: &'a regular::Day,
+    pub new: &'a regular::Day,
+
+    pub subjects: DetailedChanges<&'a regular::Subject, Subject<'a>>
 }
-impl<'a> Day<'a> {
-    pub fn compare(
+impl<'a> DetailedCmp<&'a regular::Day, Day<'a>> for Day<'a> {
+    fn compare(
         old: &'a regular::Day,
         new: &'a regular::Day
     ) -> Day<'a> {
 
-        todo!()
-        /* 
         let subjects = DetailedChanges::compare(
             &old.subjects,
             &new.subjects
         );
 
-        Day { subjects }
-        */
+        Day { old, new, subjects }
     }
 }
 
+#[derive(Debug)]
 pub struct Group<'a> {
-    days: DetailedChanges<&'a regular::Day, Day<'a>>
+    pub old: &'a regular::Group,
+    pub new: &'a regular::Group,
+
+    pub days: DetailedChanges<&'a regular::Day, Day<'a>>
+}
+impl<'a> DetailedCmp<&'a regular::Group, Group<'a>> for Group<'a> {
+    fn compare(
+        old: &'a regular::Group,
+        new: &'a regular::Group
+    ) -> Group<'a> {
+
+        let days = DetailedChanges::compare(
+            &old.days,
+            &new.days
+        );
+
+        Group { old, new, days }
+    }
 }
 
+#[derive(Debug)]
 pub struct Page<'a> {
-    groups: DetailedChanges<&'a regular::Group, Group<'a>>
+    pub old: &'a regular::Page,
+    pub new: &'a regular::Page,
+
+    pub groups: DetailedChanges<&'a regular::Group, Group<'a>>
+}
+impl<'a> DetailedCmp<&'a regular::Page, Page<'a>> for Page<'a> {
+    fn compare(
+        old: &'a regular::Page,
+        new: &'a regular::Page
+    ) -> Page<'a> {
+
+        let groups = DetailedChanges::compare(
+            &old.groups,
+            &new.groups
+        );
+
+        Page { old, new, groups }
+    }
 }
