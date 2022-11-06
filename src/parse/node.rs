@@ -1,11 +1,16 @@
 pub mod text {
     use html_parser::Node;
+    use htmlescape::decode_html;
 
-    pub fn nested_as_vec(node: &Node) -> Vec<&str> {
+    pub fn nested_as_vec(node: &Node) -> Vec<String> {
         let mut texts = vec![];
 
         if node.text().is_some() {
-            texts.push(node.text().unwrap())
+            if let Ok(decoded) = decode_html(node.text().unwrap()) {
+                texts.push(decoded)
+            } else {
+                texts.push(node.text().unwrap().to_owned())
+            }
         }
 
         if node.element().is_none() {
