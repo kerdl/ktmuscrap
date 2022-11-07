@@ -6,27 +6,46 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+# runtime
 async-recursion = "1.0"
+async-trait = "0.1.58"
 tokio = { version = "1.21.2", features = ["full"] }
 actix-web = "4"
 
+# logging, coloring
 log = "0.4"
 colored = "2"
+
+# static, const
 lazy_static = "1.4.0"
 once_cell = "1.16.0"
-thiserror = "1.0"
+
+# date, time
 chrono = { version = "0.4", features = ["serde"]}
-zip = "0.6.3"
-itertools = "0.10.5"
-derive-new = "0.5"
-num-traits = "0.2"
-num-derive = "0.3"
+
+# serializing, deserializing
 serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0.147"
 serde_json = "1.0.87"
+
+# enum
 strum = "0.24"
 strum_macros = "0.24"
+num-traits = "0.2"
+num-derive = "0.3"
+
+# html
 html_parser = "0.6.3"
 htmlescape = "0.3.1"
+
+# strings
 regex = "1.5"
 ngrammatic = "0.3.4"
+
+# tools
+thiserror = "1.0"
+derive-new = "0.5"
+itertools = "0.10.5"
+zip = "0.6.3"
+sha2 = "0.10.6"

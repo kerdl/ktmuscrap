@@ -337,20 +337,31 @@ impl SerdeContainer {
 
 
 #[derive(new, Debug)]
+pub struct LatestIndex {
+    pub sha256: String,
+}
+
+#[derive(new, Debug)]
 pub struct Index {
     pub path: PathBuf,
+    pub latest: LatestIndex,
     pub ignored: Arc<RwLock<HashSet<PathBuf>>>
 }
 impl Index {
     fn from_serde_index(serde_index: SerdeIndex) -> Index {
         Index::new(
             serde_index.path,
+            LatestIndex::new("".to_owned()),
             Arc::new(RwLock::new(serde_index.ignored))
         )
     }
 
     pub fn from_path(path: PathBuf) -> Index {
-        Index::new(path, Arc::new(RwLock::new(HashSet::new())))
+        Index::new(
+            path,
+            LatestIndex::new("".to_owned()),
+            Arc::new(RwLock::new(HashSet::new()))
+        )
     }
 
     pub async fn save(&self) {
