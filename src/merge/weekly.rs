@@ -73,7 +73,13 @@ pub async fn page(
     };
 
     if ft_week != r_week {
-        return Err(error::DifferentWeeks.into())
+        return Err(error::DifferentWeeks {
+            latest: if ft_week.start > r_week.start {
+                raw::Type::FtWeekly
+            } else {
+                raw::Type::RWeekly
+            }
+        }.into())
     }
 
     let r_groups = {

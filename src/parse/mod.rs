@@ -10,7 +10,6 @@ pub mod teacher;
 pub mod cabinet;
 pub mod error;
 
-use tokio::sync::RwLock;
 use std::sync::Arc;
 
 use crate::{
@@ -24,7 +23,11 @@ use crate::{
             ApiError
         }
     }, 
-    data::schedule::{self, raw}, perf
+    data::schedule::{
+        self,
+        raw
+    },
+    perf
 };
 use super::merge;
 
@@ -119,12 +122,31 @@ pub async fn weekly(
         (*arc_page).clone()
     };
 
-    merge::weekly::page(
+    if let Err(err) = merge::weekly::page(
         &mut ft_weekly_page, 
         &mut r_weekly_page
-    ).await?;
+    ).await {
+        match err {
+            diff_wkd if err.is::<merge::error::DifferentWeeks>() => {
 
-    *LAST_SCHEDULE.get().unwrap().weekly.write().await = Some(Arc::new(ft_weekly_page));
+                let diff_wkd: &merge::error::DifferentWeeks = {
+                    diff_wkd.downcast_ref().unwrap()
+                };
+
+                ft_weekly_page = match diff_wkd.latest {
+                    raw::Type::FtWeekly => ft_weekly_page,
+                    raw::Type::RWeekly => r_weekly_page,
+                    _ => unreachable!()
+                }
+
+            },
+            _ => return Err(err)
+        }
+    }
+
+    *LAST_SCHEDULE.get().unwrap().weekly.write().await = {
+        Some(Arc::new(ft_weekly_page))
+    };
     LAST_SCHEDULE.get().unwrap().save().await?;
 
     Ok(())
