@@ -1,8 +1,16 @@
-use std::{sync::Arc, path::PathBuf};
+//! # Generic JSON saving, loading
+
+use std::{
+    sync::Arc,
+    path::PathBuf
+};
 
 use async_trait::async_trait;
 use log::warn;
-use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use serde::{
+    Serialize,
+    de::DeserializeOwned
+};
 
 use crate::SyncResult;
 
@@ -11,11 +19,16 @@ pub trait Path {
     fn path(&self) -> PathBuf;
 }
 
+pub trait DefaultFromPath {
+    fn default_from_path(path: PathBuf) -> Arc<Self>;
+}
+
+#[async_trait]
 pub trait ToMiddle<Middle>
 where
     Middle: DirectSavingLoading
 {
-    fn to_middle(&self) -> Middle;
+    async fn to_middle(&self) -> Middle;
 }
 
 pub trait FromMiddle<Middle> {
@@ -44,7 +57,7 @@ where
         Ok(())
     }
 
-    async fn poll_save(self: Arc<Self>) {
+    fn poll_save(self: Arc<Self>) {
         tokio::spawn(async move {
             self.save().await
         });
@@ -69,13 +82,13 @@ where
 {
     async fn save(&self) -> SyncResult<()> {
 
-        let middle = Arc::new(self.to_middle());
+        let middle = Arc::new(self.to_middle().await);
         middle.save().await?;
 
         Ok(())
     }
 
-    async fn poll_save(self: Arc<Self>) {
+    fn poll_save(self: Arc<Self>) {
         tokio::spawn(async move {
             self.save().await
         });
@@ -87,5 +100,25 @@ where
         let primary = Self::from_middle(middle);
 
         Ok(primary)
+    }
+}
+
+#[async_trait]
+pub trait LoadOrInit<Middle>
+where
+    Middle: DirectSavingLoading,
+    Self: SavingLoading<Middle> + DefaultFromPath
+{
+    async fn load_or_init(path: PathBuf) -> SyncResult<Arc<Self>> {
+        let this;
+
+        if !path.exists() {
+            this = Self::default_from_path(path);
+            this.save().await?;
+        } else {
+            this = Self::load(path).await?;
+        }
+
+        Ok(this)
     }
 }

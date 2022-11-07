@@ -13,7 +13,7 @@ use crate::{
         },
         ToResponse
     },
-    data::schedule::Type
+    data::{schedule::Type, json::SavingLoading}
 };
 use super::{
     generic_compare,
@@ -32,7 +32,7 @@ async fn convert() -> impl Responder {
         return error_response(err).await;
     }
 
-    RAW_SCHEDULE.get().unwrap().save().await;
+    RAW_SCHEDULE.get().unwrap().clone().poll_save();
 
     let parsed = LAST_SCHEDULE.get().unwrap().weekly.read().await;
     let page = parsed.as_ref().unwrap().clone();

@@ -23,10 +23,10 @@ use crate::{
             ApiError
         }
     }, 
-    data::schedule::{
+    data::{schedule::{
         self,
         raw
-    },
+    }, json::SavingLoading},
     perf
 };
 use super::merge;
@@ -147,7 +147,7 @@ pub async fn weekly(
     *LAST_SCHEDULE.get().unwrap().weekly.write().await = {
         Some(Arc::new(ft_weekly_page))
     };
-    LAST_SCHEDULE.get().unwrap().save().await?;
+    LAST_SCHEDULE.get().unwrap().clone().poll_save();
 
     Ok(())
 }

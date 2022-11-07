@@ -19,7 +19,7 @@ use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
-use data::{schedule::{self, debug::Dummy}, regex};
+use data::{schedule::{self, debug::Dummy}, regex, json::LoadOrInit};
 
 
 static LOGGER: Logger = Logger;
@@ -60,9 +60,9 @@ lazy_static! {
     };
 }
 
-static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>> = OnceCell::new();
-static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>           = OnceCell::new();
-static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::Index>>     = OnceCell::new();
+static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>>    = OnceCell::new();
+static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>              = OnceCell::new();
+static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::Index>> = OnceCell::new();
 
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -82,17 +82,17 @@ async fn main() -> std::io::Result<()> {
     let raw_schedule = schedule::raw::Container::load_or_init(
         RAW_SCHEDULE_PATH.to_owned()
     ).await.unwrap();
-    RAW_SCHEDULE.set(Arc::new(raw_schedule)).unwrap();
+    RAW_SCHEDULE.set(raw_schedule).unwrap();
 
     let last_schedule = schedule::Last::load_or_init(
         LAST_SCHEDULE_PATH.to_owned()
     ).await.unwrap();
-    LAST_SCHEDULE.set(Arc::new(last_schedule)).unwrap();
+    LAST_SCHEDULE.set(last_schedule).unwrap();
 
     let remote_index = schedule::raw::Index::load_or_init(
         REMOTE_INDEX_PATH.to_path_buf()
     ).await.unwrap();
-    REMOTE_INDEX.set(Arc::new(remote_index)).unwrap();
+    REMOTE_INDEX.set(remote_index).unwrap();
 
 
     /*

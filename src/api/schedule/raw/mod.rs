@@ -12,7 +12,7 @@ use crate::{
         error::{self, base::ToApiError}, 
         ToResponse, Response
     }, 
-    data::schedule::{self, raw, Type}
+    data::{schedule::{self, raw, Type}, json::SavingLoading}
 };
 
 
@@ -69,7 +69,7 @@ async fn generic_load(
             .to_json()
     }
 
-    container.save().await;
+    container.poll_save();
 
     Response::ok().to_json()
 }

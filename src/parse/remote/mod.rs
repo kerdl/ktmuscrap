@@ -10,7 +10,8 @@ use crate::{
     REMOTE_INDEX,
     data::schedule::{raw, Page}, 
     SyncResult,
-    perf
+    perf,
+    data::json::SavingLoading,
 };
 use super::{node, error};
 
@@ -26,7 +27,7 @@ pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
             let index = REMOTE_INDEX.get().unwrap();
             index.ignored.write().await.extend(removed_paths.clone());
 
-            index.save().await;
+            index.clone().poll_save();
         }
 
     }

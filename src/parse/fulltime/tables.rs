@@ -16,7 +16,7 @@ use crate::data::{
             }
         }
     }, 
-    weekday::Weekday
+    Weekday
 };
 use super::{
     mappings::Parser as MappingsParser, 

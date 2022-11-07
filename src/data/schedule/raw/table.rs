@@ -1,5 +1,6 @@
 use derive_new::new;
 
+
 #[derive(new, Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub x: usize,

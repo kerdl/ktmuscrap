@@ -12,7 +12,7 @@ use crate::{data::{
             SubjectMapping, 
         },
     },
-    weekday::Weekday,
+    Weekday,
 }, parse::group};
 use super::{super::{date, time, num}, mapping};
 

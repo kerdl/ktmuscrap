@@ -1,4 +1,3 @@
-use log::warn;
 use actix_web::{get, delete, post, Responder, web};
 
 use crate::{
@@ -13,7 +12,7 @@ use crate::{
         },
         ToResponse
     },
-    data::schedule::Type,
+    data::{schedule::Type, json::SavingLoading},
 };
 use super::{
     generic_compare,
@@ -34,7 +33,7 @@ async fn convert() -> impl Responder {
         ).await;
     }
 
-    RAW_SCHEDULE.get().unwrap().save().await;
+    RAW_SCHEDULE.get().unwrap().clone().poll_save();
 
     let parsed = LAST_SCHEDULE.get().unwrap().daily.read().await;
     let page = parsed.as_ref().unwrap().clone();

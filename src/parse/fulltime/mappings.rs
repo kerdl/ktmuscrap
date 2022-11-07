@@ -19,7 +19,7 @@ use crate::{data::{
         Subject, 
         Format
     }, 
-    weekday::Weekday
+    Weekday
 }, parse::cabinet};
 use super::{
     mappings::Parser as MappingsParser, 
