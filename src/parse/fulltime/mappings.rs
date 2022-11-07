@@ -4,7 +4,6 @@ use crate::{data::{
     schedule::{
         raw,
         fulltime::{
-            html::HeaderTable, 
             table::{
                 NumTime,
                 SubjectMapping, 
