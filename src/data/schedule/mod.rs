@@ -184,7 +184,7 @@ pub struct Day {
     /// # Raw name of a weekday
     /// ## Examples
     /// - **"Понедельник"** (*"Monday"*)
-    /// - **"Вторник"** (*"Tuesday"*)
+    /// - **"вторник"** (*"tuesday"*)
     /// - ...
     pub raw: String,
     pub weekday: Weekday,
