@@ -66,8 +66,8 @@ async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
 
 
 pub async fn weekly(
-    ft_weekly: Arc<raw::Schedule>,
-    r_weekly: Arc<raw::Schedule>
+    ft_weekly: Arc<raw::ScheduleContainer>,
+    r_weekly: Arc<raw::ScheduleContainer>
 ) -> SyncResult<()> {
 
     pre_check(schedule::Type::Weekly).await?;
@@ -153,8 +153,8 @@ pub async fn weekly(
 }
 
 pub async fn daily(
-    ft_daily: Arc<raw::Schedule>,
-    r_weekly: Arc<raw::Schedule>
+    ft_daily: Arc<raw::ScheduleContainer>,
+    r_weekly: Arc<raw::ScheduleContainer>
 ) -> SyncResult<()> {
 
     pre_check(schedule::Type::Daily).await?;

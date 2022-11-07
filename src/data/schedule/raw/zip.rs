@@ -12,14 +12,14 @@ use crate::{
     DynResult,
     REMOTE_INDEX,
     REMOTE_INDEX_PATH,
-    parse::fulltime,
+    parse,
     fs,
 };
 use super::{
     Type as RawType,
     super::{
         error,
-        remote,
+        raw
     }
 };
 
@@ -49,7 +49,7 @@ impl Zip {
         // naming the directory the same as schedule type
         let dir_name = self.sc_type.to_string();
         // make relative path to this dir
-        let dir_path = crate::TEMP_PATH.join(dir_name);
+        let dir_path = crate::DATA_PATH.join(dir_name);
 
         dir_path
     }
@@ -117,7 +117,7 @@ impl Zip {
     /// ## Get all paths to HTML files in this ZIP
     /// - not only in root, but in all subdirectories
     pub async fn html_paths(&self) -> SyncResult<Vec<PathBuf>> {
-        let mut all_file_paths = fs::collect_file_paths(self.path()).await?;
+        let mut all_file_paths = fs::collect::file_paths(&self.path()).await?;
 
         if all_file_paths.contains(&REMOTE_INDEX_PATH) {
 
@@ -145,17 +145,24 @@ impl Zip {
         Ok(filtered_htmls)
     }
 
-    pub async fn to_remote_html_container(&self) -> SyncResult<remote::html::Container> {
+    pub async fn to_remote_html_container(
+        &self
+    ) -> SyncResult<raw::remote::html::Container> {
+
         let html_paths = self.html_paths().await?;
-        let container = remote::html::Container::from_paths(html_paths).await?;
+        let container = raw::remote::html::Container::from_paths(html_paths).await?;
 
         Ok(container)
     }
 
-    pub async fn to_fulltime_parser(&self, sc_type: RawType) -> SyncResult<fulltime::html::Parser> {
+    pub async fn to_fulltime_parser(
+        &self,
+        sc_type: RawType
+    ) -> SyncResult<parse::fulltime::html::Parser> {
+
         let html_paths = self.html_paths().await?;
         let html_path = html_paths.get(0).unwrap();
-        let parser = fulltime::html::Parser::from_path(
+        let parser = parse::fulltime::html::Parser::from_path(
             html_path.clone(), 
             sc_type
         ).await;

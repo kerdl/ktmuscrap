@@ -1,10 +1,12 @@
 use derive_new::new;
 
 use crate::data::schedule::{
-    raw,
-    remote::table::{
-        SubjectMapping,
-        WeekdayDate
+    raw::{
+        self,
+        remote::table::{
+            SubjectMapping,
+            WeekdayDate
+        },
     },
     Type,
     Subject,

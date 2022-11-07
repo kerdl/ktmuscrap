@@ -3,10 +3,12 @@ use chrono::{NaiveTime, NaiveDate};
 use std::ops::Range;
 
 use crate::data::{
-    schedule::raw::table::Cell, 
+    schedule::raw::{
+        self,
+        table::Cell
+    }, 
     weekday::Weekday
 };
-use super::super::raw;
 
 
 #[derive(new, Debug, Clone, PartialEq, Eq)]

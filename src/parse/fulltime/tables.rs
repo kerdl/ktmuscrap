@@ -3,8 +3,8 @@ use chrono::NaiveTime;
 use std::{collections::HashMap, ops::Range};
 
 use crate::data::{
-    schedule::{
-        raw,
+    schedule::raw::{
+        self,
         fulltime::{
             html::HeaderTable, 
             table::{
@@ -15,7 +15,7 @@ use crate::data::{
                 WeekdayWithOrigin
             }
         }
-    }, 
+    },
     Weekday
 };
 use super::{

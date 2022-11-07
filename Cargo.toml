@@ -12,6 +12,7 @@ async-recursion = "1.0"
 async-trait = "0.1.58"
 tokio = { version = "1.21.2", features = ["full"] }
 actix-web = "4"
+reqwest = "0.11"
 
 # logging, coloring
 log = "0.4"
@@ -49,3 +50,5 @@ derive-new = "0.5"
 itertools = "0.10.5"
 zip = "0.6.3"
 sha2 = "0.10.6"
+hex = "0.4.3"
+hex-literal = "0.3"

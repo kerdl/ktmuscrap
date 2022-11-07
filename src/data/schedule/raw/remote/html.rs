@@ -19,44 +19,25 @@ impl Container {
         Ok(this)
     }
 
-    pub fn add_html(&mut self, html: html::Parser) {
-        self.list.push(html);
-    }
-
-    pub async fn add_from_path(
-        &mut self, 
-        path: PathBuf
-    ) -> SyncResult<()> {
-
-        let html = html::Parser::from_path(path).await?;
-        self.add_html(html);
-
-        Ok(())
-    }
-
     pub async fn add_from_paths(
         &mut self, 
         paths: Vec<PathBuf>
     ) -> SyncResult<()> {
 
-        let htmls = Arc::new(RwLock::new(vec![]));
-        let htmls_ref = htmls.clone();
-
+        let mut htmls = vec![];
         let mut handles = vec![];
 
         for path in paths {
-            let htmls_ref = htmls_ref.clone();
 
             let handle = tokio::spawn(async move {
-                let htmls_ref = htmls_ref.clone();
                 let path = path.clone();
 
                 let html = html::Parser::from_path(path).await?;
 
-                let mut htmls = htmls_ref.write().await;
-                htmls.push(html);
-
-                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+                Ok::<
+                    html::Parser,
+                    Box<dyn std::error::Error + Send + Sync>
+                >(html)
             });
 
             handles.push(handle);
@@ -64,14 +45,9 @@ impl Container {
 
         // wait for all tasks to finish
         for handle in handles {
-            handle.await??;
+            let html = handle.await??;
+            htmls.push(html);
         }
-
-        // get writing lock for htmls list
-        let mut htmls_write = htmls.write().await;
-        // take everything from that list, move it
-        // to this one
-        let htmls = std::mem::take(&mut *htmls_write);
 
         // add everything to `self` container
         self.list.extend_from_slice(&htmls);

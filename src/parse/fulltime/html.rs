@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use crate::{
     REGEX,
     SyncResult,
-    data::schedule::{
+    data::schedule::raw::{
+        self,
         fulltime::html::HeaderTable,
-        raw
     }
 };
 use super::{

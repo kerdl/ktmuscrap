@@ -14,7 +14,7 @@ use crate::{
 use super::{node, error};
 
 
-pub async fn parse(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
+pub async fn parse(schedule: Arc<raw::ScheduleContainer>) -> SyncResult<()> {
     let zip = schedule.zip.read().await;
 
     let mut html_container = zip.to_remote_html_container().await?;

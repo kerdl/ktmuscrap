@@ -22,35 +22,35 @@ use data::{schedule, regex, json::LoadOrInit};
 
 static LOGGER: Logger = Logger;
 lazy_static! {
-    /// ./temp
-    static ref TEMP_PATH: PathBuf = {
+    /// ./data
+    static ref DATA_PATH: PathBuf = {
         let mut path = PathBuf::new();
         path.push(".");
-        path.push("temp");
+        path.push("data");
     
         path
     };
     /// ./temp/r_weekly/index.json
     static ref REMOTE_INDEX_PATH: PathBuf = {
-        let mut temp_path = TEMP_PATH.clone();
-        temp_path.push(data::schedule::raw::Type::RWeekly.to_string());
-        temp_path.push("index.json");
+        let mut data_path = DATA_PATH.clone();
+        data_path.push(data::schedule::raw::Type::RWeekly.to_string());
+        data_path.push("index.json");
     
-        temp_path
+        data_path
     };
     /// ./temp/last_raw.json
     static ref RAW_SCHEDULE_PATH: PathBuf = {
-        let mut temp_path = TEMP_PATH.clone();
-        temp_path.push("last_raw.json");
+        let mut data_path = DATA_PATH.clone();
+        data_path.push("last_raw.json");
 
-        temp_path
+        data_path
     };
     /// ./temp/last.json
     static ref LAST_SCHEDULE_PATH: PathBuf = {
-        let mut temp_path = TEMP_PATH.clone();
-        temp_path.push("last.json");
+        let mut data_path = DATA_PATH.clone();
+        data_path.push("last.json");
 
-        temp_path
+        data_path
     };
 
     static ref REGEX: Arc<regex::Container> = {
@@ -58,9 +58,9 @@ lazy_static! {
     };
 }
 
-static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>>    = OnceCell::new();
-static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>              = OnceCell::new();
-static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::Index>> = OnceCell::new();
+static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>> = OnceCell::new();
+static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>           = OnceCell::new();
+static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::remote::Index>>  = OnceCell::new();
 
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -72,9 +72,9 @@ async fn main() -> std::io::Result<()> {
 
     Logger::init().unwrap();
 
-    if !TEMP_PATH.exists() {
-        tokio::fs::create_dir(TEMP_PATH.as_path()).await?;
-        info!("created {:?}", TEMP_PATH.as_path());
+    if !DATA_PATH.exists() {
+        tokio::fs::create_dir(DATA_PATH.as_path()).await?;
+        info!("created {:?}", DATA_PATH.as_path());
     }
 
     let raw_schedule = schedule::raw::Container::load_or_init(
@@ -87,7 +87,7 @@ async fn main() -> std::io::Result<()> {
     ).await.unwrap();
     LAST_SCHEDULE.set(last_schedule).unwrap();
 
-    let remote_index = schedule::raw::Index::load_or_init(
+    let remote_index = schedule::raw::remote::Index::load_or_init(
         REMOTE_INDEX_PATH.to_path_buf()
     ).await.unwrap();
     REMOTE_INDEX.set(remote_index).unwrap();
@@ -96,7 +96,7 @@ async fn main() -> std::io::Result<()> {
     /*
 
     let mut old = parse::remote::html::Parser::from_path(
-        TEMP_PATH.join("r_weekly").join("31.10-06.11.html")
+        data_path.join("r_weekly").join("31.10-06.11.html")
     ).await.unwrap();
 
     let table = old.table().unwrap();
@@ -104,7 +104,7 @@ async fn main() -> std::io::Result<()> {
     let old_page = mapping.page().unwrap();
 
     let mut new = parse::remote::html::Parser::from_path(
-        TEMP_PATH.join("r_weekly").join("07-12.11.html")
+        data_path.join("r_weekly").join("07-12.11.html")
     ).await.unwrap();
 
     let table = new.table().unwrap();

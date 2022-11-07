@@ -13,7 +13,7 @@ use super::error;
 
 
 async fn generic_parse(
-    schedule: Arc<raw::Schedule>, 
+    schedule: Arc<raw::ScheduleContainer>, 
     sc_type: raw::Type
 ) -> SyncResult<()> {
 
@@ -56,13 +56,13 @@ async fn generic_parse(
     Ok(())
 }
 
-pub async fn parse_ft_weekly(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
+pub async fn parse_ft_weekly(schedule: Arc<raw::ScheduleContainer>) -> SyncResult<()> {
     let sc_type = raw::Type::FtWeekly;
 
     generic_parse(schedule, sc_type).await
 }
 
-pub async fn parse_ft_daily(schedule: Arc<raw::Schedule>) -> SyncResult<()> {
+pub async fn parse_ft_daily(schedule: Arc<raw::ScheduleContainer>) -> SyncResult<()> {
     let sc_type = raw::Type::FtDaily;
 
     generic_parse(schedule, sc_type).await

@@ -23,7 +23,7 @@ async fn generic_load(
     bytes: web::Bytes,
     container: Arc<raw::Container>,
     // One of the fields inside `raw::Container`
-    schedule: Arc<raw::Schedule>,
+    schedule: Arc<raw::ScheduleContainer>,
     last_schedule: Arc<schedule::Last>,
     // Schedule type currently processing
     sc_type: raw::Type
@@ -74,7 +74,7 @@ async fn generic_load(
 
 async fn generic_delete(
     // One of the fields inside `raw::Container`
-    field: Arc<raw::Schedule>,
+    field: Arc<raw::ScheduleContainer>,
     // Schedule type currently processing
     sc_type: raw::Type
 ) -> impl Responder {

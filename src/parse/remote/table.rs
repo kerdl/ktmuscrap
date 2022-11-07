@@ -5,12 +5,13 @@ use std::{sync::{Arc, RwLock}, time::Instant};
 
 use crate::{data::{
     schedule::{
-        raw::table, 
-        remote::table::{
-            NumTime, 
-            WeekdayDate, 
-            SubjectMapping, 
-        },
+        raw::{
+            table, remote::table::{
+                NumTime, 
+                WeekdayDate, 
+                SubjectMapping, 
+            },
+        }, 
     },
     Weekday,
 }, parse::group};

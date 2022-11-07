@@ -1,11 +1,13 @@
 use derive_new::new;
 
-use crate::{data::{
-    schedule::{
-        raw,
-        fulltime::table::{
-            SubjectMapping, 
-            GroupSubjects, 
+use crate::{
+    data::schedule::{
+        raw::{
+            self,
+            fulltime::table::{
+                SubjectMapping, 
+                GroupSubjects, 
+            }
         },
         Type,
         Page, 
@@ -13,8 +15,9 @@ use crate::{data::{
         Day,
         Subject, 
         Format
-    }
-}, parse::cabinet};
+    },
+    parse::cabinet
+};
 use super::super::teacher;
 
 

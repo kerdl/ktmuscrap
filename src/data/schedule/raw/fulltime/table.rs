@@ -2,8 +2,10 @@ use derive_new::new;
 use chrono::{NaiveTime, NaiveDate};
 use std::{ops::Range, cmp::{Ord, Ordering}};
 
-use crate::data::weekday::Weekday;
-use super::super::raw;
+use crate::data::{
+    weekday::Weekday,
+    schedule::raw
+};
 
 
 pub enum CellType {
