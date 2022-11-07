@@ -1,11 +1,20 @@
-use log::info;
 use derive_new::new;
 use html_parser::{Dom, Node, Error};
 use htmlescape;
 use std::path::PathBuf;
 
-use crate::{REGEX, SyncResult, data::schedule::{fulltime::html::HeaderTable, raw}, perf};
-use super::{tables::Parser as TablesParser, super::node};
+use crate::{
+    REGEX,
+    SyncResult,
+    data::schedule::{
+        fulltime::html::HeaderTable,
+        raw
+    }
+};
+use super::{
+    tables,
+    super::node
+};
 
 
 enum Lookup {
@@ -17,7 +26,7 @@ enum Lookup {
 pub struct Parser {
     sc_type: raw::Type,
     dom: Dom,
-    tables: Option<TablesParser>,
+    tables: Option<tables::Parser>,
 }
 impl Parser {
     pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser> {
@@ -81,7 +90,7 @@ impl Parser {
         Some(rows)
     }
 
-    pub fn tables(&mut self) -> Option<&mut TablesParser> {
+    pub fn tables(&mut self) -> Option<&mut tables::Parser> {
 
         if self.tables.is_some() {
             return Some(self.tables.as_mut().unwrap())
@@ -137,7 +146,7 @@ impl Parser {
         }
 
         self.tables = Some(
-            TablesParser::from_header_tables(
+            tables::Parser::from_header_tables(
                 header_tables,
                 self.sc_type.clone(),
             )

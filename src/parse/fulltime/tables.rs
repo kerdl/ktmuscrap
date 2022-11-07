@@ -1,6 +1,6 @@
 use derive_new::new;
-use chrono::{NaiveTime, NaiveDate, Utc};
-use std::{collections::HashMap, ops::Range, sync::Arc};
+use chrono::NaiveTime;
+use std::{collections::HashMap, ops::Range};
 
 use crate::data::{
     schedule::{

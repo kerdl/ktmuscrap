@@ -3,13 +3,13 @@ pub mod weekly;
 pub mod daily;
 
 use actix_web::{web, Responder};
-use tokio::sync::RwLock;
-use std::{future::Future, sync::Arc, error::Error};
+use std::error::Error;
 
 use crate::{
     api::{self, error::base::ToApiError, Response, ToResponse}, 
-    data::schedule::{raw::Zip, Type, Page},
-    SyncResult, LAST_SCHEDULE, compare::{self, DetailedCmp}
+    data::schedule::{Type, Page},
+    LAST_SCHEDULE,
+    compare::{self, DetailedCmp}
 };
 
 

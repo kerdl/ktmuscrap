@@ -1,10 +1,9 @@
-use log::info;
 use derive_new::new;
 use chrono::NaiveDate;
 use tokio::sync::RwLock;
-use std::{path::PathBuf, sync::Arc, collections::HashMap, future::Future};
+use std::{path::PathBuf, sync::Arc, collections::HashMap};
 
-use crate::{parse::remote::html, SyncResult, perf};
+use crate::{parse::remote::html, SyncResult};
 
 
 #[derive(new)]

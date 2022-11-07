@@ -1,4 +1,3 @@
-use derive_new::new;
 use thiserror::Error;
 use crate::data::schedule::raw;
 

@@ -1,7 +1,6 @@
 use derive_new::new;
 use html_parser::{Dom, Node, Error};
-use tokio::sync::RwLock;
-use std::{sync::Arc, path::PathBuf};
+use std::path::PathBuf;
 
 use crate::{
     data::schedule::raw::table, 
@@ -317,7 +316,7 @@ impl Parser {
                     .unwrap_or(&zero)
                 };
                 let rowspan = rowspan.parse::<usize>().unwrap_or(0);
-                let cell_height = {
+                let _cell_height = {
                     if rowspan < 1 { 1 }
                     else { rowspan }
                 };

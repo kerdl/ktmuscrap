@@ -1,4 +1,3 @@
-use log::warn;
 use actix_web::{get, delete, post, Responder, web};
 
 use crate::{

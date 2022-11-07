@@ -1,6 +1,6 @@
 use actix_web::{post, delete, Responder, web};
 
-use crate::{data::schedule::raw, api::Response};
+use crate::data::schedule::raw;
 
 
 #[post("/schedule/raw/ft_daily")]

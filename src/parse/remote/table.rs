@@ -1,4 +1,4 @@
-use log::{info, debug};
+use log::debug;
 use derive_new::new;
 use chrono::NaiveDate;
 use std::{sync::{Arc, RwLock}, time::Instant};
@@ -14,7 +14,10 @@ use crate::{data::{
     },
     Weekday,
 }, parse::group};
-use super::{super::{date, time, num}, mapping};
+use super::{
+    super::{date, time, num},
+    mapping
+};
 
 
 /// # 2nd step of parsing remote schedule

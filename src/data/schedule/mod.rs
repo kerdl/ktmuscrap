@@ -4,17 +4,14 @@ pub mod remote;
 pub mod debug;
 pub mod error;
 mod last;
-
 pub use last::Last;
-use derive_new::new;
+
 use lazy_static::lazy_static;
-use log::warn;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
 use strum_macros::{EnumString, Display};
-use tokio::sync::RwLock;
-use std::{ops::Range, cmp::Ordering, sync::Arc, path::PathBuf};
+use std::ops::Range;
 
 use super::weekday::Weekday;
 

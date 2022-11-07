@@ -2,15 +2,11 @@ pub mod html;
 pub mod tables;
 pub mod mappings;
 
-use log::debug;
-use tokio::sync::RwLock;
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
 use crate::{
-    REMOTE_INDEX,
-    data::schedule::{raw, Page}, 
+    data::schedule::raw, 
     SyncResult,
-    merge,
     perf
 };
 use super::error;

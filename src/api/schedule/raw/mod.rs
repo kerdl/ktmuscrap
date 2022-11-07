@@ -2,9 +2,7 @@ pub mod ft_weekly;
 pub mod ft_daily;
 pub mod r_weekly;
 
-use log::{info, warn};
-use actix_web::{post, delete, Responder, web};
-use tokio::sync::RwLock;
+use actix_web::{delete, Responder, web};
 use std::sync::Arc;
 
 use crate::{

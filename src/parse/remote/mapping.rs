@@ -1,9 +1,11 @@
-use log::info;
 use derive_new::new;
 
 use crate::data::schedule::{
     raw,
-    remote::table::{SubjectMapping, WeekdayDate},
+    remote::table::{
+        SubjectMapping,
+        WeekdayDate
+    },
     Type,
     Subject,
     Day,
@@ -11,7 +13,10 @@ use crate::data::schedule::{
     Page, 
     Format
 };
-use super::super::{teacher, subject};
+use super::super::{
+    teacher,
+    subject
+};
 
 
 /// # 3rd, final step of parsing remote schedule

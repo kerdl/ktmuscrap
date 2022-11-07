@@ -16,11 +16,9 @@ use std::{
 };
 
 use crate::{
-    SyncResult,
     data::json::{
         self,
-        SavingLoading,
-        Path, DefaultFromPath
+        Path
     }
 };
 

@@ -7,19 +7,17 @@ pub mod fs;
 pub mod logger;
 pub mod debug;
 
-use chrono::NaiveDate;
-use compare::DetailedCmp;
 pub use log::{info, debug};
 pub use std::time::Instant;
 pub use derive_new;
+
 use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
-use once_cell::{sync::OnceCell, race::OnceBool};
-use tokio::sync::RwLock;
+use once_cell::sync::OnceCell;
 use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
-use data::{schedule::{self, debug::Dummy}, regex, json::LoadOrInit};
+use data::{schedule, regex, json::LoadOrInit};
 
 
 static LOGGER: Logger = Logger;

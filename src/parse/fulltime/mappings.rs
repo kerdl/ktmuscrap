@@ -3,32 +3,19 @@ use derive_new::new;
 use crate::{data::{
     schedule::{
         raw,
-        fulltime::{
-            table::{
-                NumTime,
-                SubjectMapping, 
-                GroupSubjects, 
-                CellType
-            }
-        }, 
+        fulltime::table::{
+            SubjectMapping, 
+            GroupSubjects, 
+        },
         Type,
         Page, 
         Group,
         Day,
         Subject, 
         Format
-    }, 
-    Weekday
-}, parse::cabinet};
-use super::{
-    mappings::Parser as MappingsParser, 
-    super::{
-        date,
-        time,
-        group,
-        teacher
     }
-};
+}, parse::cabinet};
+use super::super::teacher;
 
 
 #[derive(new, Debug, Clone)]
