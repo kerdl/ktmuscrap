@@ -1,6 +1,6 @@
 use derive_new::new;
 use chrono::{NaiveTime, NaiveDate};
-use std::{ops::Range, cmp::{Ord, Ordering}};
+use std::ops::Range;
 
 use crate::data::{
     weekday::Weekday,
@@ -49,23 +49,6 @@ impl SubjectMapping {
         is_no_chars || only_dashes
     }
 }
-impl Ord for SubjectMapping {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.weekday.guessed.cmp(&other.weekday.guessed)
-    }
-}
-impl PartialOrd for SubjectMapping {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Eq for SubjectMapping {}
-impl PartialEq for SubjectMapping {
-    fn eq(&self, other: &Self) -> bool {
-        self.weekday.guessed == other.weekday.guessed
-    }
-}
-
 
 #[derive(new, Debug, Clone)]
 pub struct GroupSubjects {

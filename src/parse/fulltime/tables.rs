@@ -134,7 +134,9 @@ impl Parser {
                     subject_maps
                 );
     
-                group_map.subjects.sort();
+                group_map.subjects.sort_by(
+                    |map_a, map_b| map_a.weekday.guessed.cmp(&map_b.weekday.guessed)
+                );
 
                 group_map
 
