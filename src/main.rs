@@ -14,53 +14,20 @@ pub use derive_new;
 use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, str::FromStr};
 
 use logger::Logger;
 use data::{schedule, regex, json::{LoadOrInit, DefaultFromPath, SavingLoading}};
 
 
-static LOGGER: Logger = Logger;
 lazy_static! {
-    /// ./data
-    static ref DATA_PATH: PathBuf = {
-        let mut path = PathBuf::new();
-        path.push(".");
-        path.push("data");
-    
-        path
-    };
-    /// ./temp/r_weekly/index.json
-    static ref REMOTE_INDEX_PATH: PathBuf = {
-        let mut data_path = DATA_PATH.clone();
-        data_path.push(data::schedule::raw::Type::RWeekly.to_string());
-        data_path.push("index.json");
-    
-        data_path
-    };
-    /// ./temp/last_raw.json
-    static ref RAW_SCHEDULE_PATH: PathBuf = {
-        let mut data_path = DATA_PATH.clone();
-        data_path.push("last_raw.json");
-
-        data_path
-    };
-    /// ./temp/last.json
-    static ref LAST_SCHEDULE_PATH: PathBuf = {
-        let mut data_path = DATA_PATH.clone();
-        data_path.push("last.json");
-
-        data_path
-    };
-
     static ref REGEX: Arc<regex::Container> = {
         Arc::new(regex::Container::default())
     };
 }
 
-static RAW:     OnceCell<Arc<schedule::raw::Last>> = OnceCell::new();
-static LAST:    OnceCell<Arc<schedule::Last>>           = OnceCell::new();
-static IGNORED: OnceCell<Arc<schedule::raw::Ignored>>   = OnceCell::new();
+static LOGGER: Logger = Logger;
+static DATA: OnceCell<data::Container> = OnceCell::new();
 
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -72,23 +39,13 @@ async fn main() -> std::io::Result<()> {
 
     Logger::init().unwrap();
 
-    if !DATA_PATH.exists() {
-        tokio::fs::create_dir(DATA_PATH.as_path()).await?;
-        info!("created {:?}", DATA_PATH.as_path());
-    }
 
-    let raw_schedule = schedule::raw::Last::load_or_init(
-        RAW_SCHEDULE_PATH.to_owned()
+    let data = data::Container::default_from_dir(
+        [".", "data"].iter().collect()
     ).await.unwrap();
-    RAW.set(raw_schedule).unwrap();
+    DATA.set(data).unwrap();
 
-    let last_schedule = schedule::Last::load_or_init(
-        LAST_SCHEDULE_PATH.to_owned()
-    ).await.unwrap();
-    LAST.set(last_schedule).unwrap();
-
-    let index = data::schedule::raw::Index::default_from_path(DATA_PATH.join("index.json"));
-    index.save().await;
+    DATA.get().unwrap().schedule.index.clone().update_forever().await;
 
     std::process::exit(0);
     /*

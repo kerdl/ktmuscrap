@@ -5,7 +5,6 @@ pub mod mapping;
 use std::{sync::Arc, path::PathBuf};
 
 use crate::{
-    IGNORED,
     data::schedule::raw, 
     SyncResult,
     perf,

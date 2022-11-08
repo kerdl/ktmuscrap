@@ -1,8 +1,6 @@
 use actix_web::{get, delete, post, Responder, web};
 
 use crate::{
-    RAW,
-    LAST,
     parse,
     api::{
         Response,
@@ -18,8 +16,11 @@ use crate::{
 
 #[get("/schedule/weekly")]
 async fn get() -> impl Responder {
+    "todo"
+    /* 
     let weekly = LAST.get().unwrap().weekly.read().await;
     let page = weekly.as_ref().unwrap().clone();
 
     Response::from_schedule(page).to_json()
+    */
 }

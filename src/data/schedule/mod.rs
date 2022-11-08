@@ -1,7 +1,7 @@
+mod last;
 pub mod raw;
 pub mod debug;
-pub mod error;
-mod last;
+
 pub use last::Last;
 
 use lazy_static::lazy_static;
@@ -11,7 +11,7 @@ use chrono::{NaiveDate, NaiveTime};
 use strum_macros::{EnumString, Display};
 use std::ops::Range;
 
-use super::weekday::Weekday;
+use super::Weekday;
 
 
 lazy_static! {

@@ -11,6 +11,7 @@ use super::{raw, Page};
 #[derive(Clone, Debug)]
 pub struct Last {
     path: PathBuf,
+
     pub weekly: Arc<RwLock<Option<Arc<Page>>>>,
     pub daily: Arc<RwLock<Option<Arc<Page>>>>
 }
@@ -22,7 +23,7 @@ impl json::Path for Last {
 impl json::DefaultFromPath for Last {
     fn default_from_path(path: PathBuf) -> Arc<Self> {
         let this = Self {
-            path, 
+            path,
             weekly: Arc::new(RwLock::new(None)),
             daily: Arc::new(RwLock::new(None))
         };
@@ -58,31 +59,44 @@ impl json::ToMiddle<MiddleLast> for Last {
 impl json::SavingLoading<MiddleLast> for Last {}
 impl json::LoadOrInit<MiddleLast> for Last {}
 impl Last {
-    pub async fn clear_weekly(&self) -> SyncResult<()> {
-        *self.weekly.write().await = None;
-        self.save().await
+    pub async fn set_weekly(self: Arc<Self>, page: Page) {
+        *self.weekly.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
     }
 
-    pub async fn clear_daily(&self) -> SyncResult<()> {
+    pub async fn clear_weekly(self: Arc<Self>) {
+        *self.weekly.write().await = None;
+        self.poll_save()
+    }
+
+    pub async fn set_daily(self: Arc<Self>, page: Page) {
+        *self.daily.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
+    }
+
+    pub async fn clear_daily(self: Arc<Self>) {
         *self.daily.write().await = None;
-        self.save().await
+        self.poll_save()
     }
 
     pub async fn clear_from_raw_type(
-        &self,
+        self: Arc<Self>,
         sc_type: &raw::Type
-    ) -> SyncResult<()> {
-
+    ) {
         match sc_type {
             raw::Type::FtDaily => {
-                self.clear_daily().await
+                self.clear_daily().await;
             }
             raw::Type::FtWeekly => {
-                self.clear_weekly().await
+                self.clear_weekly().await;
             }
             raw::Type::RWeekly => {
-                self.clear_daily().await?;
-                self.clear_weekly().await
+                self.clone().clear_daily().await;
+                self.clear_weekly().await;
             }
         }
     }
@@ -91,6 +105,7 @@ impl Last {
 #[derive(Serialize, Deserialize)]
 pub struct MiddleLast {
     path: PathBuf,
+
     weekly: Option<Arc<Page>>,
     daily: Option<Arc<Page>>
 }

@@ -24,10 +24,7 @@ pub trait DefaultFromPath {
 }
 
 #[async_trait]
-pub trait ToMiddle<Middle>
-where
-    Middle: DirectSavingLoading
-{
+pub trait ToMiddle<Middle> {
     async fn to_middle(&self) -> Middle;
 }
 

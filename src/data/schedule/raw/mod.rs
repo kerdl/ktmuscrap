@@ -1,16 +1,12 @@
 mod index;
-mod ignored;
 mod last;
-mod zip;
-pub mod container;
 pub mod table;
+pub mod ignored;
 pub mod fulltime;
 pub mod remote;
 
 pub use index::Index;
-pub use ignored::Ignored;
 pub use last::Last;
-pub use self::zip::Zip;
 
 use serde_derive::{Serialize, Deserialize};
 use strum_macros::{EnumString, Display};

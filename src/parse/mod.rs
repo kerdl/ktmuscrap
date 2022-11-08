@@ -117,7 +117,7 @@ pub async fn weekly(
         process.await??;
     }
 
-    // yes, actually clone large
+    // yes, actually clone
     // large `Page` struct
     let mut ft_weekly_page = {
         let arc_page = {
@@ -145,10 +145,7 @@ pub async fn weekly(
         }
     }
 
-    *last.weekly.write().await = {
-        Some(Arc::new(ft_weekly_page))
-    };
-    last.poll_save();
+    last.set_weekly(ft_weekly_page).await;
 
     Ok(())
 }
@@ -192,7 +189,7 @@ pub async fn daily(
         process.await??;
     }
 
-    // yes, actually clone large
+    // yes, actually clone
     // large `Page` struct
     let mut ft_daily_page = {
         let arc_page = {
@@ -227,10 +224,7 @@ pub async fn daily(
         }
     }
 
-    *last.daily.write().await = {
-        Some(Arc::new(ft_daily_page))
-    };
-    last.poll_save();
+    last.set_daily(ft_daily_page).await;
 
     Ok(())
 }

@@ -21,6 +21,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct Last {
     path: PathBuf,
+
     /// ## `F`ull`t`ime `weekly` schedule `Page`
     pub ft_weekly: Arc<RwLock<Option<Arc<Page>>>>,
     /// ## `F`ull`t`ime `daily` schedule `Page`
@@ -93,6 +94,7 @@ impl Last {
 #[derive(Serialize, Deserialize)]
 pub struct MiddleLast {
     path: PathBuf,
+
     ft_weekly: Option<Arc<Page>>,
     ft_daily: Option<Arc<Page>>,
     r_weekly: Option<Arc<Page>>,
