@@ -51,12 +51,18 @@ pub async fn group(
 pub async fn page(
     ft_daily: &mut Page, 
     r_weekly: &mut Page,
-) -> SyncResult<()> {
+) -> Result<(), error::FtDateIsNotInRWeeklyRange> {
 
     let ft_date = ft_daily.date.start;
 
     if !r_weekly.date.contains(&ft_date) {
-        return Err(error::FtDateIsNotInRWeeklyRange.into())
+        return Err(error::FtDateIsNotInRWeeklyRange {
+            latest: if ft_date > r_weekly.date.start {
+                raw::Type::FtDaily
+            } else {
+                raw::Type::RWeekly
+            }
+        })
     }
 
     let r_groups = {

@@ -9,8 +9,10 @@ use crate::data::schedule::raw;
 pub struct YearTooLarge;
 
 #[derive(new, Error, Debug)]
-#[error("no latest html found in r_weekly (probably there's no htmls)")]
-pub struct NoLatestRemote;
+#[error("no latest html found in for {} (probably there's no htmls)", .sc_type)]
+pub struct NoLatest {
+    pub sc_type: raw::Type
+}
 
 #[derive(new, Error, Debug)]
 #[error("{} does not contains tables", .sc_type)]

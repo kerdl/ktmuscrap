@@ -1,8 +1,5 @@
-mod index;
 pub mod html;
 pub mod table;
-
-pub use index::Index;
 
 use std::path::PathBuf;
 

@@ -17,7 +17,7 @@ use once_cell::sync::OnceCell;
 use std::{path::PathBuf, sync::Arc};
 
 use logger::Logger;
-use data::{schedule, regex, json::LoadOrInit};
+use data::{schedule, regex, json::{LoadOrInit, DefaultFromPath, SavingLoading}};
 
 
 static LOGGER: Logger = Logger;
@@ -58,9 +58,9 @@ lazy_static! {
     };
 }
 
-static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>>     = OnceCell::new();
-static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>               = OnceCell::new();
-static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::remote::Index>> = OnceCell::new();
+static RAW:     OnceCell<Arc<schedule::raw::Last>> = OnceCell::new();
+static LAST:    OnceCell<Arc<schedule::Last>>           = OnceCell::new();
+static IGNORED: OnceCell<Arc<schedule::raw::Ignored>>   = OnceCell::new();
 
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -77,22 +77,20 @@ async fn main() -> std::io::Result<()> {
         info!("created {:?}", DATA_PATH.as_path());
     }
 
-    let raw_schedule = schedule::raw::Container::load_or_init(
+    let raw_schedule = schedule::raw::Last::load_or_init(
         RAW_SCHEDULE_PATH.to_owned()
     ).await.unwrap();
-    RAW_SCHEDULE.set(raw_schedule).unwrap();
+    RAW.set(raw_schedule).unwrap();
 
     let last_schedule = schedule::Last::load_or_init(
         LAST_SCHEDULE_PATH.to_owned()
     ).await.unwrap();
-    LAST_SCHEDULE.set(last_schedule).unwrap();
+    LAST.set(last_schedule).unwrap();
 
-    let remote_index = schedule::raw::remote::Index::load_or_init(
-        REMOTE_INDEX_PATH.to_path_buf()
-    ).await.unwrap();
-    REMOTE_INDEX.set(remote_index).unwrap();
+    let index = data::schedule::raw::Index::default_from_path(DATA_PATH.join("index.json"));
+    index.save().await;
 
-
+    std::process::exit(0);
     /*
 
     let mut old = parse::remote::html::Parser::from_path(
@@ -125,22 +123,8 @@ async fn main() -> std::io::Result<()> {
     // start http server
     HttpServer::new(|| {
         App::new()
-            .service(api::schedule::raw::ft_weekly::load)
-            .service(api::schedule::raw::ft_weekly::delete)
-            .service(api::schedule::raw::ft_daily::load)
-            .service(api::schedule::raw::ft_daily::delete)
-            .service(api::schedule::raw::r_weekly::load)
-            .service(api::schedule::raw::r_weekly::delete)
-            .service(api::schedule::raw::delete)
-
-            .service(api::schedule::weekly::convert)
             .service(api::schedule::weekly::get)
-            .service(api::schedule::weekly::delete)
-            .service(api::schedule::weekly::compare)
-            .service(api::schedule::daily::convert)
             .service(api::schedule::daily::get)
-            .service(api::schedule::daily::delete)
-            .service(api::schedule::daily::compare)
 
             .app_data(web::PayloadConfig::new(100 * 1024 * 1024)) // 100 mB
     })

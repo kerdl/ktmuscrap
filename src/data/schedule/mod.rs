@@ -238,10 +238,10 @@ pub struct Group {
 }
 impl Group {
     pub fn remove_days_except(&mut self, date: NaiveDate) {
-        while let Some(last) = self.days.iter().position(
+        while let Some(index) = self.days.iter().position(
             |day| day.date != date
         ) {
-            self.days.remove(last);
+            self.days.remove(index);
         }
     }
 }

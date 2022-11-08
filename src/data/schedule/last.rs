@@ -8,7 +8,6 @@ use super::{raw, Page};
 
 
 /// # Stores last converted schedule
-/// - used for comparing schedules
 #[derive(Clone, Debug)]
 pub struct Last {
     path: PathBuf,

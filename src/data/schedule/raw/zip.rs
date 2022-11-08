@@ -10,7 +10,7 @@ use std::{
 use crate::{
     SyncResult,
     DynResult,
-    REMOTE_INDEX,
+    IGNORED,
     REMOTE_INDEX_PATH,
     parse,
     fs,
@@ -122,7 +122,7 @@ impl Zip {
         if all_file_paths.contains(&REMOTE_INDEX_PATH) {
 
             for ignored_path in {
-                REMOTE_INDEX.get().unwrap()
+                IGNORED.get().unwrap()
                 .ignored.read().await.iter()
             } {
 

@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use chrono::NaiveDateTime;
 use ::zip::ZipArchive;
 use async_trait::async_trait;
@@ -24,31 +23,6 @@ use super::{
 };
 
 
-lazy_static! {
-    static ref FT_DAILY: Schedule = Schedule {
-        sc_type:      Type::FtDaily,
-        url:          "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O/export?format=zip".to_owned(),
-        friendly_url: "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O".to_owned(),
-        latest:       Arc::new(RwLock::new(None)),
-        sha256:       Arc::new(RwLock::new(None)),
-    };
-    static ref FT_WEEKLY: Schedule = Schedule {
-        sc_type:      Type::FtWeekly,
-        url:          "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4/export?format=zip".to_owned(),
-        friendly_url: "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4".to_owned(),
-        latest:       Arc::new(RwLock::new(None)),
-        sha256:       Arc::new(RwLock::new(None)),
-    };
-    static ref R_WEEKLY: Schedule = Schedule {
-        sc_type:      Type::RWeekly,
-        url:          "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA/export?format=zip".to_owned(),
-        friendly_url: "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA".to_owned(),
-        latest:       Arc::new(RwLock::new(None)),
-        sha256:       Arc::new(RwLock::new(None)),
-    };
-}
-
-
 pub struct Index {
     path: PathBuf,
     pub updated: NaiveDateTime,
@@ -64,7 +38,11 @@ impl json::DefaultFromPath for Index {
         let this = Self {
             path,
             updated: NaiveDateTime::from_timestamp(0, 0),
-            types: vec![]
+            types: vec![
+                Schedule::default_ft_daily(),
+                Schedule::default_ft_weekly(),
+                Schedule::default_r_weekly()
+            ]
         };
 
         Arc::new(this)
@@ -74,18 +52,20 @@ impl json::FromMiddle<MiddleIndex> for Index {
     fn from_middle(middle: Arc<MiddleIndex>) -> Arc<Self> {
         let types = {
             let mut types = vec![];
-            for sc in middle.types {
-                let primary = Schedule::from_middle(sc);
-                types.push(primary);
+            for sc in middle.types.iter() {
+                let primary = Schedule::from_middle(Arc::new(sc.clone()));
+                types.push((*primary).clone());
             }
             types
         };
 
-        Self {
+        let this = Self {
             path: middle.path.clone(),
             updated: middle.updated.clone(),
             types
-        }
+        };
+
+        Arc::new(this)
     }
 }
 #[async_trait]
@@ -106,9 +86,11 @@ impl json::ToMiddle<MiddleIndex> for Index {
         }
     }
 }
+impl json::SavingLoading<MiddleIndex> for Index {}
 
 #[derive(Serialize, Deserialize)]
 pub struct MiddleIndex {
+    #[serde(skip)]
     path: PathBuf,
     pub updated: NaiveDateTime,
     pub types: Vec<MiddleSchedule>
@@ -156,6 +138,36 @@ impl json::ToMiddle<MiddleSchedule> for Schedule {
     }
 }
 impl Schedule {
+    pub fn default_ft_daily() -> Schedule {
+        Schedule {
+            sc_type:      Type::FtDaily,
+            url:          "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O".to_owned(),
+            latest:       Arc::new(RwLock::new(None)),
+            sha256:       Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub fn default_ft_weekly() -> Schedule {
+        Schedule {
+            sc_type:      Type::FtWeekly,
+            url:          "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4".to_owned(),
+            latest:       Arc::new(RwLock::new(None)),
+            sha256:       Arc::new(RwLock::new(None)),
+        }
+    }
+
+    pub fn default_r_weekly() -> Schedule {
+        Schedule {
+            sc_type:      Type::RWeekly,
+            url:          "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA".to_owned(),
+            latest:       Arc::new(RwLock::new(None)),
+            sha256:       Arc::new(RwLock::new(None)),
+        }
+    }
+
     pub fn dir(&self) -> PathBuf {
         DATA_PATH.join(self.sc_type.to_string())
     }
@@ -218,7 +230,7 @@ impl Schedule {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MiddleSchedule {
     pub sc_type: Type,
     pub url: String,

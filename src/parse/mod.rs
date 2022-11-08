@@ -10,11 +10,11 @@ pub mod teacher;
 pub mod cabinet;
 pub mod error;
 
-use std::sync::Arc;
+use std::{sync::Arc, path::PathBuf};
+
+use tokio::task::JoinHandle;
 
 use crate::{
-    RAW_SCHEDULE,
-    LAST_SCHEDULE,
     SyncResult, 
     api::error::{
         self as api_err, 
@@ -24,79 +24,91 @@ use crate::{
         }
     }, 
     data::{schedule::{
-        self,
+        Last,
         raw
-    }, json::SavingLoading},
-    perf
+    },
+    json::SavingLoading},
 };
 use super::merge;
 
 
-/// ## Pre-check if everything necessary is set
-/// 
-/// - `sc_type=Weekly` requires `ft_weekly` and `r_weekly`
-/// - `sc_type=Daily` requires `ft_daily` and `r_weekly`
-async fn pre_check(sc_type: schedule::Type) -> Result<(), ApiError> {
-    
-    let ft_weekly = crate::RAW_SCHEDULE.get().unwrap().ft_weekly.zip.read().await;
-    let ft_daily = crate::RAW_SCHEDULE.get().unwrap().ft_daily.zip.read().await;
-    let r_weekly = crate::RAW_SCHEDULE.get().unwrap().r_weekly.zip.read().await;
+fn poll_fulltime(
+    dir: PathBuf,
+    sc_type: raw::Type,
+    raw_last: Arc<raw::Last>
+) -> JoinHandle<SyncResult<()>> {
 
-    let has_weekly_schedules = {
-        ft_weekly.path().exists()
-        && r_weekly.path().exists()
-    };
-    let has_daily_schedules = {
-        ft_daily.path().exists()
-        && r_weekly.path().exists()
-    };
+    tokio::spawn(async move {
+        let path = raw::fulltime::latest(&dir).await?;
 
+        if path.is_none() {
+            return Err(error::NoLatest::new(sc_type).into())
+        }
 
-    if sc_type == schedule::Type::Weekly && !has_weekly_schedules {
-        return Err(api_err::NoWeeklySchedulesLoaded::new().to_api_error())
-    }
+        let path = path.unwrap();
 
-    if sc_type == schedule::Type::Daily && !has_daily_schedules {
-        return Err(api_err::NoDailySchedulesLoaded::new().to_api_error())
-    }
+        fulltime::parse_ft_weekly(path, raw_last).await?;
 
+        Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+    })
 
-    Ok(())
+}
+
+fn poll_remote(
+    dir: PathBuf,
+    raw_last: Arc<raw::Last>
+) -> JoinHandle<SyncResult<()>> {
+
+    tokio::spawn(async move {
+        let path = raw::remote::latest(&dir).await?;
+
+        if path.is_none() {
+            return Err(error::NoLatest::new(
+                raw::Type::RWeekly
+            ).into())
+        }
+
+        let path = path.unwrap();
+
+        remote::parse(path, raw_last).await?;
+
+        Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+    })
+
 }
 
 
 pub async fn weekly(
-    ft_weekly: Arc<raw::ScheduleContainer>,
-    r_weekly: Arc<raw::ScheduleContainer>
+    ft_dir: PathBuf,
+    r_dir: PathBuf,
+    last: Arc<Last>,
+    raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
 
-    pre_check(schedule::Type::Weekly).await?;
-
-
-    if LAST_SCHEDULE.get().unwrap().weekly.read().await.is_some() {
+    if last.weekly.read().await.is_some() {
         return Ok(())
     }
 
     let mut parsing_processes = vec![];
 
-    if ft_weekly.parsed.read().await.is_none() {
 
-        let process = tokio::spawn(async move {
-            perf!(fulltime::parse_ft_weekly(ft_weekly).await?);
+    if raw_last.ft_weekly.read().await.is_none() {
 
-            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
-        });
+        let process = poll_fulltime(
+            ft_dir,
+            raw::Type::FtWeekly,
+            raw_last.clone()
+        );
 
         parsing_processes.push(process);
     }
     
-    if r_weekly.parsed.read().await.is_none() {
+    if raw_last.r_weekly.read().await.is_none() {
 
-        let process = tokio::spawn(async move {
-            perf!(remote::parse(r_weekly).await?);
-
-            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
-        });
+        let process = poll_remote(
+            r_dir,
+            raw_last.clone()
+        );
 
         parsing_processes.push(process);
     }
@@ -109,81 +121,69 @@ pub async fn weekly(
     // large `Page` struct
     let mut ft_weekly_page = {
         let arc_page = {
-            RAW_SCHEDULE.get().unwrap().ft_weekly.parsed
+            raw_last.ft_weekly
             .read().await.clone().unwrap()
         };
         (*arc_page).clone()
     };
     let mut r_weekly_page = {
         let arc_page = {
-            RAW_SCHEDULE.get().unwrap().r_weekly.parsed
+            raw_last.r_weekly
             .read().await.clone().unwrap()
         };
         (*arc_page).clone()
     };
 
-    if let Err(err) = merge::weekly::page(
+    if let Err(different_weeks) = merge::weekly::page(
         &mut ft_weekly_page, 
         &mut r_weekly_page
     ).await {
-        match err {
-            diff_wkd if err.is::<merge::error::DifferentWeeks>() => {
-
-                let diff_wkd: &merge::error::DifferentWeeks = {
-                    diff_wkd.downcast_ref().unwrap()
-                };
-
-                ft_weekly_page = match diff_wkd.latest {
-                    raw::Type::FtWeekly => ft_weekly_page,
-                    raw::Type::RWeekly => r_weekly_page,
-                    _ => unreachable!()
-                }
-
-            },
-            _ => return Err(err)
+        ft_weekly_page = match different_weeks.latest {
+            raw::Type::FtWeekly => ft_weekly_page,
+            raw::Type::RWeekly =>  r_weekly_page,
+            _ => unreachable!()
         }
     }
 
-    *LAST_SCHEDULE.get().unwrap().weekly.write().await = {
+    *last.weekly.write().await = {
         Some(Arc::new(ft_weekly_page))
     };
-    LAST_SCHEDULE.get().unwrap().clone().poll_save();
+    last.poll_save();
 
     Ok(())
 }
 
 pub async fn daily(
-    ft_daily: Arc<raw::ScheduleContainer>,
-    r_weekly: Arc<raw::ScheduleContainer>
+    ft_dir: PathBuf,
+    r_dir: PathBuf,
+    last: Arc<Last>,
+    raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
 
-    pre_check(schedule::Type::Daily).await?;
-
-
-    if LAST_SCHEDULE.get().unwrap().daily.read().await.is_some() {
+    if last.daily.read().await.is_some() {
         return Ok(())
     }
 
     let mut parsing_processes = vec![];
 
-    if ft_daily.parsed.read().await.is_none() {
-    
-        let process = tokio::spawn(async move {
-            perf!(fulltime::parse_ft_daily(ft_daily).await?);
 
-            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
-        });
+    if raw_last.ft_daily.read().await.is_none() {
+
+        let process = poll_fulltime(
+            ft_dir,
+            raw::Type::FtDaily,
+            raw_last.clone()
+        );
 
         parsing_processes.push(process);
     }
     
-    if r_weekly.parsed.read().await.is_none() {
+    if raw_last.r_weekly.read().await.is_none() {
 
-        let process = tokio::spawn(async move {
-            perf!(remote::parse(r_weekly).await?);
-
-            Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
-        });
+        let process = poll_remote(
+            r_dir,
+            raw_last.clone()
+        );
 
         parsing_processes.push(process);
     }
@@ -192,31 +192,45 @@ pub async fn daily(
         process.await??;
     }
 
-
     // yes, actually clone large
     // large `Page` struct
     let mut ft_daily_page = {
         let arc_page = {
-            RAW_SCHEDULE.get().unwrap().ft_daily.parsed
+            raw_last.ft_daily
             .read().await.clone().unwrap()
         };
         (*arc_page).clone()
     };
     let mut r_weekly_page = {
         let arc_page = {
-            RAW_SCHEDULE.get().unwrap().r_weekly.parsed
+            raw_last.r_weekly
             .read().await.clone().unwrap()
         };
         (*arc_page).clone()
     };
 
-    merge::daily::page(
-        &mut ft_daily_page, 
+    if let Err(ft_not_in_r_range) = merge::daily::page(
+        &mut ft_daily_page,
         &mut r_weekly_page
-    ).await?;
+    ).await {
+        ft_daily_page = match ft_not_in_r_range.latest {
+            raw::Type::FtDaily => { ft_daily_page },
+            raw::Type::RWeekly => {
+                for group in r_weekly_page.groups.iter_mut() {
+                    // remain only first day of the week
+                    group.remove_days_except(r_weekly_page.date.start);
+                }
 
-    *LAST_SCHEDULE.get().unwrap().daily.write().await = Some(Arc::new(ft_daily_page));
-    LAST_SCHEDULE.get().unwrap().save().await?;
+                r_weekly_page
+            },
+            _ => unreachable!()
+        }
+    }
+
+    *last.daily.write().await = {
+        Some(Arc::new(ft_daily_page))
+    };
+    last.poll_save();
 
     Ok(())
 }
