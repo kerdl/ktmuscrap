@@ -58,9 +58,9 @@ lazy_static! {
     };
 }
 
-static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>> = OnceCell::new();
-static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>           = OnceCell::new();
-static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::remote::Index>>  = OnceCell::new();
+static RAW_SCHEDULE:  OnceCell<Arc<schedule::raw::Container>>     = OnceCell::new();
+static LAST_SCHEDULE: OnceCell<Arc<schedule::Last>>               = OnceCell::new();
+static REMOTE_INDEX:  OnceCell<Arc<schedule::raw::remote::Index>> = OnceCell::new();
 
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
