@@ -9,7 +9,7 @@ use log::{info, debug};
 use tokio::sync::watch;
 use std::sync::Arc;
 
-use crate::{DATA, data::schedule::{self, Type, Interactor}, string};
+use crate::{DATA, data::schedule::{self, Type, Interactor, update::Invoker}, string};
 use super::{error::{self, base::ToApiError}, ToResponse, Response};
 
 
@@ -72,8 +72,8 @@ impl Actor for UpdatesWs {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-
         let data = DATA.get().unwrap();
+
         let interactor = self.interactor.clone();
 
         let updates_stream = async_stream::stream! {
@@ -81,6 +81,16 @@ impl Actor for UpdatesWs {
 
             while notify_rx.changed().await.is_ok() {
                 let notify = notify_rx.borrow();
+
+                match &notify.invoker {
+                    Invoker::Auto => {},
+                    Invoker::Manually(invoker) => {
+                        if invoker == &interactor {
+                            continue;
+                        }
+                    }
+                };
+
                 let str_notify = serde_json::to_string_pretty(&(*notify)).unwrap();
 
                 let msg = ws::Message::Text(str_notify.into());
@@ -88,6 +98,8 @@ impl Actor for UpdatesWs {
                 yield Ok(msg)
             };
         };
+
+        let interactor = self.interactor.clone();
 
         let ping_stream = async_stream::stream! {
             let mut ping_rx = interactor.ping_rx.as_ref().unwrap().write().await;
@@ -103,6 +115,8 @@ impl Actor for UpdatesWs {
     }
 
     fn stopped(&mut self, ctx: &mut Self::Context) {
+        return;
+
         let data = DATA.get().unwrap();
         let interactor = self.interactor.clone();
 
@@ -142,6 +156,31 @@ async fn interact() -> impl Responder {
     Response::from_interactor(
         interactor.clone()
     ).to_json()
+}
+
+#[post("/schedule/interact/keep-alive")]
+async fn interact_keep_alive(
+    query: web::Query<InteractionQuery>,
+) -> impl Responder {
+    let key = query.key.clone();
+
+    let interactor = {
+        DATA.get().unwrap()
+        .schedule.get_interactor(key.to_string()).await
+    };
+    if interactor.is_none() {
+        let err = error::NoSuchKey::new(key.to_string())
+            .to_api_error()
+            .to_response()
+            .to_json();
+        
+        return err;
+    }
+    let interactor = interactor.unwrap();
+
+    interactor.keep_alive().await;
+
+    Response::ok().to_json()
 }
 
 #[get("/schedule/updates")]
@@ -187,11 +226,12 @@ async fn updates(
 async fn update(
     query: web::Query<InteractionQuery>
 ) -> impl Responder {
+    let data = DATA.get().unwrap();
     let key = query.key.clone();
 
     let interactor = {
-        DATA.get().unwrap()
-        .schedule.get_interactor(key.to_string()).await
+        data.schedule
+        .get_interactor(key.to_string()).await
     };
     if interactor.is_none() {
         return error::NoSuchKey::new(key.to_string())
@@ -203,10 +243,13 @@ async fn update(
 
     interactor.keep_alive().await;
 
-    DATA.get().unwrap()
-        .schedule.index.clone()
-        .update_all_manually(key.to_string())
+    data.schedule.index.clone()
+        .update_all_manually(interactor)
         .await.unwrap();
 
-    Response::ok().to_json()
+    let notify_rx = data.schedule.clone().get_notify_rx();
+
+    let notify = (*notify_rx.borrow()).clone();
+
+    Response::from_notify(notify).to_json()
 }

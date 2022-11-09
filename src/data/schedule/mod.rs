@@ -42,6 +42,7 @@ lazy_static! {
     Eq,
     Hash
 )]
+#[serde(rename_all = "snake_case")]
 pub enum Format {
     /// Means you take ur ass
     /// and go to this fucking

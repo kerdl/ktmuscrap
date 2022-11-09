@@ -34,8 +34,8 @@ pub struct Schedule {
     updated_rx: Arc<RwLock<mpsc::Receiver<update::Params>>>,
     converted_tx: Arc<RwLock<mpsc::Sender<()>>>,
 
-    notify_tx: watch::Sender<Notify>,
-    notify_rx: watch::Receiver<Notify>,
+    notify_tx: watch::Sender<Arc<Notify>>,
+    notify_rx: watch::Receiver<Arc<Notify>>,
 
     pub last: Arc<Last>,
     pub raw_last: Arc<raw::Last>,
@@ -51,12 +51,15 @@ impl Schedule {
 
         let (updated_tx, updated_rx)     = mpsc::channel(1024);
         let (converted_tx, converted_rx) = mpsc::channel(1024);
-        let (notify_tx, notify_rx)       = watch::channel(
-            Notify {
+        let (notify_tx, notify_rx)       = watch::channel({
+            let notify = Notify {
+                invoker: update::Invoker::Auto,
                 daily: None,
                 weekly: None
-            }
-        );
+            };
+
+            Arc::new(notify)
+        });
 
         let this = Self {
             dir: dir.clone(),
@@ -91,15 +94,17 @@ impl Schedule {
         Ok(this)
     }
 
-    pub fn get_notify_rx(self: Arc<Self>) -> watch::Receiver<Notify> {
+    pub fn get_notify_rx(self: Arc<Self>) -> watch::Receiver<Arc<Notify>> {
         self.notify_rx.clone()
     }
 
     pub async fn await_updates(self: Arc<Self>) {
         loop {
+            let params;
+
             {
                 let mut rx = self.updated_rx.write().await;
-                rx.recv().await.unwrap();
+                params = rx.recv().await.unwrap();
 
                 debug!("updated signal recieved");
             }
@@ -157,6 +162,7 @@ impl Schedule {
                     || weekly_changes.groups.has_changes()
                 } {
                     let notify = Notify {
+                        invoker: params.invoker,
                         daily: if daily_changes.groups.has_changes() {
                             Some(daily_changes)
                         } else {
@@ -201,7 +207,7 @@ impl Schedule {
                         );
                     }
 
-                    self.notify_tx.send(notify).unwrap();
+                    self.notify_tx.send(Arc::new(notify)).unwrap();
 
                     debug!("change notify sent");
                 } else {
@@ -284,13 +290,8 @@ impl Schedule {
                 let fuckrust_interactor_ref = interactor_ref.clone();
                 // spawn a task to destruct this interactor later
                 let destruction_handle = tokio::spawn(async move {
-                    // sleep for 10 minutes
-                    debug!(
-                        "destruction sleeps for 10 secs {}",
-                        fuckrust_interactor_ref.clone().key
-                    );
-
-                    let dur = Duration::seconds(10).to_std().unwrap();
+                    // sleep for 6 hours
+                    let dur = Duration::hours(6).to_std().unwrap();
                     tokio::time::sleep(dur).await;
 
                     let empty_bytes = Bytes::from(vec![]);

@@ -22,14 +22,14 @@ use std::{
 
 use crate::{
     SyncResult,
-    data::json::{
+    data::{json::{
         self,
         ToMiddle,
         Saving,
         Loading,
         DirectSaving,
         DirectLoading
-    },
+    }, schedule::Interactor},
     fs, parse
 };
 use super::{
@@ -203,12 +203,12 @@ impl Index {
 
     pub async fn update_all_manually(
         self: Arc<Self>,
-        key: String
+        invoker: Arc<Interactor>,
     ) -> Result<(), error::UnpackError> {
     
         self.update_all(
             update::Params {
-                invoker: update::Invoker::Manually(key)
+                invoker: update::Invoker::Manually(invoker)
             }
         ).await
     }

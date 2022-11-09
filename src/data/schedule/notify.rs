@@ -1,10 +1,13 @@
 use serde::Serialize;
+use std::sync::Arc;
 
 use crate::compare::schedule::Page;
+use super::{update::Invoker};
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Notify {
+    pub invoker: Invoker,
     pub daily: Option<Page>,
     pub weekly: Option<Page>
 }

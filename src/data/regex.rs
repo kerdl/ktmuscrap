@@ -3,27 +3,6 @@ use serde_derive::{Serialize, Deserialize};
 use std::sync::Arc;
 
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub enum Type {
-    Group,
-    Date,
-    Time,
-    Teacher,
-    Cabinet
-}
-impl Type {
-    pub fn to_str(&self) -> &'static str {
-        match self {
-            Type::Group   => { "group" }
-            Type::Date    => { "date" }
-            Type::Time    => { "time" }
-            Type::Teacher => { "teacher" }
-            Type::Cabinet => { "cabinet" }
-        }
-    }
-}
-
 pub struct Container {
     /// ## Matches
     /// - **"1КДД69"**

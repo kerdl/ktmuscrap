@@ -49,7 +49,7 @@ async fn main() -> std::io::Result<()> {
     DATA.set(data).unwrap();
 
     tokio::spawn(async move {
-        let dur = Duration::from_secs(5);
+        let dur = Duration::from_secs(10);
 
         info!("update will start in {:?} secs", dur.as_secs());
         tokio::time::sleep(dur).await;
@@ -62,6 +62,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .service(api::schedule::interact)
+            .service(api::schedule::interact_keep_alive)
             .service(api::schedule::updates)
             .service(api::schedule::update)
             .service(api::schedule::daily::get)
