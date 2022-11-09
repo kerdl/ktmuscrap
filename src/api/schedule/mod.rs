@@ -8,7 +8,7 @@ use log::{info, debug};
 use tokio::sync::watch;
 use std::sync::Arc;
 
-use crate::{DATA, data::schedule::{self, Type}};
+use crate::{DATA, data::schedule::{self, Type}, string};
 use super::{error::{self, base::ToApiError}, ToResponse, Response};
 
 
@@ -74,7 +74,11 @@ impl Actor for UpdatesWs {
     }
 }
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+    fn handle(
+        &mut self,
+        msg: Result<ws::Message, ws::ProtocolError>,
+        ctx: &mut Self::Context
+    ) {
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
             Ok(ws::Message::Text(msg)) => ctx.text(msg),
@@ -83,6 +87,15 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {
     }
 }
 
+#[get("/schedule/interact")]
+async fn interact() -> impl Responder {
+    let interactor = {
+        DATA.get().unwrap()
+        .schedule.clone()
+        .new_interactor().await
+    };
+    Response::from_interactor(interactor).to_json()
+}
 
 #[get("/schedule/updates")]
 async fn updates(req: HttpRequest, stream: web::Payload) -> impl Responder {
@@ -96,9 +109,12 @@ async fn updates(req: HttpRequest, stream: web::Payload) -> impl Responder {
     resp
 }
 
-#[post("/schedule/update")]
-async fn update() -> impl Responder {
-    DATA.get().unwrap().schedule.index.clone().update_all().await.unwrap();
+#[post("/schedule/update?key={key}")]
+async fn update(key: web::Path<String>) -> impl Responder {
+    DATA.get().unwrap()
+    .schedule.index.clone()
+    .update_all_manually(key.to_string())
+    .await.unwrap();
 
-    "todo"
+    Response::ok().to_json()
 }

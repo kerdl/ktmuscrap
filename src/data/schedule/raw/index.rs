@@ -33,6 +33,7 @@ use crate::{
     fs, parse
 };
 use super::{
+    super::update,
     Type,
     ignored,
     fulltime,
@@ -44,7 +45,7 @@ use super::{
 #[derive(Debug)]
 pub struct Index {
     path: PathBuf,
-    updated_tx: mpsc::Sender<()>,
+    updated_tx: mpsc::Sender<update::Params>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
 
     pub updated: Arc<RwLock<NaiveDateTime>>,
@@ -77,7 +78,7 @@ impl json::Saving<MiddleIndex> for Index {}
 impl Index {
     fn default(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>,
     ) -> Arc<Self> {
 
@@ -103,7 +104,7 @@ impl Index {
     fn from_middle(
         middle: Arc<MiddleIndex>,
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
     ) -> Arc<Self> {
 
@@ -134,7 +135,7 @@ impl Index {
 
     pub async fn load_or_init(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
         let this;
@@ -151,7 +152,7 @@ impl Index {
 
     pub async fn load(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
 
@@ -189,7 +190,34 @@ impl Index {
         *self.updated.write().await = Utc::now().naive_utc()
     }
 
-    pub async fn update_all(self: Arc<Self>) -> Result<(), error::UnpackError> {
+    pub async fn update_all_auto(
+        self: Arc<Self>
+    ) -> Result<(), error::UnpackError> {
+
+        self.update_all(
+            update::Params {
+                invoker: update::Invoker::Auto
+            }
+        ).await
+    }
+
+    pub async fn update_all_manually(
+        self: Arc<Self>,
+        key: String
+    ) -> Result<(), error::UnpackError> {
+    
+        self.update_all(
+            update::Params {
+                invoker: update::Invoker::Manually(key)
+            }
+        ).await
+    }
+
+    async fn update_all(
+        self: Arc<Self>,
+        params: update::Params
+    ) -> Result<(), error::UnpackError> {
+
         debug!("updating all schedules in Index");
 
         let mut handles = vec![];
@@ -216,13 +244,13 @@ impl Index {
 
         debug!("fetched and unpacked all successfully");
 
-        self.clone().post_update_all().await;
+        self.clone().post_update_all(params).await;
 
         Ok(())
     }
 
-    async fn post_update_all(self: Arc<Self>) {
-        self.updated_tx.send(()).await.unwrap();
+    async fn post_update_all(self: Arc<Self>, params: update::Params) {
+        self.updated_tx.send(params).await.unwrap();
         debug!("updated signal sent");
         self.converted_rx.write().await.recv().await.unwrap();
         debug!("converted signal recieved");
@@ -242,7 +270,7 @@ impl Index {
                 debug!("next fetch: {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
     
-                self.clone().update_all().await.unwrap();
+                self.clone().update_all_auto().await.unwrap();
             }
         })
     }

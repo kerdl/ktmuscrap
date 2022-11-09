@@ -1,10 +1,13 @@
 mod last;
 mod notify;
+mod interactor;
+pub mod update;
 pub mod raw;
 pub mod debug;
 
 pub use last::Last;
 pub use notify::Notify;
+pub use interactor::Interactor;
 
 use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};

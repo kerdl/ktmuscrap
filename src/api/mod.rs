@@ -6,7 +6,7 @@ use actix_web::{web, http::StatusCode};
 use serde_derive::Serialize;
 use std::sync::Arc;
 
-use crate::{data::schedule as sc, compare::schedule as cmp};
+use crate::{data::schedule::{self as sc, Interactor}, compare::schedule as cmp};
 use error::base::{ApiError, Kind};
 
 
@@ -14,10 +14,16 @@ use error::base::{ApiError, Kind};
 pub struct Data {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Arc<sc::Page>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interactor: Option<Arc<Interactor>>
 }
 impl Data {
     pub fn from_page(schedule: Arc<sc::Page>) -> Data {
-        Data::new(Some(schedule))
+        Data::new(Some(schedule), None)
+    }
+
+    pub fn from_interactor(interactor: Arc<Interactor>) -> Data {
+        Data::new(None, Some(interactor))
     }
 }
 
@@ -36,7 +42,11 @@ impl Response {
 
     pub fn from_page(schedule: Arc<sc::Page>) -> Response {
         let data = Data::from_page(schedule);
+        Response::new(true, Some(data), None)
+    }
 
+    pub fn from_interactor(interactor: Arc<Interactor>) -> Response {
+        let data = Data::new(None, Some(interactor));
         Response::new(true, Some(data), None)
     }
 

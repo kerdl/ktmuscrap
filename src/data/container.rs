@@ -1,17 +1,24 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, collections::HashSet};
 
 use log::{info, debug};
 use tokio::sync::{RwLock, mpsc, watch};
 
 use crate::{SyncResult, parse, compare::{self, DetailedCmp}, data::json::Saving};
 
-use super::{schedule::{Last, raw, Notify}};
+use super::{
+    schedule::{
+        raw,
+        update,
+        Last,
+        Notify,
+        Interactor,
+    }};
 
 
 #[derive(Debug)]
 pub struct Schedule {
     dir: PathBuf,
-    updated_rx: Arc<RwLock<mpsc::Receiver<()>>>,
+    updated_rx: Arc<RwLock<mpsc::Receiver<update::Params>>>,
     converted_tx: Arc<RwLock<mpsc::Sender<()>>>,
 
     notify_tx: watch::Sender<Notify>,
@@ -19,7 +26,9 @@ pub struct Schedule {
 
     pub last: Arc<Last>,
     pub raw_last: Arc<raw::Last>,
-    pub index: Arc<raw::Index>
+    pub index: Arc<raw::Index>,
+
+    pub interactors: Arc<RwLock<HashSet<Arc<Interactor>>>>
 }
 impl Schedule {
     pub async fn default_from_dir(dir: PathBuf) -> SyncResult<Arc<Schedule>> {
@@ -55,6 +64,8 @@ impl Schedule {
                 updated_tx,
                 converted_rx,
             ).await?,
+
+            interactors: Arc::new(RwLock::new(HashSet::new()))
         };
 
         let this = Arc::new(this);
@@ -223,6 +234,20 @@ impl Schedule {
                 debug!("converted signal sent");
             }
         }
+    }
+
+    pub async fn new_interactor(self: Arc<Self>) -> Arc<Interactor> {
+        let mut interactors = self.interactors.write().await;
+
+        let interactor = Interactor::new();
+
+        loop {
+            if interactors.insert(Arc::new(interactor.clone())) {
+                break;
+            }
+        }
+
+        interactors.get(&interactor).unwrap().clone()
     }
 }
 

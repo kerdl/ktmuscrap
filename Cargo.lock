@@ -1069,6 +1069,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "once_cell",
+ "rand",
  "regex",
  "reqwest",
  "serde",

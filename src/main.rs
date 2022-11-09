@@ -4,6 +4,7 @@ pub mod parse;
 pub mod merge;
 pub mod compare;
 pub mod fs;
+pub mod string;
 pub mod logger;
 pub mod debug;
 
@@ -62,6 +63,7 @@ async fn main() -> std::io::Result<()> {
     // start http server
     HttpServer::new(|| {
         App::new()
+            .service(api::schedule::interact)
             .service(api::schedule::updates)
             .service(api::schedule::update)
             .service(api::schedule::daily::get)
