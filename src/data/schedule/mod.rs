@@ -1,15 +1,17 @@
 mod last;
+mod notify;
 pub mod raw;
 pub mod debug;
 
 pub use last::Last;
+pub use notify::Notify;
 
 use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
 use strum_macros::{EnumString, Display};
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 
 use super::Weekday;
 
@@ -71,6 +73,8 @@ pub enum Format {
     Display,
     Hash
 )]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum Type {
     /// Was parsed from a weekly
     /// (`ft_weekly` and `r_weekly`) schedule
@@ -285,7 +289,16 @@ pub struct Page {
     /// # What schedule type this `Page` is
     pub sc_type: Type,
     /// # The date this page relates to
-    pub date: Range<NaiveDate>,
+    pub date: RangeInclusive<NaiveDate>,
     /// # List of groups on this page
     pub groups: Vec<Group>,
+}
+impl Page {
+    pub fn remove_groups_except(&mut self, name: String) {
+        while let Some(index) = self.groups.iter().position(
+            |group| group.name == name
+        ) {
+            self.groups.remove(index);
+        }
+    }
 }

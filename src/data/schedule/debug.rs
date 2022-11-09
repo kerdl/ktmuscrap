@@ -13,7 +13,7 @@ impl Dummy for Page {
             raw: "shit".to_owned(),
             raw_types: vec![],
             sc_type: Type::Daily,
-            date: Utc::now().date_naive()..Utc::now().date_naive(),
+            date: Utc::now().date_naive()..=Utc::now().date_naive(),
             groups: vec![]
         }
     }

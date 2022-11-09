@@ -1,26 +1,20 @@
 use actix_web::{get, delete, post, Responder, web};
+use std::sync::Arc;
 
-use crate::{
-    parse,
-    api::{
-        Response,
-        error::{
-            self,
-            base::ToApiError
-        },
-        ToResponse
-    },
-    data::{schedule::Type, json::SavingLoading}
-};
+use crate::data::schedule::Type;
+
+use super::{generic_get, generic_group_get};
 
 
 #[get("/schedule/weekly")]
 async fn get() -> impl Responder {
-    "todo"
-    /* 
-    let weekly = LAST.get().unwrap().weekly.read().await;
-    let page = weekly.as_ref().unwrap().clone();
-
-    Response::from_schedule(page).to_json()
-    */
+    let sc_type = Type::Weekly;
+    generic_get(sc_type).await
 }
+
+#[get("/schedule/weekly?group={group}")]
+async fn get_for_group(group: web::Path<String>) -> impl Responder {
+    let sc_type = Type::Weekly;
+    generic_group_get(sc_type, group).await
+}
+

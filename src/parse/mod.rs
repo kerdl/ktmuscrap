@@ -23,31 +23,30 @@ use crate::{
             ApiError
         }
     }, 
-    data::{schedule::{
+    data::schedule::{
         Last,
         raw
     },
-    json::SavingLoading},
 };
 use super::merge;
 
 
 fn poll_fulltime(
-    dir: PathBuf,
+    path: PathBuf,
     sc_type: raw::Type,
     raw_last: Arc<raw::Last>
 ) -> JoinHandle<SyncResult<()>> {
 
     tokio::spawn(async move {
-        let path = raw::fulltime::latest(&dir).await?;
-
-        if path.is_none() {
-            return Err(error::NoLatest::new(sc_type).into())
+        match sc_type {
+            raw::Type::FtDaily => {
+                fulltime::parse_ft_daily(path, raw_last).await?
+            }
+            raw::Type::FtWeekly => {
+                fulltime::parse_ft_weekly(path, raw_last).await?
+            }
+            _ => unreachable!()
         }
-
-        let path = path.unwrap();
-
-        fulltime::parse_ft_weekly(path, raw_last).await?;
 
         Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
     })
@@ -55,21 +54,11 @@ fn poll_fulltime(
 }
 
 fn poll_remote(
-    dir: PathBuf,
+    path: PathBuf,
     raw_last: Arc<raw::Last>
 ) -> JoinHandle<SyncResult<()>> {
 
     tokio::spawn(async move {
-        let path = raw::remote::latest(&dir).await?;
-
-        if path.is_none() {
-            return Err(error::NoLatest::new(
-                raw::Type::RWeekly
-            ).into())
-        }
-
-        let path = path.unwrap();
-
         remote::parse(path, raw_last).await?;
 
         Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
@@ -79,39 +68,32 @@ fn poll_remote(
 
 
 pub async fn weekly(
-    ft_dir: PathBuf,
-    r_dir: PathBuf,
+    ft_weekly: Option<PathBuf>,
+    r_weekly: Option<PathBuf>,
     last: Arc<Last>,
     raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
 
-    if last.weekly.read().await.is_some() {
-        return Ok(())
-    }
-
     let mut parsing_processes = vec![];
 
 
-    if raw_last.ft_weekly.read().await.is_none() {
-
-        let process = poll_fulltime(
-            ft_dir,
+    if raw_last.clone().ft_weekly_is_none().await && ft_weekly.is_some() {
+        let ft_process = poll_fulltime(
+            ft_weekly.unwrap(),
             raw::Type::FtWeekly,
             raw_last.clone()
         );
-
-        parsing_processes.push(process);
+        parsing_processes.push(ft_process);
     }
-    
-    if raw_last.r_weekly.read().await.is_none() {
 
-        let process = poll_remote(
-            r_dir,
+    if raw_last.clone().r_weekly_is_none().await && r_weekly.is_some() {
+        let r_process = poll_remote(
+            r_weekly.unwrap(),
             raw_last.clone()
         );
-
-        parsing_processes.push(process);
+        parsing_processes.push(r_process);
     }
+
 
     for process in parsing_processes {
         process.await??;
@@ -151,39 +133,32 @@ pub async fn weekly(
 }
 
 pub async fn daily(
-    ft_dir: PathBuf,
-    r_dir: PathBuf,
+    ft_daily: Option<PathBuf>,
+    r_weekly:Option<PathBuf>,
     last: Arc<Last>,
     raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
 
-    if last.daily.read().await.is_some() {
-        return Ok(())
-    }
-
     let mut parsing_processes = vec![];
 
 
-    if raw_last.ft_daily.read().await.is_none() {
-
+    if raw_last.clone().ft_daily_is_none().await && ft_daily.is_some() {
         let process = poll_fulltime(
-            ft_dir,
+            ft_daily.unwrap(),
             raw::Type::FtDaily,
             raw_last.clone()
         );
-
         parsing_processes.push(process);
     }
-    
-    if raw_last.r_weekly.read().await.is_none() {
 
+    if raw_last.clone().r_weekly_is_none().await && r_weekly.is_some() {
         let process = poll_remote(
-            r_dir,
+            r_weekly.unwrap(),
             raw_last.clone()
         );
-
         parsing_processes.push(process);
     }
+
 
     for process in parsing_processes {
         process.await??;
@@ -215,7 +190,7 @@ pub async fn daily(
             raw::Type::RWeekly => {
                 for group in r_weekly_page.groups.iter_mut() {
                     // remain only first day of the week
-                    group.remove_days_except(r_weekly_page.date.start);
+                    group.remove_days_except(*r_weekly_page.date.start());
                 }
 
                 r_weekly_page

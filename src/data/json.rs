@@ -19,10 +19,6 @@ pub trait Path {
     fn path(&self) -> PathBuf;
 }
 
-pub trait DefaultFromPath {
-    fn default_from_path(path: PathBuf) -> Arc<Self>;
-}
-
 #[async_trait]
 pub trait ToMiddle<Middle> {
     async fn to_middle(&self) -> Middle;
@@ -33,25 +29,21 @@ pub trait FromMiddle<Middle> {
 }
 
 #[async_trait]
-pub trait DirectSavingLoading
-where 
-    Self: Path + Serialize + DeserializeOwned + Send + Sync + 'static
+pub trait DirectSaving
+where
+    Self: Path + Serialize + Send + Sync + 'static
 {
     async fn save(self: Arc<Self>) -> SyncResult<()> {
         let self_ref = self.clone();
 
-        if let Err(error) = tokio::task::spawn_blocking(move || -> SyncResult<()> {
+        tokio::task::spawn_blocking(move || -> SyncResult<()> {
 
             let bytes = serde_json::to_vec_pretty(&self_ref)?;
             std::fs::write(self_ref.path(), &bytes)?;
 
             Ok(())
 
-        }).await? {
-            warn!("error saving to {:?}: {:?}", self.path(), error)
-        }
-
-        Ok(())
+        }).await.unwrap()
     }
 
     fn poll_save(self: Arc<Self>) {
@@ -59,7 +51,13 @@ where
             self.save().await
         });
     }
+}
 
+#[async_trait]
+pub trait DirectLoading
+where
+    Self: Path + DeserializeOwned + Send + Sync + 'static
+{
     async fn load(path: PathBuf) -> SyncResult<Arc<Self>> {
         tokio::task::spawn_blocking(move || -> SyncResult<Arc<Self>> {
 
@@ -72,10 +70,10 @@ where
 }
 
 #[async_trait]
-pub trait SavingLoading<Middle>
+pub trait Saving<Middle>
 where
-    Self: ToMiddle<Middle> + FromMiddle<Middle> + Send + Sync + 'static, 
-    Middle: DirectSavingLoading
+    Self: ToMiddle<Middle> + Send + Sync + 'static,
+    Middle: DirectSaving,
 {
     async fn save(&self) -> SyncResult<()> {
 
@@ -84,38 +82,24 @@ where
 
         Ok(())
     }
-
+    
     fn poll_save(self: Arc<Self>) {
         tokio::spawn(async move {
             self.save().await
         });
     }
+}
 
+#[async_trait]
+pub trait Loading<Middle>
+where
+    Self: FromMiddle<Middle> + Send + Sync + 'static,
+    Middle: DirectLoading,
+{
     async fn load(path: PathBuf) -> SyncResult<Arc<Self>> {
-
         let middle = Middle::load(path).await?;
         let primary = Self::from_middle(middle);
 
         Ok(primary)
-    }
-}
-
-#[async_trait]
-pub trait LoadOrInit<Middle>
-where
-    Middle: DirectSavingLoading,
-    Self: SavingLoading<Middle> + DefaultFromPath
-{
-    async fn load_or_init(path: PathBuf) -> SyncResult<Arc<Self>> {
-        let this;
-
-        if !path.exists() {
-            this = Self::default_from_path(path);
-            this.save().await?;
-        } else {
-            this = Self::load(path).await?;
-        }
-
-        Ok(this)
     }
 }

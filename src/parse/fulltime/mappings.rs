@@ -129,14 +129,20 @@ impl Parser {
                 }
             },
             date: {
-                let first_group = groups.get(0).unwrap();
+                let mut starts = vec![];
+                let mut ends = vec![];
 
-                let start = first_group.days.first().unwrap().date;
-                let end = first_group.days.last().unwrap().date;
+                for group in groups.iter() {
+                    starts.push(&group.days.first().unwrap().date);
+                    ends.push(&group.days.last().unwrap().date);
+                }
+
+                let start = **starts.iter().min().unwrap();
+                let end = **ends.iter().max().unwrap();
 
                 match self.sc_type {
-                    raw::Type::FtWeekly => start..end,
-                    raw::Type::FtDaily => start..start,
+                    raw::Type::FtWeekly => start..=end,
+                    raw::Type::FtDaily => start..=start,
                     _ => unreachable!()
                 }
             },

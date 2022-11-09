@@ -6,7 +6,13 @@ use async_recursion::async_recursion;
 use serde_derive::{Serialize, Deserialize};
 use reqwest;
 use actix_web::web::Bytes;
-use tokio::{sync::RwLock, task::JoinHandle};
+use tokio::{
+    sync::{
+        RwLock,
+        mpsc
+    },
+    task::JoinHandle
+};
 use std::{
     io::Cursor,
     path::PathBuf,
@@ -16,7 +22,14 @@ use std::{
 
 use crate::{
     SyncResult,
-    data::json::{self, SavingLoading},
+    data::json::{
+        self,
+        ToMiddle,
+        Saving,
+        Loading,
+        DirectSaving,
+        DirectLoading
+    },
     fs, parse
 };
 use super::{
@@ -31,6 +44,8 @@ use super::{
 #[derive(Debug)]
 pub struct Index {
     path: PathBuf,
+    updated_tx: mpsc::Sender<()>,
+    converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
 
     pub updated: Arc<RwLock<NaiveDateTime>>,
     pub types: Vec<Arc<Schedule>>
@@ -38,45 +53,6 @@ pub struct Index {
 impl json::Path for Index {
     fn path(&self) -> PathBuf {
         self.path.clone()
-    }
-}
-impl json::DefaultFromPath for Index {
-    fn default_from_path(path: PathBuf) -> Arc<Self> {
-        let dir = path.parent().unwrap_or(&path).to_path_buf();
-
-        let this = Self {
-            path: path.clone(),
-            updated: Arc::new(RwLock::new(
-                NaiveDateTime::from_timestamp(0, 0)
-            )),
-            types: vec![
-                Schedule::default_ft_daily(dir.clone()),
-                Schedule::default_ft_weekly(dir.clone()),
-                Schedule::default_r_weekly(dir)
-            ]
-        };
-
-        Arc::new(this)
-    }
-}
-impl json::FromMiddle<MiddleIndex> for Index {
-    fn from_middle(middle: Arc<MiddleIndex>) -> Arc<Self> {
-        let types = {
-            let mut types = vec![];
-            for sc in middle.types.iter() {
-                let primary = Schedule::from_middle(Arc::new(sc.clone()));
-                types.push(primary);
-            }
-            types
-        };
-
-        let this = Self {
-            path: middle.path.clone(),
-            updated: Arc::new(RwLock::new(middle.updated.clone())),
-            types
-        };
-
-        Arc::new(this)
     }
 }
 #[async_trait]
@@ -97,9 +73,102 @@ impl json::ToMiddle<MiddleIndex> for Index {
         }
     }
 }
-impl json::SavingLoading<MiddleIndex> for Index {}
-impl json::LoadOrInit<MiddleIndex> for Index {}
+impl json::Saving<MiddleIndex> for Index {}
 impl Index {
+    fn default(
+        path: PathBuf,
+        updated_tx: mpsc::Sender<()>,
+        converted_rx: mpsc::Receiver<()>,
+    ) -> Arc<Self> {
+
+        let dir = path.parent().unwrap_or(&path).to_path_buf();
+
+        let this = Self {
+            path,
+            updated_tx,
+            converted_rx: Arc::new(RwLock::new(converted_rx)),
+            updated: Arc::new(RwLock::new(
+                NaiveDateTime::from_timestamp(0, 0)
+            )),
+            types: vec![
+                Schedule::default_ft_daily(dir.clone()),
+                Schedule::default_ft_weekly(dir.clone()),
+                Schedule::default_r_weekly(dir)
+            ]
+        };
+
+        Arc::new(this)
+    }
+
+    fn from_middle(
+        middle: Arc<MiddleIndex>,
+        path: PathBuf,
+        updated_tx: mpsc::Sender<()>,
+        converted_rx: mpsc::Receiver<()>
+    ) -> Arc<Self> {
+
+        let types = {
+            let mut types = vec![];
+            for sc in middle.types.iter() {
+                let primary = Schedule::from_middle(
+                    Arc::new(sc.clone()),
+                    path.parent().map(
+                        |path| path.to_path_buf()
+                    ).unwrap_or(path.clone())
+                );
+                types.push(primary);
+            }
+            types
+        };
+
+        let this = Self {
+            path,
+            updated_tx,
+            converted_rx: Arc::new(RwLock::new(converted_rx)),
+            updated: Arc::new(RwLock::new(middle.updated.clone())),
+            types
+        };
+
+        Arc::new(this)
+    }
+
+    pub async fn load_or_init(
+        path: PathBuf,
+        updated_tx: mpsc::Sender<()>,
+        converted_rx: mpsc::Receiver<()>
+    ) -> SyncResult<Arc<Index>> {
+        let this;
+
+        if !path.exists() {
+            this = Self::default(path, updated_tx, converted_rx);
+            this.clone().save().await?;
+        } else {
+            this = Self::load(path, updated_tx, converted_rx).await?;
+        }
+
+        Ok(this)
+    }
+
+    pub async fn load(
+        path: PathBuf,
+        updated_tx: mpsc::Sender<()>,
+        converted_rx: mpsc::Receiver<()>
+    ) -> SyncResult<Arc<Index>> {
+
+        let middle = MiddleIndex::load(path.clone()).await?;
+        let primary = Self::from_middle(middle, path, updated_tx, converted_rx);
+
+        Ok(primary)
+    }
+
+    pub async fn poll_save(self: Arc<Self>) {
+        tokio::spawn(async move {
+            if let Err(error) = self.save().await {
+                warn!("error poll saving: {:?}", error);
+            }
+        });
+    }
+
     pub fn update_period(&self) -> Duration {
         Duration::minutes(10)
     }
@@ -143,7 +212,7 @@ impl Index {
             handle.await.unwrap()?;
         }
 
-        self.clone().poll_save();
+        Arc::new(self.clone().to_middle().await).poll_save();
 
         debug!("fetched and unpacked all successfully");
 
@@ -153,32 +222,10 @@ impl Index {
     }
 
     async fn post_update_all(self: Arc<Self>) {
-        /* 
-        let ft_daily = self.types.iter().find(
-            |schedule| schedule.sc_type == Type::FtDaily
-        ).unwrap();
-        let ft_weekly = self.types.iter().find(
-            |schedule| schedule.sc_type == Type::FtWeekly
-        ).unwrap();
-        let r_weekly = self.types.iter().find(
-            |schedule| schedule.sc_type == Type::RWeekly
-        ).unwrap();
-    
-
-        parse::daily(
-            ft_daily.dir(),
-            r_weekly.dir(),
-            last,
-            raw_last
-        ).await;
-
-        parse::weekly(
-            ft_weekly.dir(),
-            r_weekly.dir(),
-            last,
-            raw_last
-        ).await;
-        */
+        self.updated_tx.send(()).await.unwrap();
+        debug!("updated signal sent");
+        self.converted_rx.write().await.recv().await.unwrap();
+        debug!("converted signal recieved");
     }
 
     /// # DO NOT AWAIT!!!
@@ -192,7 +239,7 @@ impl Index {
                     until = Duration::zero()
                 }
 
-                debug!("next fetch at {} (in {} secs)", next, until.num_seconds());
+                debug!("next fetch: {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
     
                 self.clone().update_all().await.unwrap();
@@ -204,6 +251,7 @@ impl Index {
 
 #[derive(Serialize, Deserialize)]
 pub struct MiddleIndex {
+    #[serde(skip)]
     path: PathBuf,
 
     pub updated: NaiveDateTime,
@@ -214,7 +262,8 @@ impl json::Path for MiddleIndex {
         self.path.clone()
     }
 }
-impl json::DirectSavingLoading for MiddleIndex {}
+impl json::DirectSaving for MiddleIndex {}
+impl json::DirectLoading for MiddleIndex {}
 
 
 #[derive(Debug, Clone)]
@@ -226,20 +275,6 @@ pub struct Schedule {
     pub friendly_url: String,
     pub latest: Arc<RwLock<Option<PathBuf>>>,
     pub ignored: Arc<RwLock<HashSet<PathBuf>>>,
-}
-impl json::FromMiddle<MiddleSchedule> for Schedule {
-    fn from_middle(middle: Arc<MiddleSchedule>) -> Arc<Self> {
-        let this = Schedule {
-            root:         middle.root.clone(),
-            sc_type:      middle.sc_type.clone(),
-            url:          middle.url.clone(),
-            friendly_url: middle.friendly_url.clone(),
-            latest:       Arc::new(RwLock::new(middle.latest.clone())),
-            ignored:      Arc::new(RwLock::new(middle.ignored.clone())),
-        };
-
-        Arc::new(this)
-    }
 }
 #[async_trait]
 impl json::ToMiddle<MiddleSchedule> for Schedule {
@@ -257,6 +292,23 @@ impl json::ToMiddle<MiddleSchedule> for Schedule {
     }
 }
 impl Schedule {
+    fn from_middle(
+        middle: Arc<MiddleSchedule>,
+        root: PathBuf
+    ) -> Arc<Self> {
+
+        let this = Schedule {
+            root,
+            sc_type:      middle.sc_type.clone(),
+            url:          middle.url.clone(),
+            friendly_url: middle.friendly_url.clone(),
+            latest:       Arc::new(RwLock::new(middle.latest.clone())),
+            ignored:      Arc::new(RwLock::new(middle.ignored.clone())),
+        };
+
+        Arc::new(this)
+    }
+
     pub fn default_ft_daily(root: PathBuf) -> Arc<Schedule> {
         let this = Schedule {
             root,
@@ -316,6 +368,10 @@ impl Schedule {
         *self.latest.write().await = path.clone();
 
         Ok(path)
+    }
+
+    pub async fn has_latest(&self) -> bool {
+        self.latest.read().await.is_some()
     }
 
     pub async fn get_ignored(&self) -> tokio::io::Result<Option<HashSet<PathBuf>>> {
@@ -435,6 +491,7 @@ impl Schedule {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MiddleSchedule {
+    #[serde(skip)]
     root: PathBuf,
 
     pub sc_type: Type,

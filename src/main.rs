@@ -14,10 +14,10 @@ pub use derive_new;
 use actix_web::{web, App, HttpServer};
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
-use std::{path::PathBuf, sync::Arc, str::FromStr};
+use std::{path::PathBuf, sync::Arc, str::FromStr, net::SocketAddr, time::Duration};
 
 use logger::Logger;
-use data::{schedule, regex, json::{LoadOrInit, DefaultFromPath, SavingLoading}};
+use data::{schedule, regex};
 
 
 lazy_static! {
@@ -37,6 +37,8 @@ pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> std::io::Result<()> {
 
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+
     Logger::init().unwrap();
 
 
@@ -45,47 +47,29 @@ async fn main() -> std::io::Result<()> {
     ).await.unwrap();
     DATA.set(data).unwrap();
 
-    DATA.get().unwrap().schedule.index.clone().update_forever().await;
+    tokio::spawn(async move {
+        let dur = Duration::from_secs(5);
 
-    std::process::exit(0);
-    /*
-
-    let mut old = parse::remote::html::Parser::from_path(
-        data_path.join("r_weekly").join("31.10-06.11.html")
-    ).await.unwrap();
-
-    let table = old.table().unwrap();
-    let mapping = table.mapping().unwrap();
-    let old_page = mapping.page().unwrap();
-
-    let mut new = parse::remote::html::Parser::from_path(
-        data_path.join("r_weekly").join("07-12.11.html")
-    ).await.unwrap();
-
-    let table = new.table().unwrap();
-    let mapping = table.mapping().unwrap();
-    let new_page = mapping.page().unwrap();
+        info!("update will start in {:?} secs", dur.as_secs());
+        tokio::time::sleep(dur).await;
+        DATA.get().unwrap().schedule.index.clone().update_forever();
+    });
+    
 
 
-    let start = Instant::now();
-    let compared = compare::schedule::Page::compare(old_page, new_page);
-
-    let dur = start.elapsed();
-    info!("comparing took {:?}", dur);
-
-    std::process::exit(0);
-
-    */
+    info!("http server will be ran on {}", addr);
 
     // start http server
     HttpServer::new(|| {
         App::new()
-            .service(api::schedule::weekly::get)
+            .service(api::schedule::updates)
+            .service(api::schedule::update)
             .service(api::schedule::daily::get)
-
-            .app_data(web::PayloadConfig::new(100 * 1024 * 1024)) // 100 mB
+            .service(api::schedule::daily::get_for_group)
+            .service(api::schedule::weekly::get)
+            .service(api::schedule::weekly::get_for_group)
     })
-        .bind(("127.0.0.1", 8080))?
+        .bind(addr)?
         .run()
         .await
 }

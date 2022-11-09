@@ -1,7 +1,7 @@
-use std::ops::Range;
-
+use async_trait::async_trait;
 use chrono::NaiveTime;
 use serde::Serialize;
+use std::ops::Range;
 
 use crate::data::schedule as regular;
 use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
@@ -15,24 +15,25 @@ pub struct Subject {
     pub cabinet: Primitive<Option<String>>,
     pub time: Primitive<Range<NaiveTime>>
 }
+#[async_trait]
 impl DetailedCmp<regular::Subject, Subject> for Subject {
-    fn compare(
-        old: regular::Subject,
+    async fn compare(
+        old: Option<regular::Subject>,
         new: regular::Subject
     ) -> Subject {
 
         let compared = Primitive::new(old.clone(), new.clone());
 
         let teachers = Changes::compare(
-            old.teachers, 
+            old.as_ref().map(|old| old.teachers.clone()),
             new.teachers
-        );
+        ).await;
         let cabinet = Primitive::new(
-            old.cabinet,
+            old.as_ref().map(|old| old.cabinet.clone()),
             new.cabinet
         );
         let time = Primitive::new(
-            old.time.clone(),
+            old.as_ref().map(|old| old.time.clone()),
             new.time.clone()
         );
 
@@ -51,17 +52,18 @@ pub struct Day {
 
     pub subjects: DetailedChanges<regular::Subject, Subject>
 }
+#[async_trait]
 impl DetailedCmp<regular::Day, Day> for Day {
-    fn compare(
-        old: regular::Day,
+    async fn compare(
+        old: Option<regular::Day>,
         new: regular::Day
     ) -> Day {
 
         let compared = Primitive::new(old.clone(), new.clone());
         let subjects = DetailedChanges::compare(
-            old.subjects.clone(),
+            old.map(|old| old.subjects.clone()),
             new.subjects.clone()
-        );
+        ).await;
 
         Day { compared, subjects }
     }
@@ -73,17 +75,18 @@ pub struct Group {
 
     pub days: DetailedChanges<regular::Day, Day>
 }
+#[async_trait]
 impl DetailedCmp<regular::Group, Group> for Group {
-    fn compare(
-        old: regular::Group,
+    async fn compare(
+        old: Option<regular::Group>,
         new: regular::Group
     ) -> Group {
 
         let compared = Primitive::new(old.clone(), new.clone());
         let days = DetailedChanges::compare(
-            old.days.clone(),
+            old.map(|old| old.days.clone()),
             new.days.clone()
-        );
+        ).await;
 
         Group { compared, days }
     }
@@ -95,17 +98,18 @@ pub struct Page {
 
     pub groups: DetailedChanges<regular::Group, Group>
 }
+#[async_trait]
 impl DetailedCmp<regular::Page, Page> for Page {
-    fn compare(
-        old: regular::Page,
+    async fn compare(
+        old: Option<regular::Page>,
         new: regular::Page
     ) -> Page {
 
         let compared = Primitive::new(old.clone(), new.clone());
         let groups = DetailedChanges::compare(
-            old.groups.clone(),
+            old.map(|old| old.groups.clone()),
             new.groups.clone()
-        );
+        ).await;
 
         Page { compared, groups }
     }

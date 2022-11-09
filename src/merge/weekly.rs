@@ -62,12 +62,12 @@ pub async fn page(
 ) -> Result<(), error::DifferentWeeks> {
 
     let ft_week = {
-        let week = ft_weekly.date.start.week(Weekday::Mon);
+        let week = ft_weekly.date.start().week(Weekday::Mon);
         week.first_day()..week.last_day()
     };
 
     let r_week = {
-        let week = r_weekly.date.start.week(Weekday::Mon);
+        let week = r_weekly.date.start().week(Weekday::Mon);
         week.first_day()..week.last_day()
     };
 
