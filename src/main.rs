@@ -48,13 +48,9 @@ async fn main() -> std::io::Result<()> {
     ).await.unwrap();
     DATA.set(data).unwrap();
 
-    tokio::spawn(async move {
-        let dur = Duration::from_secs(10);
 
-        info!("update will start in {:?} secs", dur.as_secs());
-        tokio::time::sleep(dur).await;
-        DATA.get().unwrap().schedule.index.clone().update_forever();
-    });
+    DATA.get().unwrap().schedule.index.clone().update_forever();
+
 
     info!("http server will be ran on {}", addr);
 

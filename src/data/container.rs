@@ -217,34 +217,31 @@ impl Schedule {
 
             /* move new last to old last */
             {
-                if self.last.clone().is_cleared().await {
-                    debug!("setting last schedules...");
+                debug!("setting last schedules...");
+
+                *self.last.daily.write().await = {
+                    new_last.daily.read().await.clone()
+                };
+                *self.last.weekly.write().await = {
+                    new_last.weekly.read().await.clone()
+                };
+
+                self.last.save().await.unwrap();
     
-                    *self.last.daily.write().await = {
-                        new_last.daily.read().await.clone()
-                    };
-                    *self.last.weekly.write().await = {
-                        new_last.weekly.read().await.clone()
-                    };
-    
-                    self.last.save().await.unwrap();
-                }
-    
-                if self.raw_last.clone().is_cleared().await {
-                    debug!("setting raw_last schedules...");
-    
-                    *self.raw_last.ft_daily.write().await = {
-                        new_raw_last.ft_daily.read().await.clone()
-                    };
-                    *self.raw_last.ft_weekly.write().await = {
-                        new_raw_last.ft_weekly.read().await.clone()
-                    };
-                    *self.raw_last.r_weekly.write().await = {
-                        new_raw_last.r_weekly.read().await.clone()
-                    };
-    
-                    self.raw_last.save().await.unwrap();
-                }
+
+                debug!("setting raw_last schedules...");
+
+                *self.raw_last.ft_daily.write().await = {
+                    new_raw_last.ft_daily.read().await.clone()
+                };
+                *self.raw_last.ft_weekly.write().await = {
+                    new_raw_last.ft_weekly.read().await.clone()
+                };
+                *self.raw_last.r_weekly.write().await = {
+                    new_raw_last.r_weekly.read().await.clone()
+                };
+
+                self.raw_last.save().await.unwrap();
             }
 
             /* sending an event that conversion had finished */
