@@ -9,7 +9,7 @@ use crate::{
 };
 
 
-pub async fn latest(dir: &PathBuf) -> SyncResult<Option<PathBuf>> {
+pub async fn latest(dir: &PathBuf) -> tokio::io::Result<Option<PathBuf>> {
     if let Some(path) = fs::collect::file_paths(dir).await?.iter().find(
         |path| if let Some(ext) = path.extension() {
             ext == "html"

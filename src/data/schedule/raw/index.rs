@@ -1,24 +1,30 @@
-use async_recursion::async_recursion;
-use chrono::{NaiveDateTime, NaiveTime, Utc, Duration};
 use log::{debug, warn};
+use chrono::{NaiveDateTime, Utc, Duration};
 use ::zip::ZipArchive;
 use async_trait::async_trait;
+use async_recursion::async_recursion;
 use serde_derive::{Serialize, Deserialize};
 use reqwest;
 use actix_web::web::Bytes;
 use tokio::{sync::RwLock, task::JoinHandle};
-use zip::result::ZipResult;
-use std::{io::Cursor, path::PathBuf, sync::Arc, collections::HashSet, any::Any};
+use std::{
+    io::Cursor,
+    path::PathBuf,
+    sync::Arc,
+    collections::HashSet
+};
 
 use crate::{
     SyncResult,
     data::json::{self, SavingLoading},
-    fs
+    fs, parse
 };
 use super::{
     Type,
+    ignored,
     fulltime,
-    remote, ignored
+    remote,
+    error,
 };
 
 
@@ -114,7 +120,7 @@ impl Index {
         *self.updated.write().await = Utc::now().naive_utc()
     }
 
-    pub async fn update_all(self: Arc<Self>) -> SyncResult<()> {
+    pub async fn update_all(self: Arc<Self>) -> Result<(), error::UnpackError> {
         debug!("updating all schedules in Index");
 
         let mut handles = vec![];
@@ -128,32 +134,65 @@ impl Index {
                 let bytes = schedule.refetch_until_success().await;
                 schedule.unpack(bytes).await?;
 
-                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+                Ok::<(), error::UnpackError>(())
             });
             handles.push(handle);
         }
 
         for handle in handles {
-            handle.await??;
+            handle.await.unwrap()?;
         }
 
-        self.poll_save();
+        self.clone().poll_save();
 
         debug!("fetched and unpacked all successfully");
 
+        self.clone().post_update_all().await;
+
         Ok(())
+    }
+
+    async fn post_update_all(self: Arc<Self>) {
+        /* 
+        let ft_daily = self.types.iter().find(
+            |schedule| schedule.sc_type == Type::FtDaily
+        ).unwrap();
+        let ft_weekly = self.types.iter().find(
+            |schedule| schedule.sc_type == Type::FtWeekly
+        ).unwrap();
+        let r_weekly = self.types.iter().find(
+            |schedule| schedule.sc_type == Type::RWeekly
+        ).unwrap();
+    
+
+        parse::daily(
+            ft_daily.dir(),
+            r_weekly.dir(),
+            last,
+            raw_last
+        ).await;
+
+        parse::weekly(
+            ft_weekly.dir(),
+            r_weekly.dir(),
+            last,
+            raw_last
+        ).await;
+        */
     }
 
     /// # DO NOT AWAIT!!!
     pub fn update_forever(self: Arc<Self>) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
+                let next = self.clone().next_update().await;
                 let mut until = self.clone().until_next_update().await;
     
                 if until < Duration::zero() {
                     until = Duration::zero()
                 }
-    
+
+                debug!("next fetch at {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
     
                 self.clone().update_all().await.unwrap();
@@ -178,39 +217,6 @@ impl json::Path for MiddleIndex {
 impl json::DirectSavingLoading for MiddleIndex {}
 
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Latest {
-    pub path: PathBuf,
-    pub sha256: String,
-}
-impl Latest {
-    pub async fn from_dir(
-        dir: PathBuf,
-        sc_type: &Type
-    ) -> SyncResult<Option<Arc<Latest>>> {
-
-        let path = match sc_type {
-            Type::FtDaily =>  fulltime::latest(&dir).await?,
-            Type::FtWeekly => fulltime::latest(&dir).await?,
-            Type::RWeekly =>  remote::latest(&dir).await?
-        };
-        if path.is_none() {
-            return Ok(None)
-        }
-        let path = path.unwrap();
-
-        let sha256 = fs::hash::get_sha256(&path).await?;
-
-        let this = Self {
-            path,
-            sha256
-        };
-
-        Ok(Some(Arc::new(this)))
-    }
-}
-
-
 #[derive(Debug, Clone)]
 pub struct Schedule {
     root: PathBuf,
@@ -218,7 +224,7 @@ pub struct Schedule {
     pub sc_type: Type,
     pub url: String,
     pub friendly_url: String,
-    pub latest: Arc<RwLock<Option<Arc<Latest>>>>,
+    pub latest: Arc<RwLock<Option<PathBuf>>>,
     pub ignored: Arc<RwLock<HashSet<PathBuf>>>,
 }
 impl json::FromMiddle<MiddleSchedule> for Schedule {
@@ -298,11 +304,18 @@ impl Schedule {
         Duration::minutes(1)
     }
 
-    pub async fn refresh_latest(&self) -> SyncResult<()> {
-        let latest = Latest::from_dir(self.dir(), &self.sc_type).await?;
-        *self.latest.write().await = latest;
+    pub async fn get_latest(&self) -> SyncResult<Option<PathBuf>> {
+        let dir = self.dir();
 
-        Ok(())
+        let path = match self.sc_type {
+            Type::FtDaily =>  fulltime::latest(&dir).await.unwrap(),
+            Type::FtWeekly => fulltime::latest(&dir).await.unwrap(),
+            Type::RWeekly =>  remote::latest(&dir).await.unwrap()
+        };
+
+        *self.latest.write().await = path.clone();
+
+        Ok(path)
     }
 
     pub async fn get_ignored(&self) -> tokio::io::Result<Option<HashSet<PathBuf>>> {
@@ -312,7 +325,7 @@ impl Schedule {
         }
         let latest = latest.as_ref().unwrap();
 
-        let ignored = ignored::except(&latest.path.clone()).await?;
+        let ignored = ignored::except(&latest).await?;
 
         let ignored_htmls = ignored.into_iter().filter(
             |path| if let Some(ext) = path.extension() {
@@ -354,43 +367,68 @@ impl Schedule {
     
                     self.fetch_after(self.refetch_period()).await.unwrap();
                 }
-                _ => panic!("pls handle this: {:?}", error)
+                _ => panic!("pls handle this for {}: {:?}", self.sc_type, error)
             }
         }
         
         fetch_result.unwrap()
     }
 
-    pub async fn unpack(&self, bytes: Bytes) -> SyncResult<()> {
-        if self.dir().exists() {
-            tokio::fs::remove_dir_all(self.dir()).await?;
+    pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<(), error::UnpackError> {
+        let dir = self.dir();
+
+        debug!("unpacking {:?}", dir);
+
+        if dir.exists() {
+            debug!("{:?} exists, removing before unpacking", dir);
+            if let Err(error) = tokio::fs::remove_dir_all(&dir).await {
+                return Err(error::UnpackError::Io(error));
+            }
         }
 
-        let path = self.dir();
+        if !dir.exists() {
+            debug!("{:?} doesn't exist, creating to unpack there", dir);
+            if let Err(error) = tokio::fs::create_dir(&dir).await {
+                return Err(error::UnpackError::Io(error));
+            }
+        }
 
-        tokio::task::spawn_blocking(move || -> ZipResult<Box<dyn Any + Send + Sync>> {
+        tokio::task::spawn_blocking(move || -> Result<(), error::UnpackError> {
             let cursor = Cursor::new(bytes);
-            let mut archive = ZipArchive::new(cursor)?;
-            archive.extract(path)?;
-    
-            Ok(Box::new(()))
-        }).await??;
+            let archive_result = ZipArchive::new(cursor);
 
-        self.refresh_latest().await?;
-        self.get_ignored().await?;
-        for handle in self.purge_ignored().await {
-            tokio::spawn(async move {
-                if let Err(error) = handle.await {
-                    warn!("error while purging ignored: {:?}", error)
-                }
-            });
-        }
+            if let Err(error) = archive_result {
+                return Err(error::UnpackError::Zip(error));
+            }
+
+            let mut archive = archive_result.unwrap();
+
+            if let Err(error) = archive.extract(dir) {
+                return Err(error::UnpackError::Zip(error));
+            }
+    
+            Ok(())
+        }).await.unwrap()?;
+
+        self.post_unpack().await;
 
         Ok(())
     }
 
-    pub async fn purge_ignored(&self) -> Vec<JoinHandle<tokio::io::Result<()>>> {
-        fs::remove::from_set(self.ignored.read().await.clone())
+    async fn post_unpack(self: Arc<Self>) {
+        self.purge_ignored().await.unwrap();
+        self.get_latest().await.unwrap();
+        self.get_ignored().await.unwrap();
+
+        tokio::spawn(async move {
+            if let Err(error) = self.purge_ignored().await {
+                warn!("error while purging ignored: {:?}", error);
+            }
+        });
+    }
+
+    pub async fn purge_ignored(&self) -> tokio::io::Result<()> {
+        fs::remove::from_set(self.ignored.read().await.clone()).await
     }
 }
 
@@ -402,7 +440,7 @@ pub struct MiddleSchedule {
     pub sc_type: Type,
     pub url: String,
     pub friendly_url: String,
-    pub latest: Option<Arc<Latest>>,
+    pub latest: Option<PathBuf>,
     pub ignored: HashSet<PathBuf>,
 }
 impl MiddleSchedule {

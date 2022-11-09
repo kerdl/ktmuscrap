@@ -4,6 +4,7 @@ pub mod table;
 pub mod ignored;
 pub mod fulltime;
 pub mod remote;
+pub mod error;
 
 pub use index::Index;
 pub use last::Last;

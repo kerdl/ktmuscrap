@@ -13,6 +13,7 @@ impl Logger {
 impl Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= Level::Debug
+        && metadata.target().starts_with("ktmuscrap")
     }
 
     fn log(&self, record: &Record) {

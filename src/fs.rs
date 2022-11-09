@@ -32,7 +32,7 @@ pub mod collect {
     pub async fn file_paths_by_extension(
         dir: &PathBuf,
         extension: &str
-    ) -> SyncResult<Vec<PathBuf>> {
+    ) -> tokio::io::Result<Vec<PathBuf>> {
 
         let all_files = file_paths(dir).await?;
 
@@ -56,26 +56,22 @@ pub mod remove {
     use crate::SyncResult;
 
 
-    pub fn from_set(
+    pub async fn from_set(
         set: HashSet<PathBuf>
-    ) -> Vec<JoinHandle<tokio::io::Result<()>>> {
-        let mut handles = vec![];
-
+    ) -> tokio::io::Result<()> {
         for path in set {
-            let handle = tokio::spawn(async move {
-                match path {
-                    p if path.is_dir() => tokio::fs::remove_dir_all(p).await?,
-                    p if path.is_file() => tokio::fs::remove_file(p).await?,
-                    _ => unreachable!()
+            match path {
+                p if path.is_dir() && path.exists() => {
+                    tokio::fs::remove_dir_all(p).await?
                 }
-
-                Ok::<(), tokio::io::Error>(())
-            });
-
-            handles.push(handle);
+                p if path.is_file() && path.exists() => {
+                    tokio::fs::remove_file(p).await?
+                }
+                _ => unreachable!()
+            }
         }
 
-        handles
+        Ok(())
     }
 
     pub async fn all_except(
