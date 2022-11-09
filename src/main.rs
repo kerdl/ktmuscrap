@@ -55,8 +55,6 @@ async fn main() -> std::io::Result<()> {
         tokio::time::sleep(dur).await;
         DATA.get().unwrap().schedule.index.clone().update_forever();
     });
-    
-
 
     info!("http server will be ran on {}", addr);
 
@@ -67,9 +65,7 @@ async fn main() -> std::io::Result<()> {
             .service(api::schedule::updates)
             .service(api::schedule::update)
             .service(api::schedule::daily::get)
-            .service(api::schedule::daily::get_for_group)
             .service(api::schedule::weekly::get)
-            .service(api::schedule::weekly::get_for_group)
     })
         .bind(addr)?
         .run()

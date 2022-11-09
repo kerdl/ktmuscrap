@@ -87,6 +87,8 @@ pub enum ErrorNum {
     MultipleHtmls,
     PageParsingFailed,
     NoLastSchedule,
+
+    NoSuchKey = 300,
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -260,5 +262,17 @@ api_err!(
     error:   |this| format!(
         "the {} cannot be compared since there's nothing to compare with",
         this.sc_type.to_string(),
+    )
+);
+
+api_err!(
+    name:    NoSuchKey,
+    as_enum: ErrorNum::NoSuchKey,
+    kind:    Kind::UserFailure,
+    fields:  (pub key: String),
+    error:   |this| format!(
+        "key {} wasn't generated on this runtime or was expired, \
+        consider GET at /schedule/interact",
+        this.key.to_string(),
     )
 );

@@ -1,5 +1,6 @@
 use derive_new::new;
 use serde_derive::Serialize;
+use actix_web::{http::StatusCode, HttpResponseBuilder};
 
 use crate::api::{Response, ToResponse};
 use super::ErrorNum;
@@ -18,6 +19,15 @@ pub enum Kind {
     /// - i.e. schedule is formatted incorrectly
     DataFailure
 }
+impl Kind {
+    pub fn status(&self) -> StatusCode {
+        match self {
+            Kind::UserFailure =>     StatusCode::BAD_REQUEST,
+            Kind::InternalFailure => StatusCode::INTERNAL_SERVER_ERROR,
+            Kind::DataFailure =>     StatusCode::NOT_IMPLEMENTED
+        }
+    }
+}
 
 #[derive(new, Serialize, Clone, Debug)]
 pub struct ApiError {
@@ -34,6 +44,7 @@ impl ToResponse for ApiError {
         Response::new(is_ok, data, error)
     }
 }
+
 impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.text)

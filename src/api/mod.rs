@@ -2,7 +2,7 @@ pub mod error;
 pub mod schedule;
 
 use derive_new::new;
-use actix_web::{web, http::StatusCode};
+use actix_web::{web, http::StatusCode, HttpResponse, HttpResponseBuilder};
 use serde_derive::Serialize;
 use std::sync::Arc;
 
@@ -50,18 +50,18 @@ impl Response {
         Response::new(true, Some(data), None)
     }
 
-    pub fn to_json(self) -> web::Json<Self> {
-        let mut status = StatusCode::OK;
-
-        self.error.as_ref().map(|err| 
-            status = match err.kind {
-                Kind::UserFailure =>     StatusCode::BAD_REQUEST,
-                Kind::InternalFailure => StatusCode::INTERNAL_SERVER_ERROR,
-                Kind::DataFailure =>     StatusCode::NOT_IMPLEMENTED
+    pub fn to_json(self) -> HttpResponse {
+        let resp = HttpResponseBuilder::new(
+            if self.error.is_none() {
+                StatusCode::OK
+            } else {
+                self.error.as_ref().unwrap().kind.status()
             }
-        );
+        )
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string_pretty(&self).unwrap());
 
-        web::Json(self)
+        resp
     }
 }
 

@@ -7,7 +7,7 @@ pub mod debug;
 
 pub use last::Last;
 pub use notify::Notify;
-pub use interactor::Interactor;
+pub use interactor::{Interactor, Lifetime};
 
 use lazy_static::lazy_static;
 use ngrammatic::{CorpusBuilder, Corpus, Pad};
@@ -299,7 +299,7 @@ pub struct Page {
 impl Page {
     pub fn remove_groups_except(&mut self, name: String) {
         while let Some(index) = self.groups.iter().position(
-            |group| group.name == name
+            |group| group.name != name
         ) {
             self.groups.remove(index);
         }

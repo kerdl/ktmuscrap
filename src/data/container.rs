@@ -1,9 +1,22 @@
+use actix_web::web::Bytes;
 use std::{path::PathBuf, sync::Arc, collections::HashSet};
 
+use chrono::Duration;
 use log::{info, debug};
 use tokio::sync::{RwLock, mpsc, watch};
 
-use crate::{SyncResult, parse, compare::{self, DetailedCmp}, data::json::Saving};
+use crate::{
+    SyncResult,
+    parse, 
+    compare::{
+        self,
+        DetailedCmp
+    },
+    data::{
+        json::Saving,
+        schedule::Lifetime
+    }
+};
 
 use super::{
     schedule::{
@@ -11,7 +24,7 @@ use super::{
         update,
         Last,
         Notify,
-        Interactor,
+        Interactor
     }};
 
 
@@ -239,15 +252,121 @@ impl Schedule {
     pub async fn new_interactor(self: Arc<Self>) -> Arc<Interactor> {
         let mut interactors = self.interactors.write().await;
 
-        let interactor = Interactor::new();
+        let (keep_alive_tx, mut keep_alive_rx) = mpsc::channel(1024);
+        let (ping_tx, ping_rx) = mpsc::channel(1024);
+        let ping_tx = Arc::new(ping_tx);
+
+        let interactor = Interactor::new(keep_alive_tx, ping_rx);
 
         loop {
-            if interactors.insert(Arc::new(interactor.clone())) {
+            if interactors.insert(interactor.clone()) {
                 break;
             }
         }
 
+        debug!("added new interactor {}", interactor.key);
+
+
+        let self_ref = self.clone();
+        let interactor_ref = interactor.clone();
+        let ping_tx_ref = ping_tx.clone();
+        tokio::spawn(async move {
+            loop {
+                let self_ref = self_ref.clone();
+                let interactor_ref = interactor_ref.clone();
+                let ping_tx_ref = ping_tx_ref.clone();
+
+                debug!(
+                    "spawning destruction handle for {}",
+                    interactor_ref.clone().key
+                );
+
+                let fuckrust_interactor_ref = interactor_ref.clone();
+                // spawn a task to destruct this interactor later
+                let destruction_handle = tokio::spawn(async move {
+                    // sleep for 10 minutes
+                    debug!(
+                        "destruction sleeps for 10 secs {}",
+                        fuckrust_interactor_ref.clone().key
+                    );
+
+                    let dur = Duration::seconds(10).to_std().unwrap();
+                    tokio::time::sleep(dur).await;
+
+                    let empty_bytes = Bytes::from(vec![]);
+
+                    // ping interactor 5 times
+                    for _ in 0..5 {
+                        debug!(
+                            "pinging interactor {}",
+                            fuckrust_interactor_ref.clone().key
+                        );
+
+                        ping_tx_ref.clone().send(
+                            empty_bytes.clone()
+                        ).await.unwrap();
+
+                        // sleep for 1 second
+                        let dur = Duration::seconds(1).to_std().unwrap();
+                        tokio::time::sleep(dur).await;
+                    }
+
+                    debug!(
+                        "destruction wishes to drop {}",
+                        fuckrust_interactor_ref.clone().key
+                    );
+
+                    fuckrust_interactor_ref.wish_drop().await;
+                });
+
+                match keep_alive_rx.recv().await {
+                    Some(Lifetime::Kept) => {
+                        debug!(
+                            "watch received kept, aborting destruction {}",
+                            interactor_ref.clone().key
+                        );
+
+                        destruction_handle.abort();
+
+                        continue;
+                    },
+                    Some(Lifetime::Drop) => {
+                        debug!(
+                            "watch received drop {}",
+                            interactor_ref.clone().key
+                        );
+
+                        destruction_handle.abort();
+
+                        self_ref.clone().remove_interactor(
+                            interactor_ref.clone()
+                        ).await;
+                    },
+                    _ => ()
+                }
+
+                debug!(
+                    "watch ends for {}",
+                    interactor_ref.key
+                );
+                return
+            }
+        });
+
         interactors.get(&interactor).unwrap().clone()
+    }
+
+    pub async fn get_interactor(&self, key: String) -> Option<Arc<Interactor>> {
+        let dummy = Interactor::from_key(key);
+
+        self.interactors.read().await.get(&dummy).map(
+            |interactor| interactor.clone()
+        )
+    }
+
+    async fn remove_interactor(&self, interactor: Arc<Interactor>) {
+        self.interactors.write().await.remove(&interactor);
+        debug!("removed interactor {}", interactor.key);
     }
 }
 
