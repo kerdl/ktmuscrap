@@ -133,13 +133,15 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {
     ) {
         let interactor = self.interactor.clone();
 
+        debug!("interactor {} sent message {:?}", interactor.key, msg);
+
         tokio::spawn(async move {
             interactor.keep_alive().await;
         });
 
         match msg {
             Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(msg)) => ctx.text(msg),
+            //Ok(ws::Message::Text(msg)) => ctx.text(msg),
             _ => (),
         }
     }
@@ -179,6 +181,28 @@ async fn interact_keep_alive(
     let interactor = interactor.unwrap();
 
     interactor.keep_alive().await;
+
+    Response::ok().to_json()
+}
+
+#[get("/schedule/interact/is-valid")]
+async fn key_is_valid(
+    query: web::Query<InteractionQuery>,
+) -> impl Responder {
+    let key = query.key.clone();
+
+    let interactor = {
+        DATA.get().unwrap()
+        .schedule.get_interactor(key.to_string()).await
+    };
+    if interactor.is_none() {
+        let err = error::NoSuchKey::new(key.to_string())
+            .to_api_error()
+            .to_response()
+            .to_json();
+        
+        return err;
+    }
 
     Response::ok().to_json()
 }

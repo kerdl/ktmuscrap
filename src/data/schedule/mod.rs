@@ -293,7 +293,7 @@ pub struct Page {
     /// # What schedule type this `Page` is
     pub sc_type: Type,
     /// # The date this page relates to
-    pub date: RangeInclusive<NaiveDate>,
+    pub date: Range<NaiveDate>,
     /// # List of groups on this page
     pub groups: Vec<Group>,
 }

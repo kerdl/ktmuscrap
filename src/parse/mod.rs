@@ -190,7 +190,7 @@ pub async fn daily(
             raw::Type::RWeekly => {
                 for group in r_weekly_page.groups.iter_mut() {
                     // remain only first day of the week
-                    group.remove_days_except(*r_weekly_page.date.start());
+                    group.remove_days_except(r_weekly_page.date.start);
                 }
 
                 r_weekly_page

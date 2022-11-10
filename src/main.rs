@@ -59,6 +59,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(api::schedule::interact)
             .service(api::schedule::interact_keep_alive)
+            .service(api::schedule::key_is_valid)
             .service(api::schedule::updates)
             .service(api::schedule::update)
             .service(api::schedule::daily::get)

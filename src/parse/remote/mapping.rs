@@ -133,7 +133,7 @@ impl Parser {
                 let start = header_row.first().unwrap().weekday_date.date;
                 let end = header_row.last().unwrap().weekday_date.date;
 
-                start..=end
+                start..end
             },
             groups,
         };

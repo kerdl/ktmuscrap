@@ -287,8 +287,8 @@ impl Schedule {
                 let fuckrust_interactor_ref = interactor_ref.clone();
                 // spawn a task to destruct this interactor later
                 let destruction_handle = tokio::spawn(async move {
-                    // sleep for 6 hours
-                    let dur = Duration::hours(6).to_std().unwrap();
+                    // sleep for 10 minutes
+                    let dur = Duration::minutes(10).to_std().unwrap();
                     tokio::time::sleep(dur).await;
 
                     let empty_bytes = Bytes::from(vec![]);

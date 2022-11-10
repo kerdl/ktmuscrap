@@ -53,11 +53,11 @@ pub async fn page(
     r_weekly: &mut Page,
 ) -> Result<(), error::FtDateIsNotInRWeeklyRange> {
 
-    let ft_date = ft_daily.date.start();
+    let ft_date = ft_daily.date.start;
 
     if !r_weekly.date.contains(&ft_date) {
         return Err(error::FtDateIsNotInRWeeklyRange {
-            latest: if ft_date > r_weekly.date.end() {
+            latest: if ft_date > r_weekly.date.end {
                 raw::Type::FtDaily
             } else {
                 raw::Type::RWeekly
@@ -78,7 +78,7 @@ pub async fn page(
         ) {
             group(&ft_date, ft_group, &mut r_group).await;
         } else {
-            r_group.remove_days_except(*ft_date);
+            r_group.remove_days_except(ft_date);
             ft_daily.groups.push(r_group);
         }
     }

@@ -16,6 +16,10 @@ pub trait DetailedCmp<ToCompare, Compared> {
     async fn compare(old: Option<ToCompare>, new: ToCompare) -> Compared;
 }
 
+pub trait Name {
+    fn name(&self) -> String;
+}
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DetailedChanges<Primary, Detailed> {

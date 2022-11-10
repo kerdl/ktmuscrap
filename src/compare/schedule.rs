@@ -3,12 +3,13 @@ use chrono::NaiveTime;
 use serde::Serialize;
 use std::ops::Range;
 
-use crate::data::schedule as regular;
+use crate::data::{schedule as regular, Weekday};
 use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
 
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Subject {
+    pub name: String,
     pub teachers: Changes<String>,
     pub cabinet: Primitive<Option<String>>,
     pub time: Primitive<Range<NaiveTime>>
@@ -20,6 +21,7 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
         new: regular::Subject
     ) -> Subject {
 
+        let name = new.name.clone();
         let teachers = Changes::compare(
             old.as_ref().map(|old| old.teachers.clone()),
             new.teachers
@@ -34,6 +36,7 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
         );
 
         Subject {
+            name,
             teachers,
             cabinet,
             time
@@ -43,6 +46,7 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Day {
+    pub weekday: Weekday,
     pub subjects: DetailedChanges<regular::Subject, Subject>
 }
 #[async_trait]
@@ -52,17 +56,19 @@ impl DetailedCmp<regular::Day, Day> for Day {
         new: regular::Day
     ) -> Day {
 
+        let weekday = new.weekday.clone();
         let subjects = DetailedChanges::compare(
             old.map(|old| old.subjects.clone()),
             new.subjects.clone()
         ).await;
 
-        Day { subjects }
+        Day { weekday, subjects }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Group {
+    pub name: String,
     pub days: DetailedChanges<regular::Day, Day>
 }
 #[async_trait]
@@ -72,17 +78,19 @@ impl DetailedCmp<regular::Group, Group> for Group {
         new: regular::Group
     ) -> Group {
 
+        let name = new.name.clone();
         let days = DetailedChanges::compare(
             old.map(|old| old.days.clone()),
             new.days.clone()
         ).await;
 
-        Group { days }
+        Group { name, days }
     }
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Page {
+    pub raw: String,
     pub groups: DetailedChanges<regular::Group, Group>
 }
 #[async_trait]
@@ -92,11 +100,12 @@ impl DetailedCmp<regular::Page, Page> for Page {
         new: regular::Page
     ) -> Page {
 
+        let raw = new.raw.clone();
         let groups = DetailedChanges::compare(
             old.map(|old| old.groups.clone()),
             new.groups.clone()
         ).await;
 
-        Page { groups }
+        Page { raw, groups }
     }
 }
