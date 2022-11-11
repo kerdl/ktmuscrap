@@ -3,13 +3,12 @@ pub mod daily;
 
 use serde_derive::Deserialize;
 use actix::{Actor, StreamHandler, SpawnHandle, AsyncContext};
-use actix_web::{web::{self, Bytes}, Responder, get, post, HttpRequest, HttpResponse, Error};
+use actix_web::{web::{self, Bytes}, Responder, get, post, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use log::{info, debug};
-use tokio::sync::watch;
+use log::debug;
 use std::sync::Arc;
 
-use crate::{DATA, data::schedule::{self, Type, Interactor, update::Invoker}, string};
+use crate::{DATA, data::schedule::{Type, Interactor, update::Invoker}};
 use super::{error::{self, base::ToApiError}, ToResponse, Response};
 
 
@@ -62,7 +61,6 @@ async fn generic_group_get(sc_type: Type, group: String) -> HttpResponse {
     Response::from_page(Arc::new(page)).to_json()
 }
 
-
 struct UpdatesWs {
     updates_handle: Option<SpawnHandle>,
     ping_handle: Option<SpawnHandle>,
@@ -95,11 +93,10 @@ impl Actor for UpdatesWs {
                     }
                 };
 
-                let str_notify = serde_json::to_string_pretty(&(*notify)).unwrap();
-
-                let msg = ws::Message::Text(str_notify.into());
+                let msg = serde_json::to_string_pretty(&(*notify)).unwrap();
                 
-                yield Ok(msg)
+                debug!("sending updates to interactor {}", interactor.key);
+                yield msg
             };
         };
 
@@ -109,24 +106,30 @@ impl Actor for UpdatesWs {
             let mut ping_rx = interactor.ping_rx.as_ref().unwrap().write().await;
 
             while let Some(bytes) = ping_rx.recv().await {
-                let msg = ws::Message::Ping(bytes);
-                yield Ok(msg)
+                yield bytes
             };
         };
 
         self.updates_handle = Some(ctx.add_stream(updates_stream));
         self.ping_handle = Some(ctx.add_stream(ping_stream));
     }
-
-    fn stopped(&mut self, ctx: &mut Self::Context) {
-        return;
-
-        let data = DATA.get().unwrap();
-        let interactor = self.interactor.clone();
-
-        tokio::spawn(async move {
-            interactor.wish_drop().await;
-        });
+}
+impl StreamHandler<String> for UpdatesWs {
+    fn handle(
+        &mut self,
+        item: String,
+        ctx: &mut Self::Context
+    ) {
+        ctx.text(item)
+    }
+}
+impl StreamHandler<Bytes> for UpdatesWs {
+    fn handle(
+        &mut self,
+        item: Bytes,
+        ctx: &mut Self::Context
+    ) {
+        ctx.binary(item)
     }
 }
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {

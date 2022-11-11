@@ -245,9 +245,9 @@ pub struct Group {
     pub days: Vec<Day>,
 }
 impl Group {
-    pub fn remove_days_except(&mut self, date: NaiveDate) {
+    pub fn remove_days_except(&mut self, date: &NaiveDate) {
         while let Some(index) = self.days.iter().position(
-            |day| day.date != date
+            |day| &day.date != date
         ) {
             self.days.remove(index);
         }
@@ -293,7 +293,7 @@ pub struct Page {
     /// # What schedule type this `Page` is
     pub sc_type: Type,
     /// # The date this page relates to
-    pub date: Range<NaiveDate>,
+    pub date: RangeInclusive<NaiveDate>,
     /// # List of groups on this page
     pub groups: Vec<Group>,
 }

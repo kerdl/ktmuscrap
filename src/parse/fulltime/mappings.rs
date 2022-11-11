@@ -141,8 +141,8 @@ impl Parser {
                 let end = **ends.iter().max().unwrap();
 
                 match self.sc_type {
-                    raw::Type::FtWeekly => start..end,
-                    raw::Type::FtDaily => start..start,
+                    raw::Type::FtWeekly => start..=end,
+                    raw::Type::FtDaily => start..=start,
                     _ => unreachable!()
                 }
             },
