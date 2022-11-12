@@ -11,6 +11,8 @@ use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
 pub struct Subject {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub num: Option<Primitive<u32>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub teachers: Option<Changes<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cabinet: Option<Primitive<Option<String>>>,
@@ -25,6 +27,10 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
     ) -> Subject {
 
         let name = new.name.clone();
+        let num = Primitive::new(
+            old.as_ref().map(|old| old.num),
+            new.num
+        );
         let teachers = Changes::compare(
             old.as_ref().map(|old| old.teachers.clone()),
             new.teachers
@@ -40,6 +46,11 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
 
         Subject {
             name,
+            num: if num.is_different_hash() {
+                Some(num)
+            } else {
+                None
+            },
             teachers: if teachers.any_changes() {
                 Some(teachers)
             } else {
