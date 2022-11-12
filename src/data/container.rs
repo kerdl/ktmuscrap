@@ -181,9 +181,6 @@ impl Schedule {
                     debug!("   changed groups {}",
                         notify.daily.as_ref().unwrap().groups.changed.len()
                     );
-                    debug!("   unchanged groups {}",
-                        notify.daily.as_ref().unwrap().groups.unchanged.len()
-                    );
                 }
 
                 if notify.weekly.is_some() {
@@ -196,9 +193,6 @@ impl Schedule {
                     );
                     debug!("   changed groups {}",
                         notify.weekly.as_ref().unwrap().groups.changed.len()
-                    );
-                    debug!("   unchanged groups {}",
-                        notify.weekly.as_ref().unwrap().groups.unchanged.len()
                     );
                 }
 

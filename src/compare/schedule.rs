@@ -10,9 +10,12 @@ use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
 #[derive(Debug, Clone, Serialize)]
 pub struct Subject {
     pub name: String,
-    pub teachers: Changes<String>,
-    pub cabinet: Primitive<Option<String>>,
-    pub time: Primitive<Range<NaiveTime>>
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub teachers: Option<Changes<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cabinet: Option<Primitive<Option<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<Primitive<Range<NaiveTime>>>
 }
 #[async_trait]
 impl DetailedCmp<regular::Subject, Subject> for Subject {
@@ -37,9 +40,21 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
 
         Subject {
             name,
-            teachers,
-            cabinet,
-            time
+            teachers: if teachers.any_changes() {
+                Some(teachers)
+            } else {
+                None
+            },
+            cabinet: if cabinet.is_different_hash() {
+                Some(cabinet)
+            } else {
+                None
+            },
+            time: if time.is_different_hash() {
+                Some(time)
+            } else {
+                None
+            }
         }
     }
 }

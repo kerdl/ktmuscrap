@@ -26,7 +26,6 @@ pub struct DetailedChanges<Primary, Detailed> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
     pub changed:     Vec<Detailed>,
-    pub unchanged:   Vec<Detailed>,
 }
 impl<Primary, Detailed> DetailedChanges<Primary, Detailed> 
 where 
@@ -41,7 +40,6 @@ where
         let mut appeared:    Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Detailed> = vec![];
-        let mut unchanged:   Vec<Detailed> = vec![];
 
         if old.is_none() {
             appeared.append(&mut new);
@@ -50,7 +48,6 @@ where
                 appeared,
                 disappeared,
                 changed,
-                unchanged
             }
         }
 
@@ -85,10 +82,7 @@ where
                 new_value.clone()
             );
 
-            if primitive.is_same_hash() {
-                unchanged.push(detailed);
-                continue;
-            } else {
+            if !primitive.is_same_hash() {
                 changed.push(detailed);
                 continue;
             }
@@ -98,7 +92,6 @@ where
             appeared,
             disappeared,
             changed,
-            unchanged
         }
     }
 
@@ -182,6 +175,12 @@ where
             changed,
             unchanged
         }
+    }
+
+    pub fn any_changes(&self) -> bool {
+        !self.appeared.is_empty()
+        && !self.disappeared.is_empty()
+        && !self.changed.is_empty()
     }
 }
 
