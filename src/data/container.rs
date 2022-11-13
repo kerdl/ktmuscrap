@@ -277,8 +277,8 @@ impl Schedule {
 
                     let empty_bytes = Bytes::from(vec![]);
 
-                    // ping interactor 5 times
-                    for _ in 0..5 {
+                    // ping interactor 3 times
+                    for _ in 0..3 {
                         debug!(
                             "pinging interactor {}",
                             fuckrust_interactor_ref.clone().key

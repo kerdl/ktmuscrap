@@ -205,12 +205,15 @@ impl Index {
         self: Arc<Self>,
         invoker: Arc<Interactor>,
     ) -> Result<(), error::UnpackError> {
-    
-        self.update_all(
+        self.clone().update_forever().abort();
+        self.clone().update_all(
             update::Params {
                 invoker: update::Invoker::Manually(invoker)
             }
-        ).await
+        ).await?;
+        self.clone().update_forever();
+
+        Ok(())
     }
 
     async fn update_all(
