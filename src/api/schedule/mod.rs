@@ -1,5 +1,6 @@
 pub mod weekly;
 pub mod daily;
+pub mod raw;
 
 use serde_derive::Deserialize;
 use actix::{Actor, StreamHandler, SpawnHandle, AsyncContext};
@@ -283,4 +284,22 @@ async fn update(
     let notify = (*notify_rx.borrow()).clone();
 
     Response::from_notify(notify).to_json()
+}
+
+#[get("/schedule/update/period")]
+async fn update_period() -> impl Responder {
+    let data = DATA.get().unwrap();
+
+    Response::from_period(
+        data.schedule.index.period.to_std().unwrap()
+    ).to_json()
+}
+
+#[get("/schedule/update/last")]
+async fn update_last() -> impl Responder {
+    let data = DATA.get().unwrap();
+
+    Response::from_last_update(
+        data.schedule.index.updated.read().await.clone()
+    ).to_json()
 }

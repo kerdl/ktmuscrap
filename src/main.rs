@@ -57,11 +57,16 @@ async fn main() -> std::io::Result<()> {
     // start http server
     HttpServer::new(|| {
         App::new()
+            .service(api::schedule::raw::ft_daily::friendly_url)
+            .service(api::schedule::raw::ft_weekly::friendly_url)
+            .service(api::schedule::raw::r_weekly::friendly_url)
             .service(api::schedule::interact)
             .service(api::schedule::interact_keep_alive)
             .service(api::schedule::key_is_valid)
             .service(api::schedule::updates)
             .service(api::schedule::update)
+            .service(api::schedule::update_period)
+            .service(api::schedule::update_last)
             .service(api::schedule::daily::get)
             .service(api::schedule::weekly::get)
     })

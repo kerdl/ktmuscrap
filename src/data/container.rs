@@ -171,28 +171,46 @@ impl Schedule {
                 };
 
                 if notify.daily.is_some() {
-                    debug!("DAILY CHANGES");
-                    debug!("   appeared groups {}",
-                        notify.daily.as_ref().unwrap().groups.appeared.len()
+                    info!("DAILY CHANGES");
+                    info!("   appeared groups {}: {:?}",
+                        notify.daily.as_ref().unwrap().groups.appeared.len(),
+                        notify.daily.as_ref().unwrap().groups.appeared.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
-                    debug!("   disappeared groups {}",
-                        notify.daily.as_ref().unwrap().groups.disappeared.len()
+                    info!("   disappeared groups {}: {:?}",
+                        notify.daily.as_ref().unwrap().groups.disappeared.len(),
+                        notify.daily.as_ref().unwrap().groups.disappeared.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
-                    debug!("   changed groups {}",
-                        notify.daily.as_ref().unwrap().groups.changed.len()
+                    info!("   changed groups {}: {:?}",
+                        notify.daily.as_ref().unwrap().groups.changed.len(),
+                        notify.daily.as_ref().unwrap().groups.changed.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
                 }
 
                 if notify.weekly.is_some() {
-                    debug!("WEEKLY CHANGES");
-                    debug!("   appeared groups {}",
-                        notify.weekly.as_ref().unwrap().groups.appeared.len()
+                    info!("WEEKLY CHANGES");
+                    info!("   appeared groups {}: {:?}",
+                        notify.weekly.as_ref().unwrap().groups.appeared.len(),
+                        notify.weekly.as_ref().unwrap().groups.appeared.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
-                    debug!("   disappeared groups {}",
-                        notify.weekly.as_ref().unwrap().groups.disappeared.len()
+                    info!("   disappeared groups {}: {:?}",
+                        notify.weekly.as_ref().unwrap().groups.disappeared.len(),
+                        notify.weekly.as_ref().unwrap().groups.disappeared.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
-                    debug!("   changed groups {}",
-                        notify.weekly.as_ref().unwrap().groups.changed.len()
+                    info!("   changed groups {}: {:?}",
+                        notify.weekly.as_ref().unwrap().groups.changed.len(),
+                        notify.weekly.as_ref().unwrap().groups.changed.iter().map(
+                            |group| &group.name
+                        ).collect::<Vec<&String>>()
                     );
                 }
 

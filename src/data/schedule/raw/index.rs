@@ -50,6 +50,7 @@ pub struct Index {
     update_forever_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
 
     pub updated: Arc<RwLock<NaiveDateTime>>,
+    pub period: Duration,
     pub types: Vec<Arc<Schedule>>
 }
 impl json::Path for Index {
@@ -71,6 +72,7 @@ impl json::ToMiddle<MiddleIndex> for Index {
         MiddleIndex {
             path: self.path.clone(),
             updated: self.updated.read().await.clone(),
+            period: self.period.clone().to_std().unwrap(),
             types
         }
     }
@@ -93,6 +95,7 @@ impl Index {
             updated: Arc::new(RwLock::new(
                 NaiveDateTime::from_timestamp(0, 0)
             )),
+            period: Duration::minutes(10),
             types: vec![
                 Schedule::default_ft_daily(dir.clone()),
                 Schedule::default_ft_weekly(dir.clone()),
@@ -130,6 +133,7 @@ impl Index {
             converted_rx: Arc::new(RwLock::new(converted_rx)),
             update_forever_handle: Arc::new(RwLock::new(None)),
             updated: Arc::new(RwLock::new(middle.updated.clone())),
+            period: Duration::from_std(middle.period).unwrap(),
             types
         };
 
@@ -165,6 +169,18 @@ impl Index {
         Ok(primary)
     }
 
+    pub async fn ft_daily(&self) -> Arc<Schedule> {
+        self.types.iter().find(|sc| sc.sc_type == Type::FtDaily).unwrap().clone()
+    }
+
+    pub async fn ft_weekly(&self) -> Arc<Schedule> {
+        self.types.iter().find(|sc| sc.sc_type == Type::FtWeekly).unwrap().clone()
+    }
+
+    pub async fn r_weekly(&self) -> Arc<Schedule> {
+        self.types.iter().find(|sc| sc.sc_type == Type::RWeekly).unwrap().clone()
+    }
+
     pub async fn poll_save(self: Arc<Self>) {
         tokio::spawn(async move {
             if let Err(error) = self.save().await {
@@ -174,7 +190,7 @@ impl Index {
     }
 
     pub fn update_period(&self) -> Duration {
-        Duration::minutes(10)
+        self.period.clone()
     }
 
     pub async fn next_update(&self) -> NaiveDateTime {
@@ -296,6 +312,7 @@ pub struct MiddleIndex {
     path: PathBuf,
 
     pub updated: NaiveDateTime,
+    pub period: std::time::Duration,
     pub types: Vec<MiddleSchedule>
 }
 impl json::Path for MiddleIndex {
