@@ -471,18 +471,14 @@ impl Schedule {
         let fetch_result = self.fetch().await;
 
         if let Err(error) = &fetch_result {
-            match error {
-                error if error.is_status() => {
-                    warn!(
-                        "refetching {} because of status code {}",
-                        self.sc_type,
-                        error.status().unwrap()
-                    );
-    
-                    self.fetch_after(self.refetch_period()).await.unwrap();
-                }
-                _ => panic!("pls handle this for {}: {:?}", self.sc_type, error)
-            }
+            warn!(
+                "refetching {} because of error {:?}",
+                self.sc_type,
+                error
+            );
+
+            tokio::time::sleep(self.refetch_period().to_std().unwrap()).await;
+            self.refetch_until_success().await;
         }
         
         fetch_result.unwrap()
