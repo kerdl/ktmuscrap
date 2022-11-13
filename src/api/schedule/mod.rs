@@ -81,10 +81,6 @@ impl Actor for UpdatesWs {
             while notify_rx.changed().await.is_ok() {
                 let notify = notify_rx.borrow();
 
-                if notify.daily.is_none() && notify.weekly.is_none() {
-                    continue;
-                }
-
                 match &notify.invoker {
                     Invoker::Auto => {},
                     Invoker::Manually(invoker) => {
