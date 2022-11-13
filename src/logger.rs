@@ -6,6 +6,10 @@ pub struct Logger;
 
 impl Logger {
     pub fn init() -> Result<(), SetLoggerError>  {
+        #[cfg(windows)] {
+            let _varname = colored::control::set_virtual_terminal(true).unwrap_or(());
+        }
+
         log::set_logger(&crate::LOGGER)
             .map(|()| log::set_max_level(LevelFilter::Debug))
     }

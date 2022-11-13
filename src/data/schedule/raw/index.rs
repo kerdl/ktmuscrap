@@ -47,6 +47,7 @@ pub struct Index {
     path: PathBuf,
     updated_tx: mpsc::Sender<update::Params>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
+    update_forever_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
 
     pub updated: Arc<RwLock<NaiveDateTime>>,
     pub types: Vec<Arc<Schedule>>
@@ -88,6 +89,7 @@ impl Index {
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
+            update_forever_handle: Arc::new(RwLock::new(None)),
             updated: Arc::new(RwLock::new(
                 NaiveDateTime::from_timestamp(0, 0)
             )),
@@ -126,6 +128,7 @@ impl Index {
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
+            update_forever_handle: Arc::new(RwLock::new(None)),
             updated: Arc::new(RwLock::new(middle.updated.clone())),
             types
         };
@@ -205,13 +208,13 @@ impl Index {
         self: Arc<Self>,
         invoker: Arc<Interactor>,
     ) -> Result<(), error::UnpackError> {
-        self.clone().update_forever().abort();
+        self.clone().abort_update_forever().await;
         self.clone().update_all(
             update::Params {
                 invoker: update::Invoker::Manually(invoker)
             }
         ).await?;
-        self.clone().update_forever();
+        self.clone().update_forever().await;
 
         Ok(())
     }
@@ -260,8 +263,10 @@ impl Index {
     }
 
     /// # DO NOT AWAIT!!!
-    pub fn update_forever(self: Arc<Self>) -> JoinHandle<()> {
-        tokio::spawn(async move {
+    pub async fn update_forever(self: Arc<Self>) {
+        let self_ref = self.clone();
+
+        *self_ref.update_forever_handle.write().await = Some(tokio::spawn(async move {
             loop {
                 let next = self.clone().next_update().await;
                 let mut until = self.clone().until_next_update().await;
@@ -275,7 +280,12 @@ impl Index {
     
                 self.clone().update_all_auto().await.unwrap();
             }
-        })
+        }));
+    }
+
+    pub async fn abort_update_forever(self: Arc<Self>) {
+        self.update_forever_handle.read().await.as_ref().map(|handle| handle.abort());
+        debug!("aborted update forever");
     }
 }
 

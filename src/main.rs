@@ -49,7 +49,7 @@ async fn main() -> std::io::Result<()> {
     DATA.set(data).unwrap();
 
 
-    DATA.get().unwrap().schedule.index.clone().update_forever();
+    DATA.get().unwrap().schedule.index.clone().update_forever().await;
 
 
     info!("http server will be ran on {}", addr);
