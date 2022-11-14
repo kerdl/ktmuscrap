@@ -3,5 +3,5 @@ pub fn is_split(string: &str) -> bool {
 }
 
 pub fn split(string: &str) -> Vec<String> {
-    string.split("/").map(|string| string.to_owned()).collect()
+    string.split("/").map(|string| string.trim().to_owned()).collect()
 }
