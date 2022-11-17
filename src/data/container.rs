@@ -295,20 +295,22 @@ impl Schedule {
 
                     let empty_bytes = Bytes::from(vec![]);
 
-                    // ping interactor 3 times
-                    for _ in 0..3 {
-                        debug!(
-                            "pinging interactor {}",
-                            fuckrust_interactor_ref.clone().key
-                        );
+                    if fuckrust_interactor_ref.is_connected().await {
+                        // ping interactor 3 times
+                        for _ in 0..3 {
+                            debug!(
+                                "pinging interactor {}",
+                                fuckrust_interactor_ref.clone().key
+                            );
 
-                        ping_tx_ref.clone().send(
-                            empty_bytes.clone()
-                        ).await.unwrap();
+                            ping_tx_ref.clone().send(
+                                empty_bytes.clone()
+                            ).await.unwrap();
 
-                        // sleep for 1 second
-                        let dur = Duration::seconds(1).to_std().unwrap();
-                        tokio::time::sleep(dur).await;
+                            // sleep for 1 second
+                            let dur = Duration::seconds(1).to_std().unwrap();
+                            tokio::time::sleep(dur).await;
+                        }
                     }
 
                     debug!(

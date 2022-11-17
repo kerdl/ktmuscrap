@@ -11,7 +11,7 @@ impl Logger {
         }
 
         log::set_logger(&crate::LOGGER)
-            .map(|()| log::set_max_level(LevelFilter::Info))
+            .map(|()| log::set_max_level(LevelFilter::Debug))
     }
 }
 impl Log for Logger {
