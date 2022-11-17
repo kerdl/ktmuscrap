@@ -137,7 +137,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {
     ) {
         let interactor = self.interactor.clone();
 
-        debug!("interactor {} sent message {:?}", interactor.key, msg);
+        //debug!("interactor {} sent message {:?}", interactor.key, msg);
 
         tokio::spawn(async move {
             interactor.keep_alive().await;

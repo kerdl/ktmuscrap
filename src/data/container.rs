@@ -283,10 +283,12 @@ impl Schedule {
                 let interactor_ref = interactor_ref.clone();
                 let ping_tx_ref = ping_tx_ref.clone();
 
+                /* 
                 debug!(
                     "spawning destruction handle for {}",
                     interactor_ref.clone().key
                 );
+                */
 
                 let fuckrust_interactor_ref = interactor_ref.clone();
                 // spawn a task to destruct this interactor later
@@ -325,10 +327,12 @@ impl Schedule {
 
                 match keep_alive_rx.recv().await {
                     Some(Lifetime::Kept) => {
+                        /* 
                         debug!(
                             "watch received kept, aborting destruction {}",
                             interactor_ref.clone().key
                         );
+                        */
 
                         destruction_handle.abort();
 
