@@ -15,7 +15,7 @@ use crate::{
     data::{
         json::Saving,
         schedule::Lifetime
-    }
+    }, string
 };
 
 use super::{
@@ -53,6 +53,7 @@ impl Schedule {
         let (converted_tx, converted_rx) = mpsc::channel(1024);
         let (notify_tx, notify_rx)       = watch::channel({
             let notify = Notify {
+                random: string::random(16),
                 invoker: update::Invoker::Auto,
                 daily: None,
                 weekly: None
@@ -157,6 +158,7 @@ impl Schedule {
                 ).await;
 
                 let notify = Notify {
+                    random: string::random(16),
                     invoker: params.invoker,
                     daily: if daily_changes.groups.has_changes() {
                         Some(daily_changes)
