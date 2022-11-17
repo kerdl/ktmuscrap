@@ -287,7 +287,7 @@ impl Parser {
                 }
 
                 let dur = start.elapsed();
-                debug!("mapping at row {} took {:?}", index, dur);
+                //debug!("mapping at row {} took {:?}", index, dur);
 
                 mappings
             });
@@ -305,7 +305,7 @@ impl Parser {
         }
 
         let dur = start.elapsed();
-        debug!("mapping task joining took {:?}", dur);
+        //debug!("mapping task joining took {:?}", dur);
 
 
         let grouped_mappings = {
