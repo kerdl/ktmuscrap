@@ -67,7 +67,7 @@ pub mod remove {
                 p if path.is_file() && path.exists() => {
                     tokio::fs::remove_file(p).await?
                 }
-                _ => unreachable!()
+                _ => {}
             }
         }
 
