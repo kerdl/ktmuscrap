@@ -273,7 +273,7 @@ async fn update(
 
     data.schedule.index.clone()
         .update_all_manually(interactor)
-        .await.unwrap();
+        .await;
 
     let notify_rx = data.schedule.clone().get_notify_rx();
 

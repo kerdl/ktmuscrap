@@ -189,6 +189,10 @@ impl Index {
         });
     }
 
+    pub fn retry_period(&self) -> Duration {
+        Duration::minutes(1)
+    }
+
     pub fn update_period(&self) -> Duration {
         self.period.clone()
     }
@@ -211,8 +215,7 @@ impl Index {
 
     pub async fn update_all_auto(
         self: Arc<Self>
-    ) -> Result<(), error::UnpackError> {
-
+    ) {
         self.update_all(
             update::Params {
                 invoker: update::Invoker::Auto
@@ -223,22 +226,20 @@ impl Index {
     pub async fn update_all_manually(
         self: Arc<Self>,
         invoker: Arc<Interactor>,
-    ) -> Result<(), error::UnpackError> {
+    ) {
         self.clone().abort_update_forever().await;
         self.clone().update_all(
             update::Params {
                 invoker: update::Invoker::Manually(invoker)
             }
-        ).await?;
+        ).await;
         self.clone().update_forever().await;
-
-        Ok(())
     }
 
     async fn update_all(
         self: Arc<Self>,
         params: update::Params
-    ) -> Result<(), error::UnpackError> {
+    ) {
 
         debug!("updating all schedules in Index");
 
@@ -250,16 +251,27 @@ impl Index {
             let schedule = schedule.clone();
 
             let handle = tokio::spawn(async move {
-                let bytes = schedule.refetch_until_success().await;
-                schedule.unpack(bytes).await?;
+                loop {
+                    let bytes = schedule.refetch_until_success().await;
 
-                Ok::<(), error::UnpackError>(())
+                    if let Err(error) = schedule.clone().unpack(bytes).await {
+                        warn!(
+                            "{} unpack error, will refetch and unpack again in {}",
+                            schedule.sc_type,
+                            schedule.retry_period()
+                        );
+
+                        tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
+                    }
+
+                    break;
+                }
             });
             handles.push(handle);
         }
 
         for handle in handles {
-            handle.await.unwrap()?;
+            handle.await.unwrap();
         }
 
         Arc::new(self.clone().to_middle().await).poll_save();
@@ -267,8 +279,6 @@ impl Index {
         debug!("fetched and unpacked all successfully");
 
         self.clone().post_update_all(params).await;
-
-        Ok(())
     }
 
     async fn post_update_all(self: Arc<Self>, params: update::Params) {
@@ -282,9 +292,17 @@ impl Index {
         let self_ref = self.clone();
 
         *self_ref.update_forever_handle.write().await = Some(tokio::spawn(async move {
+            let mut force_until = None;
+
             loop {
                 let next = self.clone().next_update().await;
-                let mut until = self.clone().until_next_update().await;
+                let mut until = if force_until.is_some() {
+                    force_until.unwrap()
+                } else {
+                    self.clone().until_next_update().await
+                };
+
+                force_until = None;
     
                 if until < Duration::zero() {
                     until = Duration::zero()
@@ -292,8 +310,6 @@ impl Index {
 
                 debug!("next fetch: {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
-    
-                self.clone().update_all_auto().await.unwrap();
             }
         }));
     }
@@ -409,7 +425,7 @@ impl Schedule {
         self.root.join(self.sc_type.to_string())
     }
 
-    pub fn refetch_period(&self) -> Duration {
+    pub fn retry_period(&self) -> Duration {
         Duration::minutes(1)
     }
 
@@ -417,9 +433,9 @@ impl Schedule {
         let dir = self.dir();
 
         let path = match self.sc_type {
-            Type::FtDaily =>  fulltime::latest(&dir).await.unwrap(),
+            Type::FtDaily  => fulltime::latest(&dir).await.unwrap(),
             Type::FtWeekly => fulltime::latest(&dir).await.unwrap(),
-            Type::RWeekly =>  remote::latest(&dir).await.unwrap()
+            Type::RWeekly  => remote::latest(&dir).await.unwrap()
         };
 
         *self.latest.write().await = path.clone();
@@ -476,7 +492,7 @@ impl Schedule {
                 error
             );
 
-            tokio::time::sleep(self.refetch_period().to_std().unwrap()).await;
+            tokio::time::sleep(self.retry_period().to_std().unwrap()).await;
             return self.refetch_until_success().await
         }
         
