@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use chrono::NaiveTime;
+use chrono::{NaiveTime, NaiveDate};
 use serde::Serialize;
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 
 use crate::data::{schedule as regular, Weekday};
 use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
@@ -117,6 +117,7 @@ impl DetailedCmp<regular::Group, Group> for Group {
 #[derive(Debug, Clone, Serialize)]
 pub struct Page {
     pub raw: String,
+    pub date: Primitive<RangeInclusive<NaiveDate>>,
     pub groups: DetailedChanges<regular::Group, Group>
 }
 #[async_trait]
@@ -127,11 +128,15 @@ impl DetailedCmp<regular::Page, Page> for Page {
     ) -> Page {
 
         let raw = new.raw.clone();
+        let date = Primitive::new(
+            old.as_ref().map(|old| old.date.clone()),
+            new.date.clone()
+        );
         let groups = DetailedChanges::compare(
-            old.map(|old| old.groups.clone()),
+            old.as_ref().map(|old| old.groups.clone()),
             new.groups.clone()
         ).await;
 
-        Page { raw, groups }
+        Page { raw, date, groups }
     }
 }
