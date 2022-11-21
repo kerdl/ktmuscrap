@@ -110,15 +110,9 @@ impl Schedule {
                 debug!("updated signal recieved");
             }
 
-            let ft_daily = self.index.types.iter().find(
-                |schedule| schedule.sc_type == raw::Type::FtDaily
-            ).unwrap();
-            let ft_weekly = self.index.types.iter().find(
-                |schedule| schedule.sc_type == raw::Type::FtWeekly
-            ).unwrap();
-            let r_weekly = self.index.types.iter().find(
-                |schedule| schedule.sc_type == raw::Type::RWeekly
-            ).unwrap();
+            let ft_daily = self.index.ft_daily().await;
+            let ft_weekly = self.index.ft_weekly().await;
+            let r_weekly = self.index.r_weekly().await;
 
             let new_last = self.last.clone().clone_cleared();
             let new_raw_last = self.raw_last.clone().clone_cleared();

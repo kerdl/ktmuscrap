@@ -278,7 +278,6 @@ impl Index {
         debug!("converted signal recieved");
     }
 
-    /// # DO NOT AWAIT!!!
     pub async fn update_forever(self: Arc<Self>) {
         let self_ref = self.clone();
 
@@ -478,7 +477,7 @@ impl Schedule {
             );
 
             tokio::time::sleep(self.refetch_period().to_std().unwrap()).await;
-            self.refetch_until_success().await;
+            return self.refetch_until_success().await
         }
         
         fetch_result.unwrap()

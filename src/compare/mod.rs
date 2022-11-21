@@ -178,9 +178,9 @@ where
     }
 
     pub fn any_changes(&self) -> bool {
-        !self.appeared.is_empty()
-        && !self.disappeared.is_empty()
-        && !self.changed.is_empty()
+        [&self.appeared, &self.disappeared, &self.changed].iter().any(
+            |change| !change.is_empty()
+        )
     }
 }
 
