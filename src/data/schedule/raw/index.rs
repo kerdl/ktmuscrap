@@ -256,9 +256,10 @@ impl Index {
 
                     if let Err(error) = schedule.clone().unpack(bytes).await {
                         warn!(
-                            "{} unpack error, will refetch and unpack again in {}",
+                            "{} unpack error, will refetch and unpack again in {}: {:?}",
                             schedule.sc_type,
-                            schedule.retry_period()
+                            schedule.retry_period(),
+                            error
                         );
 
                         tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
@@ -310,6 +311,8 @@ impl Index {
 
                 debug!("next fetch: {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
+
+                self.clone().update_all_auto().await;
             }
         }));
     }
