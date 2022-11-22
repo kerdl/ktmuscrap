@@ -263,9 +263,9 @@ impl Index {
                         );
 
                         tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
+                    } else {
+                        break;
                     }
-
-                    break;
                 }
             });
             handles.push(handle);
