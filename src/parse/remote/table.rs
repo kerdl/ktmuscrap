@@ -140,9 +140,7 @@ impl Parser {
         };
 
         for (index, row) in schema.into_iter().enumerate() {
-
             let y = row.get(0).unwrap().y;
-
 
             let raw_group = &row.get(0).unwrap().text;
             let valid_group = group::parse(&raw_group);
@@ -158,12 +156,7 @@ impl Parser {
 
 
             for cell in row[1..].iter() {
-                if group.valid == "1КМП4" {
-                    println!("");
-                }
-
                 let x = cell.x;
-
 
                 for hit in hits.iter_mut() {
 
