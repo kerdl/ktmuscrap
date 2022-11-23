@@ -349,10 +349,6 @@ impl Parser {
 
                 let text = node::text::nested_as_string(cell, " ");
 
-                if text == "1-кМП-4" {
-                    println!("");
-                }
-
                 // construct clean cell only with data we need
                 let clean_cell = table::Cell::new(
                     x,
