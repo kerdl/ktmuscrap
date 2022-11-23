@@ -126,14 +126,8 @@ impl Parser {
         self.weekday_date_row()?;
         self.num_time_row()?;
 
-        let mut tasks = vec![];
-
-        let grouped_mappings: Arc<RwLock<Vec<Vec<SubjectMapping>>>> = {
-            Arc::new(RwLock::new(vec![]))
-        };
-        let hits: Arc<RwLock<Vec<table::Hit>>> = {
-            Arc::new(RwLock::new(vec![]))
-        };
+        let mut grouped_mappings: Vec<Vec<SubjectMapping>> = vec![];
+        let mut hits: Vec<table::Hit> = vec![];
 
 
         let weekday_row = Arc::new(self.weekday_date_row.take()?);
@@ -160,157 +154,122 @@ impl Parser {
                 valid_group.unwrap().to_string()
             );
 
-            let grouped_mappings_ref = grouped_mappings.clone();
-            let hits_ref = hits.clone();
-            let weekday_row_ref = weekday_row.clone();
-            let num_time_row_ref = num_time_row.clone();
+            let mut mappings: Vec<SubjectMapping> = vec![];
 
-        
-            let task = std::thread::spawn(move || -> Vec<SubjectMapping> {
 
-                let start = Instant::now();
-
-                let row = row;
-
-                let mut mappings: Vec<SubjectMapping> = vec![];
-
-                let weekday_row_ref = weekday_row_ref.clone();
-                let num_time_row_ref = num_time_row_ref.clone();
-
-                for cell in row[1..].iter() {
-                    let x = cell.x;
-    
-                    {
-                        let mut hits_list = hits_ref.write().unwrap();
-
-                        for hit in hits_list.iter_mut() {
-    
-                            if hit.is_done { continue; }
-                            if hit.at_y != y { continue; }
-        
-                            let last_map_cell_rng = {
-                                mappings.last().map(|map| 
-                                    (map.cell.x + map.cell.width())..x
-                                ).unwrap_or(0..x)
-                            };
-        
-                            if !last_map_cell_rng.contains(&hit.at_x) {
-                                continue;
-                            }
-        
-                            let mut y_neighbour = None;
-        
-                            let grouped_maps = grouped_mappings_ref.read().unwrap();
-    
-                            for maps in grouped_maps.iter().rev() {
-        
-                                let map = maps.iter().find(|&map| 
-                                    last_map_cell_rng.contains(&map.cell.x)
-                                    && map.cell.y == hit.by.y
-                                );
-                                if map.is_none() { continue; }
-        
-                                y_neighbour = map;
-                                break;
-                            }
-        
-                            if y_neighbour.is_none() { continue; }
-                            let y_neighbour = y_neighbour.unwrap();
-        
-                            let mapping = SubjectMapping::new(
-                                y_neighbour.cell.clone(),
-                                group.clone(),
-                                y_neighbour.num_time.clone(), 
-                                y_neighbour.weekday_date.clone(), 
-                            );
-        
-                            mappings.push(mapping);
-        
-                            hit.done();
-                        }
-                    }
-                    
-                    let last_mapping_x = mappings.last().map(
-                        |map| map.cell.x
-                    ).unwrap_or(0);
-
-                    let last_mapping_colspan = mappings.last().map(
-                        |map| map.cell.colspan
-                    ).unwrap_or(0);
-    
-                    let past_cells_count = {
-                        last_mapping_x + last_mapping_colspan.checked_sub(1).unwrap_or(0)
-                    };
-
-                    let weekday_row_ref = weekday_row_ref.clone();
-                    let num_time_row_ref = num_time_row_ref.clone();
-
-                    let weekday_date = {
-                        weekday_row_ref.iter().find(|wkd| 
-                            (
-                                (wkd.cell.x)
-                                ..
-                                (wkd.cell.x + wkd.cell.colspan)
-                            ).contains(&(past_cells_count + 1))
-                        ).unwrap()
-                    };
-                    let num_time = {
-                        num_time_row_ref.get(past_cells_count).unwrap()
-                    };
-    
-    
-                    let mapping = SubjectMapping::new(
-                        cell.clone(),
-                        group.clone(),
-                        num_time.clone(), 
-                        weekday_date.clone(),
-                    );
-    
-                    mappings.push(mapping);
-    
-                    if cell.hits_next_rows() {
-                        let mut future_y = y + 1;
-    
-                        for _ in 0..cell.hits() {
-                            let hit = table::Hit {
-                                by:      cell.clone(), 
-                                at_x:    x, 
-                                at_y:    future_y,
-                                is_done: false,
-                            };
-    
-                            hits_ref.clone().write().unwrap().push(hit);
-    
-                            future_y += 1;
-                        }
-                    }
+            for cell in row[1..].iter() {
+                if group.valid == "1КМП4" {
+                    println!("");
                 }
 
-                let dur = start.elapsed();
-                //debug!("mapping at row {} took {:?}", index, dur);
+                let x = cell.x;
 
-                mappings
-            });
 
-            tasks.push(task);
+                for hit in hits.iter_mut() {
+
+                    if hit.is_done { continue; }
+                    if hit.at_y != y { continue; }
+
+                    let last_map_cell_rng = {
+                        mappings.last().map(|map| 
+                            (map.cell.x + map.cell.width())..x
+                        ).unwrap_or(0..x)
+                    };
+
+                    if !last_map_cell_rng.contains(&hit.at_x) {
+                        continue;
+                    }
+
+                    let mut y_neighbour = None;
+
+                    for maps in grouped_mappings.iter().rev() {
+
+                        let map = maps.iter().find(|&map| 
+                            last_map_cell_rng.contains(&map.cell.x)
+                            && map.cell.y == hit.by.y
+                        );
+                        if map.is_none() { continue; }
+
+                        y_neighbour = map;
+                        break;
+                    }
+
+                    if y_neighbour.is_none() { continue; }
+                    let y_neighbour = y_neighbour.unwrap();
+
+                    let mapping = SubjectMapping::new(
+                        y_neighbour.cell.clone(),
+                        group.clone(),
+                        y_neighbour.num_time.clone(), 
+                        y_neighbour.weekday_date.clone(), 
+                    );
+
+                    mappings.push(mapping);
+
+                    hit.done();
+                }
+                
+                let last_mapping_x = mappings.last().map(
+                    |map| map.cell.x
+                ).unwrap_or(0);
+
+                let last_mapping_colspan = mappings.last().map(
+                    |map| map.cell.colspan
+                ).unwrap_or(0);
+
+                let past_cells_count = {
+                    last_mapping_x + last_mapping_colspan.checked_sub(1).unwrap_or(0)
+                };
+
+                let weekday_date = {
+                    weekday_row.iter().find(|wkd| 
+                        (
+                            (wkd.cell.x)
+                            ..
+                            (wkd.cell.x + wkd.cell.colspan)
+                        ).contains(&(past_cells_count + 1))
+                    ).unwrap()
+                };
+                let num_time = {
+                    num_time_row.get(past_cells_count).unwrap()
+                };
+
+
+                let mapping = SubjectMapping::new(
+                    cell.clone(),
+                    group.clone(),
+                    num_time.clone(), 
+                    weekday_date.clone(),
+                );
+
+                mappings.push(mapping);
+
+                if cell.hits_next_rows() {
+                    let mut future_y = y + 1;
+
+                    for _ in 0..cell.hits() {
+                        let hit = table::Hit {
+                            by:      cell.clone(), 
+                            at_x:    x, 
+                            at_y:    future_y,
+                            is_done: false,
+                        };
+
+                        hits.push(hit);
+
+                        future_y += 1;
+                    }
+                }
+            }
+
+            let maps = {
+                let mut v = vec![];
+                v.append(&mut mappings);
+                v
+            };
+
+            grouped_mappings.push(maps);
         }
-
-
-        let start = Instant::now();
-
-        for result in tasks {
-            let mappings = result.join().unwrap();
-
-            grouped_mappings.write().unwrap().push(mappings);
-        }
-
-        let dur = start.elapsed();
-        //debug!("mapping task joining took {:?}", dur);
-
-
-        let grouped_mappings = {
-            std::mem::take(&mut *grouped_mappings.write().unwrap())
-        };
 
         self.mapping = Some(
             mapping::Parser::from_schema(grouped_mappings)
