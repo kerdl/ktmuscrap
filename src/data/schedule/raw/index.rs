@@ -9,6 +9,7 @@ use actix_web::web::Bytes;
 use tokio::{
     sync::{
         RwLock,
+        Mutex,
         mpsc
     },
     task::JoinHandle
@@ -41,6 +42,10 @@ use super::{
     error,
 };
 
+enum UpdateFinishType {
+    Complete,
+    LockRelease
+}
 
 #[derive(Debug)]
 pub struct Index {
@@ -48,6 +53,7 @@ pub struct Index {
     updated_tx: mpsc::Sender<update::Params>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
     update_forever_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
+    update_lock: Arc<Mutex<()>>,
 
     pub updated: Arc<RwLock<NaiveDateTime>>,
     pub period: Duration,
@@ -92,6 +98,7 @@ impl Index {
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
             update_forever_handle: Arc::new(RwLock::new(None)),
+            update_lock: Arc::new(Mutex::new(())),
             updated: Arc::new(RwLock::new(
                 NaiveDateTime::from_timestamp(0, 0)
             )),
@@ -132,6 +139,7 @@ impl Index {
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
             update_forever_handle: Arc::new(RwLock::new(None)),
+            update_lock: Arc::new(Mutex::new(())),
             updated: Arc::new(RwLock::new(middle.updated.clone())),
             period: Duration::from_std(middle.period).unwrap(),
             types
@@ -220,26 +228,55 @@ impl Index {
             update::Params {
                 invoker: update::Invoker::Auto
             }
-        ).await
+        ).await;
     }
 
     pub async fn update_all_manually(
         self: Arc<Self>,
         invoker: Arc<Interactor>,
     ) {
-        self.clone().abort_update_forever().await;
-        self.clone().update_all(
+        match self.clone().update_all(
             update::Params {
                 invoker: update::Invoker::Manually(invoker)
             }
-        ).await;
-        self.clone().update_forever().await;
+        ).await {
+            UpdateFinishType::Complete => {
+                self.clone().abort_update_forever().await;
+                self.clone().update_forever().await
+            },
+            UpdateFinishType::LockRelease => {
+                debug!("update_all_manually() won't restart auto update loop \
+                because it returned LockRelease type")
+            },
+        }
+        
     }
 
     async fn update_all(
         self: Arc<Self>,
         params: update::Params
-    ) {
+    ) -> UpdateFinishType {
+        let update_lock_ref = self.update_lock.clone();
+
+        if update_lock_ref.try_lock().is_err() {
+            debug!(
+                "someone tried to update while other update is still running, \
+                will return after the main one finishes"
+            );
+
+            // wait for lock to be released
+            let _update_lock = update_lock_ref.lock().await;
+
+            debug!("other update finished, returning");
+
+            // return when released
+            return UpdateFinishType::LockRelease
+        }
+
+        let update_lock_ref = self.update_lock.clone();
+
+        // lock other threads from updating
+        let _update_lock = update_lock_ref.lock().await;
 
         debug!("updating all schedules in Index");
 
@@ -280,13 +317,23 @@ impl Index {
         debug!("fetched and unpacked all successfully");
 
         self.clone().post_update_all(params).await;
+
+        UpdateFinishType::Complete
+    }
+
+    async fn send_updated(self: Arc<Self>, params: update::Params) {
+        self.updated_tx.send(params).await.unwrap();
+        debug!("updated signal sent");
+    }
+
+    async fn await_converted(self: Arc<Self>) {
+        self.converted_rx.write().await.recv().await.unwrap();
+        debug!("converted signal recieved");
     }
 
     async fn post_update_all(self: Arc<Self>, params: update::Params) {
-        self.updated_tx.send(params).await.unwrap();
-        debug!("updated signal sent");
-        self.converted_rx.write().await.recv().await.unwrap();
-        debug!("converted signal recieved");
+        self.clone().send_updated(params).await;
+        self.clone().await_converted().await;
     }
 
     pub async fn update_forever(self: Arc<Self>) {
