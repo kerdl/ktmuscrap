@@ -230,7 +230,11 @@ pub struct Primitive<T> {
 }
 impl<T: PartialEq> Primitive<T> {
     pub fn is_same_eq(&self) -> bool {
-        self.old == self.new
+        match (&self.old, &self.new) {
+            (Some(old), Some(new)) => old == new,
+            (None, None) => true,
+            _ => false,
+        }
     }
 
     pub fn is_different_eq(&self) -> bool {
@@ -239,17 +243,19 @@ impl<T: PartialEq> Primitive<T> {
 }
 impl<T: Hash> Primitive<T> {
     pub fn is_same_hash(&self) -> bool {
-        if self.old.is_none() {
-            return false;
+        match (&self.old, &self.new) {
+            (Some(old), Some(new)) => {
+                let mut old_hasher = DefaultHasher::new();
+                let mut new_hasher = DefaultHasher::new();
+
+                old.hash(&mut old_hasher);
+                new.hash(&mut new_hasher);
+
+                old_hasher.finish() == new_hasher.finish()
+            },
+            (None, None) => true,
+            _ => false,
         }
-
-        let mut old_hasher = DefaultHasher::new();
-        let mut new_hasher = DefaultHasher::new();
-
-        self.old.as_ref().unwrap().hash(&mut old_hasher);
-        self.new.hash(&mut new_hasher);
-
-        old_hasher.finish() == new_hasher.finish()
     }
 
     pub fn is_different_hash(&self) -> bool {
