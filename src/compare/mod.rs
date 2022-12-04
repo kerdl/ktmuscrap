@@ -33,40 +33,40 @@ where
     Detailed: DetailedCmp<Primary, Detailed>
 {
     pub async fn compare(
-        old: Option<Vec<Primary>>,
-        new: Option<Vec<Primary>>
+        mut old: Option<Vec<Primary>>,
+        mut new: Option<Vec<Primary>>
     ) -> DetailedChanges<Primary, Detailed> {
-
         let mut appeared:    Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Detailed> = vec![];
 
-        if old.is_none() && new.is_none() {
-            return DetailedChanges {
-                appeared,
-                disappeared,
-                changed,
-            }
-        }
+        match (&mut old, &mut new) {
+            (None, None) => {
+                return DetailedChanges {
+                    appeared,
+                    disappeared,
+                    changed,
+                }
+            },
+            (None, Some(new)) => {
+                appeared.append(new);
 
-        if old.is_none() {
-            appeared.append(&mut new.unwrap());
+                return DetailedChanges {
+                    appeared,
+                    disappeared,
+                    changed,
+                }
+            },
+            (Some(old), None) => {
+                disappeared.append(old);
 
-            return DetailedChanges {
-                appeared,
-                disappeared,
-                changed,
-            }
-        }
-
-        if new.is_none() {
-            disappeared.append(&mut old.unwrap());
-
-            return DetailedChanges {
-                appeared,
-                disappeared,
-                changed,
-            }
+                return DetailedChanges {
+                    appeared,
+                    disappeared,
+                    changed,
+                }
+            },
+            _ => ()
         }
 
         for old_value in old.as_ref().unwrap().iter() {
@@ -132,44 +132,44 @@ where
     Primary: Hash + PartialEq + Clone
 {
     pub async fn compare(
-        old: Option<Vec<Primary>>,
-        new: Option<Vec<Primary>>
+        mut old: Option<Vec<Primary>>,
+        mut new: Option<Vec<Primary>>
     ) -> Changes<Primary> {
-
         let mut appeared:    Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Primary> = vec![];
         let mut unchanged:   Vec<Primary> = vec![];
 
-        if old.is_none() && new.is_none() {
-            return Changes {
-                appeared,
-                disappeared,
-                changed,
-                unchanged
-            }
-        }
+        match (&mut old, &mut new) {
+            (None, None) => {
+                return Changes {
+                    appeared,
+                    disappeared,
+                    changed,
+                    unchanged
+                }
+            },
+            (None, Some(new)) => {
+                appeared.append(new);
 
-        if old.is_none() {
-            appeared.append(&mut new.unwrap());
+                return Changes {
+                    appeared,
+                    disappeared,
+                    changed,
+                    unchanged
+                }
+            },
+            (Some(old), None) => {
+                disappeared.append(old);
 
-            return Changes {
-                appeared,
-                disappeared,
-                changed,
-                unchanged
-            }
-        }
-
-        if new.is_none() {
-            disappeared.append(&mut old.unwrap());
-
-            return Changes {
-                appeared,
-                disappeared,
-                changed,
-                unchanged
-            }
+                return Changes {
+                    appeared,
+                    disappeared,
+                    changed,
+                    unchanged
+                }
+            },
+            _ => ()
         }
 
         for old_value in old.as_ref().unwrap().iter() {
