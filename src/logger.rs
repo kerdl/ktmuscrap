@@ -63,7 +63,7 @@ impl Log for Logger {
                 .bright_blue();
 
             println!("{} [{}] {} ({}:{})", 
-                color.apply(&fmt_date), 
+                fmt_date.bright_green(), 
                 color.apply(record.level().as_str()), 
                 color.apply(&record.args().to_string()),
                 path,
