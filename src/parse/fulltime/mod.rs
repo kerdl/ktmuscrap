@@ -12,11 +12,33 @@ use crate::{
 use super::error;
 
 
+#[derive(Debug)]
+pub enum GenericParsingError {
+    Loading(html::LoadingError),
+    NoTables(error::NoTables),
+    NoMappings(error::NoMappings)
+}
+impl From<html::LoadingError> for GenericParsingError {
+    fn from(err: html::LoadingError) -> Self {
+        Self::Loading(err)
+    }
+}
+impl From<error::NoTables> for GenericParsingError {
+    fn from(err: error::NoTables) -> Self {
+        Self::NoTables(err)
+    }
+}
+impl From<error::NoMappings> for GenericParsingError {
+    fn from(err: error::NoMappings) -> Self {
+        Self::NoMappings(err)
+    }
+}
+
 async fn generic_parse(
     path: PathBuf,
     sc_type: raw::Type,
     last: Arc<raw::Last>,
-) -> SyncResult<()> {
+) -> Result<(), GenericParsingError> {
 
     if ![
         raw::Type::FtDaily,
@@ -30,7 +52,7 @@ async fn generic_parse(
 
     let sc_type_clone = sc_type.clone();
 
-    let mut mappings = tokio::task::spawn_blocking(move || -> SyncResult<mappings::Parser> {
+    let mut mappings = tokio::task::spawn_blocking(move || -> Result<mappings::Parser, GenericParsingError> {
 
         let mut parser = parser;
 
@@ -54,7 +76,7 @@ async fn generic_parse(
 
         Ok(tables.take_mappings().unwrap())
 
-    }).await??;
+    }).await.unwrap()?;
 
     let container = match sc_type {
         raw::Type::FtDaily =>  &last.ft_daily,
@@ -72,7 +94,7 @@ async fn generic_parse(
 pub async fn parse_ft_weekly(
     path: PathBuf,
     last: Arc<raw::Last>,
-) -> SyncResult<()> {
+) -> Result<(), GenericParsingError> {
     let sc_type = raw::Type::FtWeekly;
 
     generic_parse(path, sc_type, last).await
@@ -81,7 +103,7 @@ pub async fn parse_ft_weekly(
 pub async fn parse_ft_daily(
     path: PathBuf,
     last: Arc<raw::Last>,
-) -> SyncResult<()> {
+) -> Result<(), GenericParsingError> {
     let sc_type = raw::Type::FtDaily;
 
     generic_parse(path, sc_type, last).await

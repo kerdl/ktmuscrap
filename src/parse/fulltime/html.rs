@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use crate::{
     REGEX,
-    SyncResult,
     data::schedule::raw::{
         self,
         fulltime::html::HeaderTable,
@@ -22,6 +21,22 @@ enum Lookup {
     Table
 }
 
+#[derive(Debug)]
+pub enum LoadingError {
+    Io(tokio::io::Error),
+    Parsing(Error)
+}
+impl From<tokio::io::Error> for LoadingError {
+    fn from(err: tokio::io::Error) -> Self {
+        Self::Io(err)
+    }
+}
+impl From<Error> for LoadingError {
+    fn from(err: Error) -> Self {
+        Self::Parsing(err)
+    }
+}
+
 #[derive(new, Debug, Clone)]
 pub struct Parser {
     sc_type: raw::Type,
@@ -29,14 +44,14 @@ pub struct Parser {
     tables: Option<tables::Parser>,
 }
 impl Parser {
-    pub async fn from_string(html_text: String, sc_type: raw::Type) -> SyncResult<Parser> {
+    pub async fn from_string(html_text: String, sc_type: raw::Type) -> Result<Parser, Error> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
             // SLOW AS FUCK
             // ~1s ON 480 KB HTML
             Dom::parse(&html_text)
         });
 
-        let dom = handle.await??;
+        let dom = handle.await.unwrap()?;
         let table = None;
 
         let parser = Parser::new(sc_type, dom, table);
@@ -44,7 +59,7 @@ impl Parser {
         Ok(parser)
     }
 
-    pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> SyncResult<Parser> {
+    pub async fn from_path(path: PathBuf, sc_type: raw::Type) -> Result<Parser, LoadingError> {
         let html_text = tokio::fs::read_to_string(path).await?;
         let decoded_html_text = htmlescape::decode_html(&html_text).unwrap();
         let parser = Parser::from_string(decoded_html_text, sc_type).await?;

@@ -10,8 +10,9 @@ pub mod teacher;
 pub mod cabinet;
 pub mod error;
 
-use std::{sync::Arc, path::PathBuf};
+use std::{sync::Arc, path::PathBuf, ops::ControlFlow};
 
+use log::warn;
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -35,7 +36,7 @@ fn poll_fulltime(
     path: PathBuf,
     sc_type: raw::Type,
     raw_last: Arc<raw::Last>
-) -> JoinHandle<SyncResult<()>> {
+) -> JoinHandle<Result<(), fulltime::GenericParsingError>> {
 
     tokio::spawn(async move {
         match sc_type {
@@ -48,7 +49,7 @@ fn poll_fulltime(
             _ => unreachable!()
         }
 
-        Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        Ok::<(), fulltime::GenericParsingError>(())
     })
 
 }
@@ -66,6 +67,28 @@ fn poll_remote(
 
 }
 
+async fn handle_fail(
+    ft_failed: bool,
+    r_failed: bool,
+    last: Arc<Last>,
+    raw_last: Arc<raw::Last>,
+) -> ControlFlow<()> {
+    if ft_failed && !r_failed {
+        let r_page = raw_last.r_weekly.read().await.as_ref().unwrap().clone();
+        last.set_weekly((*r_page).clone()).await;
+
+        return ControlFlow::Break(())
+    } else if r_failed && !ft_failed {
+        let ft_page = raw_last.ft_weekly.read().await.as_ref().unwrap().clone();
+        last.set_weekly((*ft_page).clone()).await;
+
+        return ControlFlow::Break(())
+    } else if r_failed && ft_failed {
+        return ControlFlow::Break(())
+    }
+
+    ControlFlow::Continue(())
+}
 
 pub async fn weekly(
     ft_weekly: Option<PathBuf>,
@@ -73,30 +96,64 @@ pub async fn weekly(
     last: Arc<Last>,
     raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
+    let mut ft_process = None;
+    let mut r_process = None;
 
-    let mut parsing_processes = vec![];
+    let ft_weekly_converted = raw_last.clone().ft_weekly_is_some().await;
+    let r_weekly_converted = raw_last.clone().r_weekly_is_some().await;
 
-
-    if raw_last.clone().ft_weekly_is_none().await && ft_weekly.is_some() {
-        let ft_process = poll_fulltime(
-            ft_weekly.unwrap(),
+    if !ft_weekly_converted && ft_weekly.is_some() {
+        ft_process = Some(poll_fulltime(
+            ft_weekly.as_ref().unwrap().clone(),
             raw::Type::FtWeekly,
             raw_last.clone()
-        );
-        parsing_processes.push(ft_process);
+        ));
     }
 
-    if raw_last.clone().r_weekly_is_none().await && r_weekly.is_some() {
-        let r_process = poll_remote(
-            r_weekly.unwrap(),
+    if !r_weekly_converted && r_weekly.is_some() {
+        r_process = Some(poll_remote(
+            r_weekly.as_ref().unwrap().clone(),
             raw_last.clone()
-        );
-        parsing_processes.push(r_process);
+        ));
     }
 
+    let mut ft_result = None;
+    let mut r_result = None;
 
-    for process in parsing_processes {
-        process.await??;
+    let mut ft_failed = false;
+    let mut r_failed = false;
+
+    if let Some(ft) = ft_process {
+        let result = ft.await.unwrap();
+
+        if result.is_err() {
+            warn!("fulltime parsing error: {:?}", result);
+        }
+
+        ft_result = Some(result);
+    }
+
+    if let Some(r) = r_process {
+        let result = r.await.unwrap();
+
+        if result.is_err() {
+            warn!("remote parsing error: {:?}", result);
+        }
+
+        r_result = Some(result);
+    }
+
+    if !ft_weekly_converted && (ft_result.is_none() || ft_result.unwrap().is_err()) {
+        ft_failed = true;
+    }
+
+    if !r_weekly_converted && (r_result.is_none() || r_result.unwrap().is_err()) {
+        r_failed = true;
+    }
+
+    match handle_fail(ft_failed, r_failed, last.clone(), raw_last.clone()).await {
+        ControlFlow::Break(_) => return Ok(()),
+        ControlFlow::Continue(_) => ()
     }
 
     // yes, actually clone
@@ -138,30 +195,61 @@ pub async fn daily(
     last: Arc<Last>,
     raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {
-
-    let mut parsing_processes = vec![];
-
+    let mut ft_process = None;
+    let mut r_process = None;
 
     if raw_last.clone().ft_daily_is_none().await && ft_daily.is_some() {
-        let process = poll_fulltime(
-            ft_daily.unwrap(),
+        ft_process = Some(poll_fulltime(
+            ft_daily.as_ref().unwrap().clone(),
             raw::Type::FtDaily,
             raw_last.clone()
-        );
-        parsing_processes.push(process);
+        ));
     }
 
     if raw_last.clone().r_weekly_is_none().await && r_weekly.is_some() {
-        let process = poll_remote(
-            r_weekly.unwrap(),
+        r_process = Some(poll_remote(
+            r_weekly.as_ref().unwrap().clone(),
             raw_last.clone()
-        );
-        parsing_processes.push(process);
+        ));
     }
 
+    let mut ft_result = None;
+    let mut r_result = None;
 
-    for process in parsing_processes {
-        process.await??;
+    let mut ft_failed = false;
+    let mut r_failed = false;
+
+    if let Some(ft) = ft_process {
+        let result = ft.await.unwrap();
+
+        if result.is_err() {
+            warn!("fulltime parsing error: {:?}", result);
+        }
+
+        ft_result = Some(result);
+    }
+
+    if let Some(r) = r_process {
+        let result = r.await.unwrap();
+
+        if result.is_err() {
+            warn!("remote parsing error: {:?}", result);
+        }
+
+        r_result = Some(result);
+    }
+
+    if ft_daily.is_none() || ft_result.unwrap().is_err() {
+        ft_failed = true;
+    }
+
+    if r_weekly.is_none() || r_result.unwrap().is_err() {
+        r_failed = true;
+    }
+
+    match handle_fail(ft_failed, r_failed, last.clone(), raw_last.clone()).await {
+        ControlFlow::Break(_) => return Ok(()),
+        ControlFlow::Continue(_) => ()
     }
 
     // yes, actually clone

@@ -1,6 +1,32 @@
-use colored::Colorize;
+use colored::{Colorize, ColoredString};
 use log::{Record, Level, Metadata, Log, SetLoggerError, LevelFilter};
 
+
+enum Color {
+    Blue,
+    Yellow,
+    Red,
+    White
+}
+impl Color {
+    pub fn from_level(level: Level) -> Color {
+        match level {
+            Level::Debug => Color::Blue,
+            Level::Warn => Color::Yellow,
+            Level::Error => Color::Red,
+            _ => Color::White,
+        }
+    }
+
+    pub fn apply(&self, string: &str) -> ColoredString {
+        match self {
+            Color::Blue => string.bright_blue(),
+            Color::Yellow => string.yellow(),
+            Color::Red => string.bright_red(),
+            Color::White => string.white()
+        }
+    }
+}
 
 pub struct Logger;
 
@@ -22,11 +48,12 @@ impl Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
+            let color = Color::from_level(record.level());
+
             let date = chrono::Local::now();
 
             let fmt_date = date.format("%Y-%m-%d at %H:%M:%S")
-                .to_string()
-                .bright_cyan();
+                .to_string();
 
             let path = record.file()
                 .unwrap()
@@ -36,9 +63,9 @@ impl Log for Logger {
                 .bright_blue();
 
             println!("{} [{}] {} ({}:{})", 
-                fmt_date, 
-                record.level(), 
-                record.args(),
+                color.apply(&fmt_date), 
+                color.apply(record.level().as_str()), 
+                color.apply(&record.args().to_string()),
                 path,
                 line
             );

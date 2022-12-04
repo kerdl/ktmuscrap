@@ -49,6 +49,7 @@ enum UpdateFinishType {
 
 #[derive(Debug)]
 pub struct Index {
+    fetch: bool,
     path: PathBuf,
     updated_tx: mpsc::Sender<update::Params>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
@@ -94,6 +95,7 @@ impl Index {
         let dir = path.parent().unwrap_or(&path).to_path_buf();
 
         let this = Self {
+            fetch: true,
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
@@ -115,6 +117,7 @@ impl Index {
 
     fn from_middle(
         middle: Arc<MiddleIndex>,
+        fetch: bool,
         path: PathBuf,
         updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
@@ -135,6 +138,7 @@ impl Index {
         };
 
         let this = Self {
+            fetch,
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
@@ -149,6 +153,7 @@ impl Index {
     }
 
     pub async fn load_or_init(
+        fetch: bool,
         path: PathBuf,
         updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
@@ -159,20 +164,21 @@ impl Index {
             this = Self::default(path, updated_tx, converted_rx);
             this.clone().save().await?;
         } else {
-            this = Self::load(path, updated_tx, converted_rx).await?;
+            this = Self::load(fetch, path, updated_tx, converted_rx).await?;
         }
 
         Ok(this)
     }
 
     pub async fn load(
+        fetch: bool,
         path: PathBuf,
         updated_tx: mpsc::Sender<update::Params>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
 
         let middle = MiddleIndex::load(path.clone()).await?;
-        let primary = Self::from_middle(middle, path, updated_tx, converted_rx);
+        let primary = Self::from_middle(middle, fetch, path, updated_tx, converted_rx);
 
         Ok(primary)
     }
@@ -284,32 +290,34 @@ impl Index {
 
         self.updated_now().await;
 
-        for schedule in self.types.iter() {
-            let schedule = schedule.clone();
-
-            let handle = tokio::spawn(async move {
-                loop {
-                    let bytes = schedule.refetch_until_success().await;
-
-                    if let Err(error) = schedule.clone().unpack(bytes).await {
-                        warn!(
-                            "{} unpack error, will refetch and unpack again in {}: {:?}",
-                            schedule.sc_type,
-                            schedule.retry_period(),
-                            error
-                        );
-
-                        tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
-                    } else {
-                        break;
+        if self.fetch {
+            for schedule in self.types.iter() {
+                let schedule = schedule.clone();
+    
+                let handle = tokio::spawn(async move {
+                    loop {
+                        let bytes = schedule.refetch_until_success().await;
+    
+                        if let Err(error) = schedule.clone().unpack(bytes).await {
+                            warn!(
+                                "{} unpack error, will refetch and unpack again in {}: {:?}",
+                                schedule.sc_type,
+                                schedule.retry_period(),
+                                error
+                            );
+    
+                            tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
+                        } else {
+                            break;
+                        }
                     }
-                }
-            });
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.await.unwrap();
+                });
+                handles.push(handle);
+            }
+    
+            for handle in handles {
+                handle.await.unwrap();
+            }
         }
 
         Arc::new(self.clone().to_middle().await).poll_save();

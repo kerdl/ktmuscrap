@@ -30,6 +30,8 @@ lazy_static! {
 static LOGGER: Logger = Logger;
 static DATA: OnceCell<data::Container> = OnceCell::new();
 
+static FETCH: bool = true;
+
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;

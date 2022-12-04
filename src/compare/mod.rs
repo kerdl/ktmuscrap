@@ -13,7 +13,7 @@ pub mod schedule;
 
 #[async_trait]
 pub trait DetailedCmp<ToCompare, Compared> {
-    async fn compare(old: Option<ToCompare>, new: ToCompare) -> Compared;
+    async fn compare(old: Option<ToCompare>, new: Option<ToCompare>) -> Compared;
 }
 
 pub trait Name {
@@ -34,15 +34,33 @@ where
 {
     pub async fn compare(
         old: Option<Vec<Primary>>,
-        mut new: Vec<Primary>
+        new: Option<Vec<Primary>>
     ) -> DetailedChanges<Primary, Detailed> {
 
         let mut appeared:    Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Detailed> = vec![];
 
+        if old.is_none() && new.is_none() {
+            return DetailedChanges {
+                appeared,
+                disappeared,
+                changed,
+            }
+        }
+
         if old.is_none() {
-            appeared.append(&mut new);
+            appeared.append(&mut new.unwrap());
+
+            return DetailedChanges {
+                appeared,
+                disappeared,
+                changed,
+            }
+        }
+
+        if new.is_none() {
+            disappeared.append(&mut old.unwrap());
 
             return DetailedChanges {
                 appeared,
@@ -52,7 +70,7 @@ where
         }
 
         for old_value in old.as_ref().unwrap().iter() {
-            let new_value = new.iter().find(
+            let new_value = new.as_ref().unwrap().iter().find(
                 |new_value| new_value == &old_value
             );
 
@@ -62,7 +80,7 @@ where
             }
         }
 
-        for new_value in new.iter() {
+        for new_value in new.as_ref().unwrap().iter() {
             let old_value = old.as_ref().unwrap().iter().find(
                 |old_value| old_value == &new_value
             );
@@ -74,12 +92,12 @@ where
 
             let detailed = Detailed::compare(
                 old_value.cloned(),
-                new_value.clone()
+                Some(new_value.clone())
             ).await;
 
             let primitive = Primitive::new(
                 old_value.cloned(),
-                new_value.clone()
+                Some(new_value.clone())
             );
 
             if !primitive.is_same_hash() {
@@ -115,7 +133,7 @@ where
 {
     pub async fn compare(
         old: Option<Vec<Primary>>,
-        mut new: Vec<Primary>
+        new: Option<Vec<Primary>>
     ) -> Changes<Primary> {
 
         let mut appeared:    Vec<Primary> = vec![];
@@ -123,8 +141,28 @@ where
         let mut changed:     Vec<Primary> = vec![];
         let mut unchanged:   Vec<Primary> = vec![];
 
+        if old.is_none() && new.is_none() {
+            return Changes {
+                appeared,
+                disappeared,
+                changed,
+                unchanged
+            }
+        }
+
         if old.is_none() {
-            appeared.append(&mut new);
+            appeared.append(&mut new.unwrap());
+
+            return Changes {
+                appeared,
+                disappeared,
+                changed,
+                unchanged
+            }
+        }
+
+        if new.is_none() {
+            disappeared.append(&mut old.unwrap());
 
             return Changes {
                 appeared,
@@ -135,7 +173,7 @@ where
         }
 
         for old_value in old.as_ref().unwrap().iter() {
-            let new_value = new.iter().find(
+            let new_value = new.as_ref().unwrap().iter().find(
                 |new_value| new_value == &old_value
             );
 
@@ -145,7 +183,7 @@ where
             }
         }
 
-        for new_value in new.iter() {
+        for new_value in new.as_ref().unwrap().iter() {
             let old_value = old.as_ref().unwrap().iter().find(
                 |old_value| old_value == &new_value
             );
@@ -157,7 +195,7 @@ where
 
             let primitive = Primitive::new(
                 old_value.cloned(),
-                new_value.clone()
+                Some(new_value.clone())
             );
 
             if primitive.is_same_hash() {
@@ -188,15 +226,11 @@ where
 #[derive(new, Debug, Clone, Serialize)]
 pub struct Primitive<T> {
     pub old: Option<T>,
-    pub new: T
+    pub new: Option<T>
 }
 impl<T: PartialEq> Primitive<T> {
     pub fn is_same_eq(&self) -> bool {
-        if self.old.is_none() {
-            return false
-        }
-
-        self.old.as_ref().unwrap() == &self.new
+        self.old == self.new
     }
 
     pub fn is_different_eq(&self) -> bool {

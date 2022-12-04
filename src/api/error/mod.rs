@@ -260,7 +260,7 @@ api_err!(
     kind:    Kind::UserFailure,
     fields:  (pub sc_type: schedule::Type),
     error:   |this| format!(
-        "the {} cannot be compared since there's nothing to compare with",
+        "no {} schedule",
         this.sc_type.to_string(),
     )
 );

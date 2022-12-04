@@ -117,6 +117,10 @@ impl Last {
         self.ft_daily.read().await.is_none()
     }
 
+    pub async fn ft_daily_is_some(self: Arc<Self>) -> bool {
+        !self.ft_daily_is_none().await
+    }
+
     pub async fn clear_ft_weekly(self: Arc<Self>) {
         *self.ft_weekly.write().await = None;
         self.poll_save();
@@ -126,6 +130,10 @@ impl Last {
         self.ft_weekly.read().await.is_none()
     }
 
+    pub async fn ft_weekly_is_some(self: Arc<Self>) -> bool {
+        !self.ft_weekly_is_none().await
+    }
+
     pub async fn clear_r_weekly(self: Arc<Self>) {
         *self.r_weekly.write().await = None;
         self.poll_save();
@@ -133,6 +141,10 @@ impl Last {
 
     pub async fn r_weekly_is_none(self: Arc<Self>) -> bool {
         self.r_weekly.read().await.is_none()
+    }
+
+    pub async fn r_weekly_is_some(self: Arc<Self>) -> bool {
+        !self.r_weekly_is_none().await
     }
 }
 

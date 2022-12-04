@@ -77,6 +77,7 @@ impl Schedule {
                 dir.join("raw_last.json")
             ).await?,
             index: raw::Index::load_or_init(
+                crate::FETCH,
                 dir.join("index.json"),
                 updated_tx,
                 converted_rx,
@@ -144,11 +145,11 @@ impl Schedule {
     
                 let daily_changes = compare::schedule::Page::compare(
                     daily_old.as_ref().map(|old| (**old).clone()),
-                    (**daily_new.as_ref().unwrap()).clone()
+                    daily_new.as_ref().map(|new| (**new).clone()),
                 ).await;
                 let weekly_changes = compare::schedule::Page::compare(
                     weekly_old.as_ref().map(|old| (**old).clone()),
-                    (**weekly_new.as_ref().unwrap()).clone()
+                    weekly_new.as_ref().map(|new| (**new).clone()),
                 ).await;
 
                 let notify = Notify {
@@ -165,6 +166,8 @@ impl Schedule {
                         None
                     }
                 };
+
+                let none = "None".to_owned();
 
                 if notify.daily.is_some() {
                     info!("DAILY CHANGES");
@@ -183,7 +186,7 @@ impl Schedule {
                     info!("   changed groups {}: {:?}",
                         notify.daily.as_ref().unwrap().groups.changed.len(),
                         notify.daily.as_ref().unwrap().groups.changed.iter().map(
-                            |group| &group.name
+                            |group| group.name.as_ref().unwrap_or(&none)
                         ).collect::<Vec<&String>>()
                     );
                 }
@@ -205,7 +208,7 @@ impl Schedule {
                     info!("   changed groups {}: {:?}",
                         notify.weekly.as_ref().unwrap().groups.changed.len(),
                         notify.weekly.as_ref().unwrap().groups.changed.iter().map(
-                            |group| &group.name
+                            |group| group.name.as_ref().unwrap_or(&none)
                         ).collect::<Vec<&String>>()
                     );
                 }

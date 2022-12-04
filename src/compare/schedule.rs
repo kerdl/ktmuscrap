@@ -9,7 +9,7 @@ use super::{Changes, DetailedChanges, Primitive, DetailedCmp};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Subject {
-    pub name: String,
+    pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num: Option<Primitive<u32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -23,25 +23,24 @@ pub struct Subject {
 impl DetailedCmp<regular::Subject, Subject> for Subject {
     async fn compare(
         old: Option<regular::Subject>,
-        new: regular::Subject
+        new: Option<regular::Subject>
     ) -> Subject {
-
-        let name = new.name.clone();
+        let name = new.as_ref().map(|new| new.name.clone());
         let num = Primitive::new(
             old.as_ref().map(|old| old.num),
-            new.num
+            new.as_ref().map(|new| new.num),
         );
         let teachers = Changes::compare(
             old.as_ref().map(|old| old.teachers.clone()),
-            new.teachers
+            new.as_ref().map(|new| new.teachers.clone()),
         ).await;
         let cabinet = Primitive::new(
             old.as_ref().map(|old| old.cabinet.clone()),
-            new.cabinet
+            new.as_ref().map(|new| new.cabinet.clone()),
         );
         let time = Primitive::new(
             old.as_ref().map(|old| old.time.clone()),
-            new.time.clone()
+            new.as_ref().map(|new| new.time.clone()),
         );
 
         Subject {
@@ -72,20 +71,19 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Day {
-    pub weekday: Weekday,
+    pub weekday: Option<Weekday>,
     pub subjects: DetailedChanges<regular::Subject, Subject>
 }
 #[async_trait]
 impl DetailedCmp<regular::Day, Day> for Day {
     async fn compare(
         old: Option<regular::Day>,
-        new: regular::Day
+        new: Option<regular::Day>
     ) -> Day {
-
-        let weekday = new.weekday.clone();
+        let weekday = new.as_ref().map(|new| new.weekday.clone());
         let subjects = DetailedChanges::compare(
             old.map(|old| old.subjects.clone()),
-            new.subjects.clone()
+            new.map(|new| new.subjects.clone()),
         ).await;
 
         Day { weekday, subjects }
@@ -94,20 +92,20 @@ impl DetailedCmp<regular::Day, Day> for Day {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Group {
-    pub name: String,
+    pub name: Option<String>,
     pub days: DetailedChanges<regular::Day, Day>
 }
 #[async_trait]
 impl DetailedCmp<regular::Group, Group> for Group {
     async fn compare(
         old: Option<regular::Group>,
-        new: regular::Group
+        new: Option<regular::Group>
     ) -> Group {
 
-        let name = new.name.clone();
+        let name = new.as_ref().map(|new| new.name.clone());
         let days = DetailedChanges::compare(
             old.map(|old| old.days.clone()),
-            new.days.clone()
+            new.map(|new| new.days.clone()),
         ).await;
 
         Group { name, days }
@@ -116,7 +114,7 @@ impl DetailedCmp<regular::Group, Group> for Group {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Page {
-    pub raw: String,
+    pub raw: Option<String>,
     pub date: Primitive<RangeInclusive<NaiveDate>>,
     pub groups: DetailedChanges<regular::Group, Group>
 }
@@ -124,17 +122,16 @@ pub struct Page {
 impl DetailedCmp<regular::Page, Page> for Page {
     async fn compare(
         old: Option<regular::Page>,
-        new: regular::Page
+        new: Option<regular::Page>
     ) -> Page {
-
-        let raw = new.raw.clone();
+        let raw = new.as_ref().map(|new| new.raw.clone());
         let date = Primitive::new(
             old.as_ref().map(|old| old.date.clone()),
-            new.date.clone()
+            new.as_ref().map(|new| new.date.clone()),
         );
         let groups = DetailedChanges::compare(
             old.as_ref().map(|old| old.groups.clone()),
-            new.groups.clone()
+            new.as_ref().map(|new| new.groups.clone()),
         ).await;
 
         Page { raw, date, groups }
