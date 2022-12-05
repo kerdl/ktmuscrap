@@ -28,7 +28,7 @@ struct ScheduleGetQuery {
 async fn generic_get(sc_type: Type) -> HttpResponse {
     let schedule = match sc_type {
         Type::Weekly => DATA.get().unwrap().schedule.last.weekly.read().await,
-        Type::Daily  => DATA.get().unwrap().schedule.last.daily.read().await
+        Type::Daily => DATA.get().unwrap().schedule.last.daily.read().await
     };
 
     if schedule.is_none() {

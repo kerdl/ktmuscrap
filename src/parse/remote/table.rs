@@ -1,7 +1,7 @@
 use log::debug;
 use derive_new::new;
 use chrono::NaiveDate;
-use std::{sync::{Arc, RwLock}, time::Instant};
+use std::{sync::{Arc, RwLock}, time::Instant, ops::ControlFlow};
 
 use crate::{data::{
     schedule::{
@@ -122,7 +122,6 @@ impl Parser {
     }
 
     pub fn mapping(&mut self) -> Option<&mut mapping::Parser> {
-
         self.weekday_date_row()?;
         self.num_time_row()?;
 
@@ -154,9 +153,15 @@ impl Parser {
 
             let mut mappings: Vec<SubjectMapping> = vec![];
 
+            let mut cell_index = 0;
+            let mut last_x = 0;
 
-            for cell in row[1..].iter() {
-                let x = cell.x;
+            loop {
+                let cell = row[1..].get(cell_index);
+                let x = cell.map(|cell| cell.x).unwrap_or(last_x + 1);
+
+                let is_out_of_range = cell.is_none();
+                let mut has_uncompleted_hits_for_this_y = false;
 
                 for hit in hits.iter_mut() {
 
@@ -170,6 +175,7 @@ impl Parser {
                     };
 
                     if !last_map_cell_rng.contains(&hit.at_x) {
+                        has_uncompleted_hits_for_this_y = true;
                         continue;
                     }
 
@@ -201,57 +207,75 @@ impl Parser {
 
                     hit.done();
                 }
-                
-                let last_mapping_x = mappings.last().map(
-                    |map| map.cell.x
-                ).unwrap_or(0);
 
-                let last_mapping_colspan = mappings.last().map(
-                    |map| map.cell.colspan
-                ).unwrap_or(0);
+                let flow;
 
-                let past_cells_count = {
-                    last_mapping_x + last_mapping_colspan.checked_sub(1).unwrap_or(0)
-                };
-
-                let weekday_date = {
-                    weekday_row.iter().find(|wkd| 
-                        (
-                            (wkd.cell.x)
-                            ..
-                            (wkd.cell.x + wkd.cell.colspan)
-                        ).contains(&(past_cells_count + 1))
-                    ).unwrap()
-                };
-                let num_time = {
-                    num_time_row.get(past_cells_count).unwrap()
-                };
-
-
-                let mapping = SubjectMapping::new(
-                    cell.clone(),
-                    group.clone(),
-                    num_time.clone(), 
-                    weekday_date.clone(),
-                );
-
-                mappings.push(mapping);
-
-                if cell.hits_next_rows() {
-                    let mut future_y = y + 1;
-
-                    for _ in 0..cell.hits() {
-                        let hit = table::Hit {
-                            by:      cell.clone(), 
-                            at_x:    x, 
-                            at_y:    future_y,
-                            is_done: false,
-                        };
-
-                        hits.push(hit);
-
-                        future_y += 1;
+                if !is_out_of_range {
+                    let last_mapping_x = mappings.last().map(
+                        |map| map.cell.x
+                    ).unwrap_or(0);
+    
+                    let last_mapping_colspan = mappings.last().map(
+                        |map| map.cell.colspan
+                    ).unwrap_or(0);
+    
+                    let past_cells_count = {
+                        last_mapping_x + last_mapping_colspan.checked_sub(1).unwrap_or(0)
+                    };
+    
+                    let weekday_date = {
+                        weekday_row.iter().find(|wkd| 
+                            (
+                                (wkd.cell.x)
+                                ..
+                                (wkd.cell.x + wkd.cell.colspan)
+                            ).contains(&(past_cells_count + 1))
+                        ).unwrap()
+                    };
+                    let num_time = {
+                        num_time_row.get(past_cells_count).unwrap()
+                    };
+    
+    
+                    let mapping = SubjectMapping::new(
+                        cell.cloned().unwrap(),
+                        group.clone(),
+                        num_time.clone(), 
+                        weekday_date.clone(),
+                    );
+    
+                    mappings.push(mapping);
+    
+                    if cell.as_ref().unwrap().hits_next_rows() {
+                        let mut future_y = y + 1;
+    
+                        for _ in 0..cell.as_ref().unwrap().hits() {
+                            let hit = table::Hit {
+                                by:      cell.cloned().unwrap(),
+                                at_x:    x, 
+                                at_y:    future_y,
+                                is_done: false,
+                            };
+    
+                            hits.push(hit);
+    
+                            future_y += 1;
+                        }
                     }
+
+                    flow = ControlFlow::Continue(())
+                } else if has_uncompleted_hits_for_this_y {
+                    flow = ControlFlow::Continue(())
+                } else {
+                    flow = ControlFlow::Break(())
+                }
+
+                cell_index += 1;
+                last_x = x;
+
+                match flow {
+                    ControlFlow::Continue(_) => continue,
+                    ControlFlow::Break(_) => break,
                 }
             }
 
