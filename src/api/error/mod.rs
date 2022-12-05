@@ -70,9 +70,7 @@ macro_rules! api_err {
 
 #[derive(ToPrimitive, Serialize, Clone, Debug)]
 pub enum ErrorNum {
-    ScheduleSavingFailed = 100,
-    NoLastSchedule,
-
+    NoLastSchedule = 100,
     NoSuchKey = 200,
 }
 impl ErrorNum {
