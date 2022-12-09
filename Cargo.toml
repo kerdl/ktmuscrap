@@ -50,6 +50,7 @@ ngrammatic = "0.3.4"
 # tools
 thiserror = "1.0"
 derive-new = "0.5"
+derivative = "2.2.0"
 itertools = "0.10.5"
 zip = "0.6.3"
 sha2 = "0.10.6"

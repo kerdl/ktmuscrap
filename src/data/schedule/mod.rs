@@ -14,6 +14,7 @@ use ngrammatic::{CorpusBuilder, Corpus, Pad};
 use serde_derive::{Serialize, Deserialize};
 use chrono::{NaiveDate, NaiveTime};
 use strum_macros::{EnumString, Display};
+use derivative::Derivative;
 use std::ops::{Range, RangeInclusive};
 
 use super::Weekday;
@@ -89,12 +90,13 @@ pub enum Type {
 }
 
 /// # Single subject (lesson) in a `Day`
+#[derive(Derivative)]
+#[derivative(Hash)]
 #[derive(
     Serialize, 
     Deserialize, 
     Debug, 
-    Clone,
-    Hash
+    Clone
 )]
 pub struct Subject {
     /// # Raw representation, before parsing
@@ -106,6 +108,7 @@ pub struct Subject {
     /// (*"Fuckindicklogy. Eban'ko D.C."*)
     /// 
     /// !!! (**D.C.** is **DICK**) !!!
+    #[derivative(Hash="ignore")]
     pub raw: String,
     /// # Subject number
     pub num: u32,
@@ -181,12 +184,13 @@ impl PartialEq for Subject {
 }
 
 /// # Single weekday (Mon, Tue) in a week
+#[derive(Derivative)]
+#[derivative(Hash)]
 #[derive(
     Serialize, 
     Deserialize, 
     Debug, 
-    Clone,
-    Hash
+    Clone
 )]
 pub struct Day {
     /// # Raw name of a weekday
@@ -194,6 +198,7 @@ pub struct Day {
     /// - **"Понедельник"** (*"Monday"*)
     /// - **"вторник"** (*"tuesday"*)
     /// - ...
+    #[derivative(Hash="ignore")]
     pub raw: String,
     pub weekday: Weekday,
     /// # Its date
@@ -211,12 +216,13 @@ impl PartialEq for Day {
 }
 
 /// # Group's full schedule container
+#[derive(Derivative)]
+#[derivative(Hash)]
 #[derive(
     Serialize,
     Deserialize,
     Debug,
-    Clone,
-    Hash,
+    Clone
 )]
 pub struct Group {
     /// # Raw header of a group
@@ -231,6 +237,7 @@ pub struct Group {
     /// - for `Remote`:
     ///     - **"1-кДД-69"**
     ///     (*"1-kDD-69"*)
+    #[derivative(Hash="ignore")]
     pub raw: String,
     /// # Friendly group name
     /// 

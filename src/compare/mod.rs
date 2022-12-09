@@ -5,8 +5,9 @@
 
 use derive_new::new;
 use async_trait::async_trait;
+use log::info;
 use serde::Serialize;
-use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
+use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}, ops::ControlFlow};
 
 pub mod schedule;
 
@@ -16,8 +17,67 @@ pub trait DetailedCmp<ToCompare, Compared> {
     async fn compare(old: Option<ToCompare>, new: Option<ToCompare>) -> Compared;
 }
 
-pub trait Name {
-    fn name(&self) -> String;
+
+fn pre_check_both<Primary>(
+    old: &mut Option<Vec<Primary>>,
+    new: &mut Option<Vec<Primary>>,
+    appeared: &mut Vec<Primary>,
+    disappeared: &mut Vec<Primary>,
+) -> ControlFlow<()> {
+    match (old, new) {
+        (None, None) => {
+            return ControlFlow::Break(())
+        },
+        (None, Some(new)) => {
+            appeared.append(new);
+            return ControlFlow::Break(())
+        },
+        (Some(old), None) => {
+            disappeared.append(old);
+            return ControlFlow::Break(())
+        },
+        _ => ControlFlow::Continue(())
+    }    
+}
+
+fn find<'a, Primary>(
+    list: &'a mut Vec<Primary>,
+    value: &Primary,
+    ignored_idx: &'a mut Vec<usize>
+) -> Option<&'a Primary>
+where Primary: PartialEq + std::fmt::Debug
+{
+    list.iter().enumerate().find(
+        |(index, list_value)| {
+            if list_value == &value && !ignored_idx.contains(index) {
+                ignored_idx.push(*index);
+                true
+            } else {
+                false
+            }
+        }
+    ).map(
+        |(_index, list_value)| list_value
+    )
+}
+
+fn disappeared_lookup<Primary>(
+    old: &mut Vec<Primary>,
+    new: &mut Vec<Primary>,
+    disappeared: &mut Vec<Primary>
+)
+where Primary: PartialEq + Clone + std::fmt::Debug
+{
+    let mut new_ignored_idx: Vec<usize> = vec![];
+
+    for old_value in old.iter() {
+        let new_value = find(new, old_value, &mut new_ignored_idx);
+
+        if new_value.is_none() {
+            disappeared.push(old_value.clone());
+            continue;
+        }
+    }
 }
 
 
@@ -29,7 +89,7 @@ pub struct DetailedChanges<Primary, Detailed> {
 }
 impl<Primary, Detailed> DetailedChanges<Primary, Detailed> 
 where 
-    Primary: Hash + PartialEq + Clone,
+    Primary: Hash + PartialEq + Clone + std::fmt::Debug,
     Detailed: DetailedCmp<Primary, Detailed>
 {
     pub async fn compare(
@@ -40,67 +100,40 @@ where
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Detailed> = vec![];
 
-        match (&mut old, &mut new) {
-            (None, None) => {
+        match pre_check_both(&mut old, &mut new, &mut appeared, &mut disappeared) {
+            ControlFlow::Break(_) => {
                 return DetailedChanges {
                     appeared,
                     disappeared,
                     changed,
                 }
-            },
-            (None, Some(new)) => {
-                appeared.append(new);
-
-                return DetailedChanges {
-                    appeared,
-                    disappeared,
-                    changed,
-                }
-            },
-            (Some(old), None) => {
-                disappeared.append(old);
-
-                return DetailedChanges {
-                    appeared,
-                    disappeared,
-                    changed,
-                }
-            },
-            _ => ()
-        }
-
-        for old_value in old.as_ref().unwrap().iter() {
-            let new_value = new.as_ref().unwrap().iter().find(
-                |new_value| new_value == &old_value
-            );
-
-            if new_value.is_none() {
-                disappeared.push(old_value.clone());
-                continue;
             }
+            ControlFlow::Continue(_) => ()
         }
+
+        disappeared_lookup(old.as_mut().unwrap(), new.as_mut().unwrap(), &mut disappeared);
+
+        let mut old_ignored_idx: Vec<usize> = vec![];
 
         for new_value in new.as_ref().unwrap().iter() {
-            let old_value = old.as_ref().unwrap().iter().find(
-                |old_value| old_value == &new_value
-            );
+            let old_value = find(old.as_mut().unwrap(), new_value, &mut old_ignored_idx);
             
             if old_value.is_none() {
                 appeared.push(new_value.clone());
                 continue;
             }
 
-            let detailed = Detailed::compare(
-                old_value.cloned(),
-                Some(new_value.clone())
-            ).await;
-
             let primitive = Primitive::new(
                 old_value.cloned(),
                 Some(new_value.clone())
             );
 
-            if !primitive.is_same_hash() {
+            if primitive.is_different_hash() {
+                let detailed = Detailed::compare(
+                    old_value.cloned(),
+                    Some(new_value.clone())
+                ).await;
+
                 changed.push(detailed);
                 continue;
             }
@@ -125,11 +158,10 @@ pub struct Changes<Primary> {
     pub appeared:    Vec<Primary>,
     pub disappeared: Vec<Primary>,
     pub changed:     Vec<Primary>,
-    pub unchanged:   Vec<Primary>,
 }
 impl<Primary> Changes<Primary> 
 where 
-    Primary: Hash + PartialEq + Clone
+    Primary: Hash + PartialEq + Clone + std::fmt::Debug
 {
     pub async fn compare(
         mut old: Option<Vec<Primary>>,
@@ -138,55 +170,24 @@ where
         let mut appeared:    Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
         let mut changed:     Vec<Primary> = vec![];
-        let mut unchanged:   Vec<Primary> = vec![];
 
-        match (&mut old, &mut new) {
-            (None, None) => {
+        match pre_check_both(&mut old, &mut new, &mut appeared, &mut disappeared) {
+            ControlFlow::Break(_) => {
                 return Changes {
                     appeared,
                     disappeared,
                     changed,
-                    unchanged
                 }
-            },
-            (None, Some(new)) => {
-                appeared.append(new);
-
-                return Changes {
-                    appeared,
-                    disappeared,
-                    changed,
-                    unchanged
-                }
-            },
-            (Some(old), None) => {
-                disappeared.append(old);
-
-                return Changes {
-                    appeared,
-                    disappeared,
-                    changed,
-                    unchanged
-                }
-            },
-            _ => ()
-        }
-
-        for old_value in old.as_ref().unwrap().iter() {
-            let new_value = new.as_ref().unwrap().iter().find(
-                |new_value| new_value == &old_value
-            );
-
-            if new_value.is_none() {
-                disappeared.push(old_value.clone());
-                continue;
             }
+            ControlFlow::Continue(_) => ()
         }
+
+        disappeared_lookup(old.as_mut().unwrap(), new.as_mut().unwrap(), &mut disappeared);
+
+        let mut old_ignored_idx: Vec<usize> = vec![];
 
         for new_value in new.as_ref().unwrap().iter() {
-            let old_value = old.as_ref().unwrap().iter().find(
-                |old_value| old_value == &new_value
-            );
+            let old_value = find(old.as_mut().unwrap(), new_value, &mut old_ignored_idx);
             
             if old_value.is_none() {
                 appeared.push(new_value.clone());
@@ -198,10 +199,7 @@ where
                 Some(new_value.clone())
             );
 
-            if primitive.is_same_hash() {
-                unchanged.push(new_value.clone());
-                continue;
-            } else {
+            if primitive.is_different_hash() {
                 changed.push(new_value.clone());
                 continue;
             }
@@ -210,8 +208,7 @@ where
         Changes {
             appeared,
             disappeared,
-            changed,
-            unchanged
+            changed
         }
     }
 
