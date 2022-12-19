@@ -1,6 +1,6 @@
 use derive_new::new;
 use chrono::NaiveTime;
-use std::{collections::HashMap, ops::Range};
+use std::{collections::HashMap, ops::Range, sync::Arc};
 
 use crate::data::{
     schedule::raw::{
@@ -56,34 +56,24 @@ impl Parser {
         };
 
         for group_section in header_tables.into_iter() {
+            if group_section.table.len() < 2 { continue };
 
             let raw_group = &group_section.header;
-            let valid_group = group::parse(&group_section.header);
-            let date_range = date::parse_dmy_range(&group_section.header);
-
-            if valid_group.is_none() {
-                continue;
-            }
-
-            if date_range.is_none() {
-                continue;
-            }
+            let Some(valid_group) = group::parse(&group_section.header) else { continue };
+            let Some(date_range) = date::parse_dmy_range(&group_section.header) else { continue };
 
             let group = raw::table::Group::new(
                 raw_group.clone(), 
-                valid_group.unwrap()
+                valid_group
             );
 
             let task = std::thread::spawn(move || -> GroupSubjects {
+                let table_header = &group_section.table[0];
 
                 let mut weekdays_map: HashMap<usize, WeekdayWithOrigin> = HashMap::new();
                 let mut subject_maps: Vec<SubjectMapping> = vec![];
 
-                for (index, cell) in {
-                    group_section
-                    .table.get(0).unwrap()
-                    .iter().enumerate()
-                } {
+                for (index, cell) in table_header.iter().enumerate() {
                     if let Some(weekday) = Weekday::guess(cell) {
 
                         let w_origin = WeekdayWithOrigin::new(
@@ -98,8 +88,9 @@ impl Parser {
                     }
                 }
 
-                for row in group_section.table[1..].iter() {
-    
+                let table_body = &group_section.table[1..];
+
+                'row: for row in table_body.iter() {
                     let mut num: Option<u32> = None;
                     let mut time: Option<Range<NaiveTime>> = None;
     
@@ -108,10 +99,18 @@ impl Parser {
     
                         match cell_type {
                             CellType::Num => {
-                                num = Some(cell.parse().unwrap())
+                                num = cell.parse().ok();
+
+                                if num.is_none() {
+                                    continue 'row;
+                                }
                             }
                             CellType::Time => {
-                                time = time::parse_range_hm(cell)
+                                time = time::parse_range_hm(cell);
+
+                                if time.is_none() {
+                                    continue 'row;
+                                }
                             }
                             CellType::Subject => {
                                 let name = cell.clone();
@@ -130,7 +129,7 @@ impl Parser {
     
                 let mut group_map = GroupSubjects::new(
                     group, 
-                    date_range.unwrap(), 
+                    date_range, 
                     subject_maps
                 );
     
@@ -139,7 +138,6 @@ impl Parser {
                 );
 
                 group_map
-
             });
 
             tasks.push(task);
