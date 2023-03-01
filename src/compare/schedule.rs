@@ -101,10 +101,6 @@ impl DetailedCmp<regular::Group, Group> for Group {
         old: Option<regular::Group>,
         new: Option<regular::Group>
     ) -> Group {
-        if new.as_ref().unwrap().name == "2КДД40" {
-            println!("");
-        }
-
         let name = new.as_ref().map(|new| new.name.clone());
         let days = DetailedChanges::compare(
             old.map(|old| old.days.clone()),
