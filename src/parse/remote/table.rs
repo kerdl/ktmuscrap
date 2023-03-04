@@ -1,7 +1,7 @@
 use log::debug;
 use derive_new::new;
 use chrono::NaiveDate;
-use std::{sync::{Arc, RwLock}, time::Instant, ops::ControlFlow};
+use std::{sync::{Arc, RwLock}, time::Instant, ops::{ControlFlow, Range}};
 
 use crate::{data::{
     schedule::{
@@ -20,6 +20,10 @@ use super::{
     mapping
 };
 
+enum AddWay {
+    Push,
+    Splice(Range<usize>),
+}
 
 /// # 2nd step of parsing remote schedule
 #[derive(new, Debug, Clone)]
@@ -163,49 +167,58 @@ impl Parser {
                 let is_out_of_range = cell.is_none();
                 let mut has_uncompleted_hits_for_this_y = false;
 
-                for hit in hits.iter_mut() {
+                loop {
+                    let mut hits_done = 0;
 
-                    if hit.is_done { continue; }
-                    if hit.at_y != y { continue; }
+                    for hit in hits.iter_mut() {
 
-                    let last_map_cell_rng = {
-                        mappings.last().map(|map| 
-                            (map.cell.x + map.cell.width())..x
-                        ).unwrap_or(0..x)
-                    };
-
-                    if !last_map_cell_rng.contains(&hit.at_x) {
-                        has_uncompleted_hits_for_this_y = true;
-                        continue;
+                        if hit.is_done { continue; }
+                        if hit.at_y != y { continue; }
+    
+                        let last_map_cell_rng = {
+                            mappings.last().map(|map| 
+                                (map.cell.x + map.cell.width())..x
+                            ).unwrap_or(0..x)
+                        };
+    
+                        if !last_map_cell_rng.contains(&hit.at_x) {
+                            has_uncompleted_hits_for_this_y = true;
+                            continue;
+                        }
+    
+                        let mut y_neighbour = None;
+    
+                        for maps in grouped_mappings.iter().rev() {
+    
+                            let map = maps.iter().find(|&map| 
+                                last_map_cell_rng.contains(&map.cell.x)
+                                && map.cell.y == hit.by.y
+                            );
+                            if map.is_none() { continue; }
+    
+                            y_neighbour = map;
+                            break;
+                        }
+    
+                        if y_neighbour.is_none() { continue; }
+                        let y_neighbour = y_neighbour.unwrap();
+    
+                        let mapping = SubjectMapping::new(
+                            y_neighbour.cell.clone(),
+                            group.clone(),
+                            y_neighbour.num_time.clone(), 
+                            y_neighbour.weekday_date.clone(), 
+                        );
+    
+                        mappings.push(mapping);
+    
+                        hit.done();
+                        hits_done += 1;
                     }
 
-                    let mut y_neighbour = None;
-
-                    for maps in grouped_mappings.iter().rev() {
-
-                        let map = maps.iter().find(|&map| 
-                            last_map_cell_rng.contains(&map.cell.x)
-                            && map.cell.y == hit.by.y
-                        );
-                        if map.is_none() { continue; }
-
-                        y_neighbour = map;
+                    if hits_done < 1 {
                         break;
                     }
-
-                    if y_neighbour.is_none() { continue; }
-                    let y_neighbour = y_neighbour.unwrap();
-
-                    let mapping = SubjectMapping::new(
-                        y_neighbour.cell.clone(),
-                        group.clone(),
-                        y_neighbour.num_time.clone(), 
-                        y_neighbour.weekday_date.clone(), 
-                    );
-
-                    mappings.push(mapping);
-
-                    hit.done();
                 }
 
                 let flow;
@@ -256,9 +269,31 @@ impl Parser {
                                 at_y:    future_y,
                                 is_done: false,
                             };
+
+                            let mut add_way = AddWay::Push;
     
-                            hits.push(hit);
+                            if !hits.is_empty() {
+                                for (index, current) in hits.iter().enumerate() {
+                                    let next = hits.get(index + 1);
+                                    if next.is_none() {
+                                        break;
+                                    }
+                                    let next = next.unwrap();
+
+                                    if next.at_y == hit.at_y && next.at_x > hit.at_x {
+                                        add_way = AddWay::Splice(index + 1..index + 1);
+                                        break;
+                                    } else {
+                                        continue;
+                                    }
+                                }
+                            }
     
+                            match add_way {
+                                AddWay::Push => { hits.push(hit); },
+                                AddWay::Splice(range) => { hits.splice(range, [hit]); }
+                            }
+
                             future_y += 1;
                         }
                     }

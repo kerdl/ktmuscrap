@@ -238,28 +238,37 @@ impl Parser {
                 // look for conditions that are
                 // sometimes put a the end
                 // of this "for cell" loop
-                for condition in x_jumping_conds.iter_mut() {
-                    if {
-                        // if isn't performed
-                        // previously
-                        !condition.is_done
-                        // and if current X axis
-                        // is exactly the same 
-                        // as in condition
-                        && condition.at_x == x
-                        // and if current Y axis
-                        // is exactly the same 
-                        // as in condition
-                        && condition.at_y == y
-                    } {
-                        // increment X axis (jump)
-                        // by the value inside
-                        // condition
-                        x += condition.by;
-                        // mark this condition as done
-                        condition.done();
+                loop {
+                    let mut performed_jumps_count = 0;
+
+                    for condition in x_jumping_conds.iter_mut() {
+                        if {
+                            // if isn't performed
+                            // previously
+                            !condition.is_done
+                            // and if current X axis
+                            // is exactly the same 
+                            // as in condition
+                            && condition.at_x == x
+                            // and if current Y axis
+                            // is exactly the same 
+                            // as in condition
+                            && condition.at_y == y
+                        } {
+                            // increment X axis (jump)
+                            // by the value inside
+                            // condition
+                            x += condition.by;
+                            // mark this condition as done
+                            condition.done();
+                            performed_jumps_count += 1;
+                        }
+                    };
+
+                    if performed_jumps_count < 1 {
+                        break;
                     }
-                };
+                }
 
                 let zero = "0".to_string();
                 let some_zero = Some(zero.clone());
