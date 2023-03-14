@@ -43,7 +43,7 @@ pub struct Container {
 }
 impl Default for Container {
     fn default() -> Container {
-        let group       = r"(\d)([-]{0,1})([а-яёА-ЯЁ]{3})([-]{0,1})(\d{1,2})";
+        let group       = r"([0-9])([-]{0,1})([а-яёА-ЯЁ]{3})([-]{0,1})([0-9]{1,2})";
         let date        = r"(\d{1,2})\W(\d{1,2})\W(\d{2})";
         let time        = r"(\d{1,2}:\d{2})-(\d{1,2}:\d{2})";
         let teacher     = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
