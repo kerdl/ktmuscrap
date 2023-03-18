@@ -39,8 +39,7 @@ pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> std::io::Result<()> {
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
 
     Logger::init().unwrap();
 
