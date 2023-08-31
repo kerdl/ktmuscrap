@@ -104,14 +104,14 @@ impl Parser {
                 }
             }
 
+            if days.is_empty() {
+                continue
+            }
+
             let group = Group {
                 raw: group_map.group.raw.clone(),
                 name: group_map.group.valid.clone(),
-                days: {
-                    let mut days_ = vec![];
-                    days_.append(&mut days);
-                    days_
-                }
+                days
             };
 
             groups.push(group);

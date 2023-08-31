@@ -44,7 +44,6 @@ impl Parser {
 
 
         for group_row in self.schema.iter() {
-
             let group_name = &group_row.get(0)?.group;
 
             let mut days: Vec<Day> = vec![];
@@ -98,7 +97,6 @@ impl Parser {
                 };
 
                 if (is_changing_weekday || was_last) && !subjects.is_empty() {
-
                     let day = Day {
                         raw:      subject.weekday_date.cell.text.clone(),
                         weekday:  subject.weekday_date.weekday.clone(),
@@ -110,8 +108,11 @@ impl Parser {
                         }
                     };
                     days.push(day);
-
                 }
+            }
+
+            if days.is_empty() {
+                continue
             }
 
             let group = Group {

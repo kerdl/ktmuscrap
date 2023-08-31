@@ -187,18 +187,18 @@ async fn generic(
         arc_page.map(|arc_page| (*arc_page).clone())
     };
 
-    match sc_type {
-        Type::Weekly => {
-            if ft_page.is_some() && r_page.is_none() {
-                let ft_page = ft_page.unwrap();
-                last.set_weekly(ft_page).await;
-            } else if ft_page.is_none() && r_page.is_some() {
-                let r_page = r_page.unwrap();
-                last.set_weekly(r_page).await;
-            } else if ft_page.is_some() && r_page.is_some() {
-                let mut ft_page = ft_page.unwrap();
-                let mut r_page = r_page.unwrap();
+    if ft_page.is_some() && r_page.is_none() {
+        let ft_page = ft_page.unwrap();
+        last.set_weekly(ft_page).await;
+    } else if ft_page.is_none() && r_page.is_some() {
+        let r_page = r_page.unwrap();
+        last.set_weekly(r_page).await;
+    } else if ft_page.is_some() && r_page.is_some() {
+        let mut ft_page = ft_page.unwrap();
+        let mut r_page = r_page.unwrap();
 
+        match sc_type {
+            Type::Weekly => {
                 if let Err(different_weeks) = merge::weekly::page(
                     &mut ft_page, 
                     &mut r_page
@@ -211,19 +211,8 @@ async fn generic(
                 }
             
                 last.set_weekly(ft_page).await;
-            }
-        },
-        Type::Daily => {
-            if ft_page.is_some() && r_page.is_none() {
-                let ft_page = ft_page.unwrap();
-                last.set_weekly(ft_page).await;
-            } else if ft_page.is_none() && r_page.is_some() {
-                let r_page = r_page.unwrap();
-                last.set_weekly(r_page).await;
-            } else if ft_page.is_some() && r_page.is_some() {
-                let mut ft_page = ft_page.unwrap();
-                let mut r_page = r_page.unwrap();
-
+            },
+            Type::Daily => {
                 if let Err(ft_not_in_r_range) = merge::daily::page(
                     &mut ft_page,
                     &mut r_page
@@ -235,6 +224,8 @@ async fn generic(
                                 // remain only first day of the week
                                 group.remove_days_except(r_page.date.start());
                             }
+
+                            r_page.groups.retain(|grp| !grp.days.is_empty());
             
                             r_page
                         },
@@ -242,7 +233,7 @@ async fn generic(
                     }
                 }
             
-                last.set_daily(ft_page).await;
+                last.set_daily(ft_page).await
             }
         }
     }
