@@ -187,48 +187,63 @@ async fn generic(
         arc_page.map(|arc_page| (*arc_page).clone())
     };
 
-    if ft_page.is_none() || r_page.is_none() {
-        return Ok(())
-    }
-
-    let mut ft_page = ft_page.unwrap();
-    let mut r_page = r_page.unwrap();
-
     match sc_type {
         Type::Weekly => {
-            if let Err(different_weeks) = merge::weekly::page(
-                &mut ft_page, 
-                &mut r_page
-            ).await {
-                ft_page = match different_weeks.latest {
-                    raw::Type::FtWeekly => ft_page,
-                    raw::Type::RWeekly => r_page,
-                    _ => unreachable!()
+            if ft_page.is_some() && r_page.is_none() {
+                let ft_page = ft_page.unwrap();
+                last.set_weekly(ft_page).await;
+            } else if ft_page.is_none() && r_page.is_some() {
+                let r_page = r_page.unwrap();
+                last.set_weekly(r_page).await;
+            } else if ft_page.is_some() && r_page.is_some() {
+                let mut ft_page = ft_page.unwrap();
+                let mut r_page = r_page.unwrap();
+
+                if let Err(different_weeks) = merge::weekly::page(
+                    &mut ft_page, 
+                    &mut r_page
+                ).await {
+                    ft_page = match different_weeks.latest {
+                        raw::Type::FtWeekly => ft_page,
+                        raw::Type::RWeekly => r_page,
+                        _ => unreachable!()
+                    }
                 }
+            
+                last.set_weekly(ft_page).await;
             }
-        
-            last.set_weekly(ft_page).await;
         },
         Type::Daily => {
-            if let Err(ft_not_in_r_range) = merge::daily::page(
-                &mut ft_page,
-                &mut r_page
-            ).await {
-                ft_page = match ft_not_in_r_range.latest {
-                    raw::Type::FtDaily => { ft_page },
-                    raw::Type::RWeekly => {
-                        for group in r_page.groups.iter_mut() {
-                            // remain only first day of the week
-                            group.remove_days_except(r_page.date.start());
-                        }
-        
-                        r_page
-                    },
-                    _ => unreachable!()
+            if ft_page.is_some() && r_page.is_none() {
+                let ft_page = ft_page.unwrap();
+                last.set_weekly(ft_page).await;
+            } else if ft_page.is_none() && r_page.is_some() {
+                let r_page = r_page.unwrap();
+                last.set_weekly(r_page).await;
+            } else if ft_page.is_some() && r_page.is_some() {
+                let mut ft_page = ft_page.unwrap();
+                let mut r_page = r_page.unwrap();
+
+                if let Err(ft_not_in_r_range) = merge::daily::page(
+                    &mut ft_page,
+                    &mut r_page
+                ).await {
+                    ft_page = match ft_not_in_r_range.latest {
+                        raw::Type::FtDaily => { ft_page },
+                        raw::Type::RWeekly => {
+                            for group in r_page.groups.iter_mut() {
+                                // remain only first day of the week
+                                group.remove_days_except(r_page.date.start());
+                            }
+            
+                            r_page
+                        },
+                        _ => unreachable!()
+                    }
                 }
+            
+                last.set_daily(ft_page).await;
             }
-        
-            last.set_daily(ft_page).await;
         }
     }
 
@@ -246,7 +261,7 @@ pub async fn weekly(
 
 pub async fn daily(
     ft_daily: Option<PathBuf>,
-    r_weekly:Option<PathBuf>,
+    r_weekly: Option<PathBuf>,
     last: Arc<Last>,
     raw_last: Arc<raw::Last>,
 ) -> SyncResult<()> {

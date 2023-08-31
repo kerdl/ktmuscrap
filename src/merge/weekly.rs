@@ -60,7 +60,6 @@ pub async fn page(
     ft_weekly: &mut Page, 
     r_weekly: &mut Page,
 ) -> Result<(), error::DifferentWeeks> {
-
     let ft_week = {
         let week = ft_weekly.date.start().week(Weekday::Mon);
         week.first_day()..week.last_day()
