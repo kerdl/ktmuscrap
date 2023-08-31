@@ -39,11 +39,7 @@ async fn generic_parse(
     sc_type: raw::Type,
     last: Arc<raw::Last>,
 ) -> Result<(), GenericParsingError> {
-
-    if ![
-        raw::Type::FtDaily,
-        raw::Type::FtWeekly
-    ].contains(&sc_type) {
+    if ![raw::Type::FtDaily, raw::Type::FtWeekly].contains(&sc_type) {
         panic!("this parser only works with fulltime, you put {}", sc_type)
     }
 
@@ -53,7 +49,6 @@ async fn generic_parse(
     let sc_type_clone = sc_type.clone();
 
     let mut mappings = tokio::task::spawn_blocking(move || -> Result<mappings::Parser, GenericParsingError> {
-
         let mut parser = parser;
 
         // get all tables from html page
@@ -79,7 +74,7 @@ async fn generic_parse(
     }).await.unwrap()?;
 
     let container = match sc_type {
-        raw::Type::FtDaily =>  &last.ft_daily,
+        raw::Type::FtDaily => &last.ft_daily,
         raw::Type::FtWeekly => &last.ft_weekly,
         _ => unreachable!(),
     };

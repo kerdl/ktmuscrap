@@ -444,8 +444,8 @@ impl Schedule {
         let this = Schedule {
             root,
             sc_type:      Type::FtDaily,
-            url:          "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/document/d/1gsE6aikIQ1umKSQWVnyn3_59mnGQQU8O".to_owned(),
+            url:          "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA".to_owned(),
             latest:       Arc::new(RwLock::new(None)),
             ignored:      Arc::new(RwLock::new(HashSet::new())),
         };
@@ -457,8 +457,8 @@ impl Schedule {
         let this = Schedule {
             root,
             sc_type:      Type::FtWeekly,
-            url:          "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/document/d/1FH4ctIgRX1fWjIPoboXWieEYVMDYSlg4".to_owned(),
+            url:          "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs".to_owned(),
             latest:       Arc::new(RwLock::new(None)),
             ignored:      Arc::new(RwLock::new(HashSet::new())),
         };
@@ -470,8 +470,8 @@ impl Schedule {
         let this = Schedule {
             root,
             sc_type:      Type::RWeekly,
-            url:          "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/spreadsheets/d/1SWv7ARLLC6S_FjIzzhUz0kzGCdG53t9xL68VPoiYlnA".to_owned(),
+            url:          "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U/export?format=zip".to_owned(),
+            friendly_url: "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U".to_owned(),
             latest:       Arc::new(RwLock::new(None)),
             ignored:      Arc::new(RwLock::new(HashSet::new())),
         };

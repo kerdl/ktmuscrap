@@ -1,4 +1,5 @@
 use derive_new::new;
+use log::warn;
 
 use crate::{
     data::schedule::{
@@ -38,11 +39,9 @@ impl Parser {
     }
 
     pub fn page(&mut self) -> Option<&Page> {
-
         let mut groups: Vec<Group> = vec![];
 
         for group_map in self.groups_subjects.iter() {
-
             let mut days: Vec<Day> = vec![];
             let mut subjects: Vec<Subject> = vec![];
 
@@ -116,6 +115,11 @@ impl Parser {
             };
 
             groups.push(group);
+        }
+
+        if groups.is_empty() {
+            warn!("no groups were found on {} schedule", self.sc_type);
+            return None;
         }
 
         let page = Page {

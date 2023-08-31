@@ -175,17 +175,24 @@ async fn generic(
 
     // yes, actually clone
     // large `Page` struct
-    let mut ft_page = {
+    let ft_page = {
         let arc_page = match sc_type {
-            Type::Weekly => raw_last.ft_weekly.read().await.clone().unwrap(),
-            Type::Daily => raw_last.ft_daily.read().await.clone().unwrap(),
+            Type::Weekly => raw_last.ft_weekly.read().await.clone(),
+            Type::Daily => raw_last.ft_daily.read().await.clone(),
         };
-        (*arc_page).clone()
+        arc_page.map(|arc_page| (*arc_page).clone())
     };
-    let mut r_page = {
-        let arc_page = raw_last.r_weekly.read().await.clone().unwrap();
-        (*arc_page).clone()
+    let r_page = {
+        let arc_page = raw_last.r_weekly.read().await.clone();
+        arc_page.map(|arc_page| (*arc_page).clone())
     };
+
+    if ft_page.is_none() || r_page.is_none() {
+        return Ok(())
+    }
+
+    let mut ft_page = ft_page.unwrap();
+    let mut r_page = r_page.unwrap();
 
     match sc_type {
         Type::Weekly => {
