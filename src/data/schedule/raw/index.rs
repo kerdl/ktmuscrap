@@ -27,11 +27,10 @@ use crate::{
         self,
         ToMiddle,
         Saving,
-        Loading,
         DirectSaving,
         DirectLoading
     }, schedule::Interactor},
-    fs, parse
+    fs
 };
 use super::{
     super::update,
@@ -300,13 +299,13 @@ impl Index {
     
                         if let Err(error) = schedule.clone().unpack(bytes).await {
                             warn!(
-                                "{} unpack error, will refetch and unpack again in {}: {:?}",
+                                "{} unpack error, will refetch and unpack again in {:?}: {:?}",
                                 schedule.sc_type,
-                                schedule.retry_period(),
+                                schedule.retry_period,
                                 error
                             );
     
-                            tokio::time::sleep(schedule.retry_period().to_std().unwrap()).await;
+                            tokio::time::sleep(schedule.retry_period).await;
                         } else {
                             break;
                         }
@@ -400,10 +399,13 @@ impl json::DirectLoading for MiddleIndex {}
 #[derive(Debug, Clone)]
 pub struct Schedule {
     root: PathBuf,
+    reqwest: reqwest::Client,
 
     pub sc_type: Type,
     pub url: String,
     pub friendly_url: String,
+    pub fetch_timeout: std::time::Duration,
+    pub retry_period: std::time::Duration,
     pub latest: Arc<RwLock<Option<PathBuf>>>,
     pub ignored: Arc<RwLock<HashSet<PathBuf>>>,
 }
@@ -411,12 +413,14 @@ pub struct Schedule {
 impl json::ToMiddle<MiddleSchedule> for Schedule {
     async fn to_middle(&self) -> MiddleSchedule {
         let mid = MiddleSchedule {
-            root:         self.root.clone(),
-            sc_type:      self.sc_type.clone(),
-            url:          self.url.clone(),
-            friendly_url: self.friendly_url.clone(),
-            latest:       self.latest.read().await.clone(),
-            ignored:      self.ignored.read().await.clone()
+            root:          self.root.clone(),
+            sc_type:       self.sc_type.clone(),
+            url:           self.url.clone(),
+            friendly_url:  self.friendly_url.clone(),
+            fetch_timeout: self.fetch_timeout.clone(),
+            retry_period:  self.retry_period.clone(),
+            latest:        self.latest.read().await.clone(),
+            ignored:       self.ignored.read().await.clone()
         };
 
         mid
@@ -427,53 +431,87 @@ impl Schedule {
         middle: Arc<MiddleSchedule>,
         root: PathBuf
     ) -> Arc<Self> {
-
+        let reqwest = reqwest::ClientBuilder::new()
+            .timeout(middle.fetch_timeout.clone())
+            .build()
+            .unwrap();
+        
         let this = Schedule {
             root,
-            sc_type:      middle.sc_type.clone(),
-            url:          middle.url.clone(),
-            friendly_url: middle.friendly_url.clone(),
-            latest:       Arc::new(RwLock::new(middle.latest.clone())),
-            ignored:      Arc::new(RwLock::new(middle.ignored.clone())),
+            reqwest,
+            sc_type:       middle.sc_type.clone(),
+            url:           middle.url.clone(),
+            friendly_url:  middle.friendly_url.clone(),
+            fetch_timeout: middle.fetch_timeout,
+            retry_period:  middle.retry_period,
+            latest:        Arc::new(RwLock::new(middle.latest.clone())),
+            ignored:       Arc::new(RwLock::new(middle.ignored.clone())),
         };
 
         Arc::new(this)
     }
 
     pub fn default_ft_daily(root: PathBuf) -> Arc<Schedule> {
+        let fetch_timeout = std::time::Duration::from_secs(10);
+        let reqwest = reqwest::ClientBuilder::new()
+            .timeout(fetch_timeout.clone())
+            .build()
+            .unwrap();
+
         let this = Schedule {
             root,
-            sc_type:      Type::FtDaily,
-            url:          "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA".to_owned(),
-            latest:       Arc::new(RwLock::new(None)),
-            ignored:      Arc::new(RwLock::new(HashSet::new())),
+            reqwest,
+            sc_type:       Type::FtDaily,
+            url:           "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_owned(),
+            friendly_url:  "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA".to_owned(),
+            fetch_timeout,
+            retry_period:  std::time::Duration::from_secs(60),
+            latest:        Arc::new(RwLock::new(None)),
+            ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
 
         Arc::new(this)
     }
 
     pub fn default_ft_weekly(root: PathBuf) -> Arc<Schedule> {
+        let fetch_timeout = std::time::Duration::from_secs(10);
+        let reqwest = reqwest::ClientBuilder::new()
+            .timeout(fetch_timeout.clone())
+            .build()
+            .unwrap();
+
         let this = Schedule {
             root,
-            sc_type:      Type::FtWeekly,
-            url:          "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs".to_owned(),
-            latest:       Arc::new(RwLock::new(None)),
-            ignored:      Arc::new(RwLock::new(HashSet::new())),
+            reqwest,
+            sc_type:       Type::FtWeekly,
+            url:           "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs/export?format=zip".to_owned(),
+            friendly_url:  "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs".to_owned(),
+            fetch_timeout,
+            retry_period:  std::time::Duration::from_secs(60),
+            latest:        Arc::new(RwLock::new(None)),
+            ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
 
         Arc::new(this)
     }
 
     pub fn default_r_weekly(root: PathBuf) -> Arc<Schedule> {
+        let fetch_timeout = std::time::Duration::from_secs(10);
+        let reqwest = reqwest::ClientBuilder::new()
+            .timeout(fetch_timeout.clone())
+            .build()
+            .unwrap();
+
         let this = Schedule {
             root,
-            sc_type:      Type::RWeekly,
-            url:          "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U/export?format=zip".to_owned(),
-            friendly_url: "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U".to_owned(),
-            latest:       Arc::new(RwLock::new(None)),
-            ignored:      Arc::new(RwLock::new(HashSet::new())),
+            reqwest,
+            sc_type:       Type::RWeekly,
+            url:           "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U/export?format=zip".to_owned(),
+            friendly_url:  "https://docs.google.com/spreadsheets/d/1JJmYgttbOCt0mB0CWuTJLH11P1K4BjPChMWVOm8EZ7U".to_owned(),
+            fetch_timeout,
+            retry_period:  std::time::Duration::from_secs(60),
+            latest:        Arc::new(RwLock::new(None)),
+            ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
         
         Arc::new(this)
@@ -481,10 +519,6 @@ impl Schedule {
 
     pub fn dir(&self) -> PathBuf {
         self.root.join(self.sc_type.to_string())
-    }
-
-    pub fn retry_period(&self) -> Duration {
-        Duration::minutes(1)
     }
 
     pub async fn get_latest(&self) -> SyncResult<Option<PathBuf>> {
@@ -528,8 +562,7 @@ impl Schedule {
     }
 
     pub async fn fetch(&self) -> Result<Bytes, reqwest::Error> {
-        let resp = reqwest::get(&self.url).await?;
-
+        let resp = self.reqwest.get(&self.url).send().await?;
         resp.bytes().await
     }
 
@@ -550,7 +583,7 @@ impl Schedule {
                 error
             );
 
-            tokio::time::sleep(self.retry_period().to_std().unwrap()).await;
+            tokio::time::sleep(self.retry_period).await;
             return self.refetch_until_success().await
         }
         
@@ -624,6 +657,8 @@ pub struct MiddleSchedule {
     pub sc_type: Type,
     pub url: String,
     pub friendly_url: String,
+    pub fetch_timeout: std::time::Duration,
+    pub retry_period: std::time::Duration,
     pub latest: Option<PathBuf>,
     pub ignored: HashSet<PathBuf>,
 }

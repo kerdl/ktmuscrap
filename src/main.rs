@@ -43,7 +43,6 @@ async fn main() -> std::io::Result<()> {
 
     Logger::init().unwrap();
 
-
     let data = data::Container::default_from_dir(
         [".", "data"].iter().collect()
     ).await.unwrap();
