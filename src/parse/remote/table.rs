@@ -1,18 +1,16 @@
-use log::debug;
 use derive_new::new;
 use chrono::NaiveDate;
-use std::{sync::{Arc, RwLock}, time::Instant, ops::{ControlFlow, Range}};
+use std::{sync::Arc, ops::{ControlFlow, Range}};
 
 use crate::{data::{
-    schedule::{
-        raw::{
-            table, remote::table::{
-                NumTime, 
-                WeekdayDate, 
-                SubjectMapping, 
-            },
-        }, 
-    },
+    schedule::raw::{
+        table, remote::table::{
+            NumTime, 
+            WeekdayDate, 
+            SubjectMapping,
+            SubjectMappingV2
+        },
+    }, 
     Weekday,
 }, parse::group};
 use super::{
@@ -67,7 +65,6 @@ impl Parser {
         let mut row = vec![];
 
         for (index, cell) in self.table.schema.get(0)?.iter().enumerate() {
-
             if cell.text.is_empty() { continue; }
 
             let string_weekday = date::remove(&cell.text);
@@ -104,15 +101,13 @@ impl Parser {
             if cell.text.is_empty() { continue; }
 
             let raw_num = time::remove(&cell.text);
-            let num = num::parse(&raw_num);
+            let num = num::parse_from_digit_containig(&raw_num);
             if num.is_none() { continue; }
 
             let time = time::parse_range_hm(&cell.text);
             if time.is_none() { continue; }
 
             let num_time = NumTime::new(
-                cell.clone(), 
-                index, 
                 num.unwrap(), 
                 time.unwrap()
             );
@@ -325,6 +320,134 @@ impl Parser {
 
         self.mapping = Some(
             mapping::Parser::from_schema(grouped_mappings)
+        );
+
+        Some(self.mapping.as_mut().unwrap())
+    }
+
+    pub fn mapping_v2(&mut self) -> Option<&mut mapping::Parser> {
+        self.weekday_date_row()?;
+
+        /////////////////////////////////////
+        // all rows that we currently process
+        // are related to this group
+        let mut current_group: Option<table::Group> = None;
+        // range of rows that are related
+        // to the current group
+        let mut current_group_row_range: Option<Range<usize>> = None;
+        let mut current_group_mappings: Vec<SubjectMapping> = vec![];
+        /////////////////////////////////////
+        
+
+        /////////////////////////////////////
+        // all rows that we currently process
+        // are related to this number and time
+        let mut current_numtime: Option<NumTime> = None;
+        // range of rows that are related
+        // to the current subject number and time
+        let mut current_numtime_row_range: Option<Range<usize>> = None;
+        /////////////////////////////////////
+
+
+        /////////////////////////////////////
+        // all cells that we currently process
+        // are related to this number and time
+        let mut current_weekday: Option<Weekday> = None;
+        let mut current_weekday_cell_range: Option<Range<usize>> = None;
+        /////////////////////////////////////
+
+
+        let mut all_mappings: Vec<Vec<SubjectMapping>> = vec![];
+        let mut hits: Vec<table::Hit> = vec![];
+
+        let weekday_row = Arc::new(self.weekday_date_row.take()?);
+
+        let schema = {
+            let mut v = vec![];
+            v.append(&mut self.table.schema);
+            v
+        };
+        let schema_len = schema.len();
+
+        for (index, row) in schema.into_iter().enumerate() {
+            let is_last = index == schema_len - 1;
+            // y == index
+            let y = row.get(0).unwrap().y;
+
+            let mut first_cell = None;
+            let mut second_cell = None;
+            let mut third_cell = None;
+
+            let mut is_in_group_rng = current_group_row_range.as_ref().map_or_else(
+                || false,
+                |rng| rng.contains(&y)
+            );
+
+            let mut is_in_numtime_rng = current_numtime_row_range.as_ref().map_or_else(
+                || false,
+                |rng| rng.contains(&y)
+            );
+
+
+            if !is_in_group_rng {
+                // first cell could also be a group identifier
+                // ("1-кДД-43" for example)
+                first_cell = row.iter().find(|cell| cell.x == 0);
+                if first_cell.is_none() { continue; }
+
+                // we are probably on a row
+                // with different group
+                let raw_group = &first_cell.unwrap().text;
+                let valid_group = group::parse(raw_group);
+                if valid_group.is_none() { continue; }
+
+                current_group = Some(table::Group::new(
+                    raw_group.to_string(),
+                    valid_group.unwrap().to_string()
+                ));
+                current_group_row_range = Some(y..first_cell.unwrap().rowspan + y);
+                is_in_group_rng = true;
+            }
+
+            if !is_in_numtime_rng {
+                // second cell could also be a subject number
+                // ("1" for example)
+                second_cell = row.iter().find(|cell| cell.x == 1);
+                if second_cell.is_none() { continue; }
+
+                // third cell could also be a subject time
+                // ("8:30-9:55" for example)
+                third_cell = row.iter().find(|cell| cell.x == 2);
+                if third_cell.is_none() { continue; }
+
+                // we are probably on a row
+                // with different subject number and time
+                let raw_num = &second_cell.unwrap().text;
+                let raw_time = &third_cell.unwrap().text;
+                let valid_num = num::parse_from_digits_only(raw_num);
+                let valid_time = time::parse_range_hm(raw_time);
+                if valid_num.is_none() || valid_time.is_none() { continue; }
+                current_numtime = Some(NumTime::new(
+                    valid_num.unwrap() as u32,
+                    valid_time.unwrap()
+                ));
+                current_numtime_row_range = Some(y..second_cell.unwrap().rowspan + y);
+                is_in_numtime_rng = true;
+            }
+
+            println!(
+                "index={}, y={}, current_group={}, current_numtime=n{}(t{:?}), is_in_group_rng={:?}",
+                index,
+                y,
+                current_group.as_ref().unwrap().valid,
+                current_numtime.as_ref().unwrap().num,
+                current_numtime.as_ref().unwrap().time,
+                is_in_group_rng
+            );
+        }
+
+        self.mapping = Some(
+            mapping::Parser::from_schema(all_mappings)
         );
 
         Some(self.mapping.as_mut().unwrap())

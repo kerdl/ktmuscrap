@@ -52,31 +52,31 @@ lazy_static! {
     Hash
 )]
 pub enum Weekday {
-    #[serde(rename = "Понедельник")]
-    #[strum(to_string = "Понедельник")]
+    #[serde(rename = "понедельник")]
+    #[strum(to_string = "понедельник")]
     Monday,
-    #[serde(rename = "Вторник")]
-    #[strum(to_string = "Вторник")]
+    #[serde(rename = "вторник")]
+    #[strum(to_string = "вторник")]
     Tuesday,
-    #[serde(rename = "Среда")]
-    #[strum(to_string = "Среда")]
+    #[serde(rename = "среда")]
+    #[strum(to_string = "среда")]
     Wednesday,
-    #[serde(rename = "Четверг")]
-    #[strum(to_string = "Четверг")]
+    #[serde(rename = "четверг")]
+    #[strum(to_string = "четверг")]
     Thursday,
-    #[serde(rename = "Пятница")]
-    #[strum(to_string = "Пятница")]
+    #[serde(rename = "пятница")]
+    #[strum(to_string = "пятница")]
     Friday,
-    #[serde(rename = "Суббота")]
-    #[strum(to_string = "Суббота")]
+    #[serde(rename = "суббота")]
+    #[strum(to_string = "суббота")]
     Saturday,
-    #[serde(rename = "Воскресенье")]
-    #[strum(to_string = "Воскресенье")]
+    #[serde(rename = "воскресенье")]
+    #[strum(to_string = "воскресенье")]
     Sunday
 }
 impl Weekday {
     pub fn guess(weekday: &str) -> Option<Weekday> {
-        CORPUS.search(weekday, 0.5).first().map(
+        CORPUS.search(&weekday.to_lowercase(), 0.5).first().map(
             |weekday: &SearchResult| {
                 Weekday::from_str(&weekday.text).ok()
             }

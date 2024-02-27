@@ -29,7 +29,7 @@ pub async fn parse(
         }
         let table = table.unwrap();
 
-        perf!(let mapping = table.mapping());
+        perf!(let mapping = table.mapping_v2());
         if mapping.is_none() {
             return Err(error::NoMappings::new(
                 raw::Type::RWeekly

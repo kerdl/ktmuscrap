@@ -106,7 +106,6 @@ impl Parser {
     /// # Search for `div` with main content
     fn main_div(&self) -> Option<&Node> {
         self.dom.children.iter().find(|node| {
-
             if node.element().is_none() {
                 return false
             }
@@ -129,6 +128,11 @@ impl Parser {
         })
     }
 
+    /// # Search for `div` with main content (schedule version 2)
+    fn main_div_v2(&self) -> Option<&Node> {
+        unimplemented!();
+    }
+
     /// # Search for `table` with main content in `div`
     fn main_table(&self) -> Option<&Node> {
         self.main_div()?.element()?.children.iter().find(|node| {
@@ -140,6 +144,11 @@ impl Parser {
 
             is_table
         })
+    }
+
+    /// # Search for `table` with main content in `div` (schedule version 2)
+    fn main_table_v2(&self) -> Option<&Node> {
+        unimplemented!();
     }
 
     /// # Search for `tbody` with main content in `table`
@@ -156,6 +165,11 @@ impl Parser {
         })
     }
 
+    /// # Search for `tbody` with main content in `table` (schedule version 2)
+    fn main_tbody_v2(&self) -> Option<&Node> {
+        unimplemented!();
+    }
+
     /// # Convert dom to simpler `table::Body`
     /// 
     /// - we don't need all the complex data
@@ -169,7 +183,6 @@ impl Parser {
     ///     - how wide or tall the cells are: `colspan` and `rowspan`,
     ///     - the nested text inside cells, joined in one string
     pub fn table(&mut self) -> Option<&mut TableParser> {
-
         // if the conversion had already been made
         if self.table.is_some() {
             // return reference to converted table
@@ -197,7 +210,6 @@ impl Parser {
         //   □ □ □ □ □ □ ↓
         //   □ □ □ □ □ □ ↓
         for row in self.main_tbody()?.element()?.children.iter() {
-
             // skip if no element
             if row.element().is_none() { continue; }
             // skip if tag is not <tr>
@@ -223,7 +235,6 @@ impl Parser {
             // ■ □ □ □ □ □
             // → → → → → →
             for cell in row.element()?.children.iter() {
-
                 // skip if no element
                 if cell.element().is_none() { continue; }
                 // skip if tag is not <td>
@@ -414,5 +425,23 @@ impl Parser {
         self.table = Some(parser);
 
         Some(self.table.as_mut().unwrap())
+    }
+
+    /// # Convert dom to simpler `table::Body` (schedule version 2)
+    pub fn table_v2(&mut self) -> Option<&mut TableParser> {
+        // if the conversion had already been made
+        if self.table.is_some() {
+            // return reference to converted table
+            return Some(self.table.as_mut().unwrap())
+        }
+
+        // 2d array, represents a table
+        let mut schema: Vec<Vec<table::Cell>> = vec![];
+
+        for row in self.main_tbody()?.element()?.children.iter() {
+            println!("{:?}", row);
+        }
+
+        unimplemented!();
     }
 }

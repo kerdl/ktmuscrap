@@ -17,13 +17,6 @@ use tokio::task::JoinHandle;
 
 use crate::{
     SyncResult, 
-    api::error::{
-        self as api_err, 
-        base::{
-            ToApiError, 
-            ApiError
-        }
-    }, 
     data::schedule::{
         Last,
         raw,
@@ -38,7 +31,6 @@ fn poll_fulltime(
     sc_type: raw::Type,
     raw_last: Arc<raw::Last>
 ) -> JoinHandle<Result<(), fulltime::GenericParsingError>> {
-
     tokio::spawn(async move {
         match sc_type {
             raw::Type::FtDaily => {
@@ -59,10 +51,8 @@ fn poll_remote(
     path: PathBuf,
     raw_last: Arc<raw::Last>
 ) -> JoinHandle<SyncResult<()>> {
-
     tokio::spawn(async move {
         remote::parse(path, raw_last).await?;
-
         Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
     })
 
