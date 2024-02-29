@@ -81,7 +81,6 @@ impl Parser {
     /// which runs `Dom` parsing, 
     /// may fail
     pub async fn from_string(string: String, path: PathBuf) -> SyncResult<Parser> {
-
         // `spawn_blocking` spawns the task 
         // in a separate thread,
         // but only allows synchronous code
@@ -128,11 +127,6 @@ impl Parser {
         })
     }
 
-    /// # Search for `div` with main content (schedule version 2)
-    fn main_div_v2(&self) -> Option<&Node> {
-        unimplemented!();
-    }
-
     /// # Search for `table` with main content in `div`
     fn main_table(&self) -> Option<&Node> {
         self.main_div()?.element()?.children.iter().find(|node| {
@@ -144,11 +138,6 @@ impl Parser {
 
             is_table
         })
-    }
-
-    /// # Search for `table` with main content in `div` (schedule version 2)
-    fn main_table_v2(&self) -> Option<&Node> {
-        unimplemented!();
     }
 
     /// # Search for `tbody` with main content in `table`
@@ -163,11 +152,6 @@ impl Parser {
 
             is_tbody
         })
-    }
-
-    /// # Search for `tbody` with main content in `table` (schedule version 2)
-    fn main_tbody_v2(&self) -> Option<&Node> {
-        unimplemented!();
     }
 
     /// # Convert dom to simpler `table::Body`
@@ -425,23 +409,5 @@ impl Parser {
         self.table = Some(parser);
 
         Some(self.table.as_mut().unwrap())
-    }
-
-    /// # Convert dom to simpler `table::Body` (schedule version 2)
-    pub fn table_v2(&mut self) -> Option<&mut TableParser> {
-        // if the conversion had already been made
-        if self.table.is_some() {
-            // return reference to converted table
-            return Some(self.table.as_mut().unwrap())
-        }
-
-        // 2d array, represents a table
-        let mut schema: Vec<Vec<table::Cell>> = vec![];
-
-        for row in self.main_tbody()?.element()?.children.iter() {
-            println!("{:?}", row);
-        }
-
-        unimplemented!();
     }
 }

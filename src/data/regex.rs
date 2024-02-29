@@ -50,7 +50,7 @@ pub struct Container {
     /// - ...
     pub cabinet: Arc<Regex>,
     pub nonword: Arc<Regex>,
-    pub digit: Arc<Regex>
+    pub digit: Arc<Regex>,
 }
 impl Default for Container {
     fn default() -> Container {

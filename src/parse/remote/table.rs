@@ -1,18 +1,15 @@
 use derive_new::new;
 use chrono::NaiveDate;
-use std::{sync::Arc, ops::{ControlFlow, Range}};
+use std::{collections::HashMap, f64::consts::E, ops::{ControlFlow, Range}, sync::Arc};
 
 use crate::{data::{
     schedule::raw::{
-        table, remote::table::{
-            NumTime, 
-            WeekdayDate, 
-            SubjectMapping,
-            SubjectMappingV2
-        },
+        remote::table::{
+            NumTime, SubjectMapping, SubjectMappingV2, WeekdayDate
+        }, table
     }, 
-    Weekday,
-}, parse::group};
+    Weekday
+}, parse::group, REGEX};
 use super::{
     super::{date, time, num},
     mapping
@@ -97,7 +94,6 @@ impl Parser {
         let mut row = vec![];
 
         for (index, cell) in self.table.schema.get(1)?.iter().enumerate() {
-
             if cell.text.is_empty() { continue; }
 
             let raw_num = time::remove(&cell.text);
@@ -116,8 +112,47 @@ impl Parser {
 
         self.num_time_row = Some(row);
 
-
         Some(self.num_time_row.as_ref().unwrap())
+    }
+
+    fn row_for_y(y: usize, schema: &Vec<Vec<table::Cell>>) -> Option<&Vec<table::Cell>> {
+        let mut i: i32 = -1;
+        loop {
+            i += 1;
+
+            let i = i as usize;
+            let Some(row) = schema.get(i) else { break; };
+            let next_row = schema.get(i + 1);
+
+            let Some(row_y) = row.get(0).map(|cell| cell.y) else {
+                break;
+            };
+            let next_row_y = next_row.map(
+                |row| row.get(0).map(|cell| cell.y)
+            ).flatten();
+
+            if next_row_y.is_none() && y <= row_y {
+                return Some(row)
+            }
+            
+            let Some(next_row_y) = next_row_y else { break; };
+
+            if (row_y..next_row_y).contains(&y) {
+                return Some(row);
+            }
+        }
+
+        None
+    }
+
+    fn cell_for_x(x: usize, row: &Vec<table::Cell>) -> Option<&table::Cell> {
+        for cell in row {
+            if cell.x == x || (cell.x..(cell.colspan+cell.x)).contains(&x) {
+                return Some(cell)
+            }
+        }
+
+        None
     }
 
     pub fn mapping(&mut self) -> Option<&mut mapping::Parser> {
@@ -166,7 +201,6 @@ impl Parser {
                     let mut hits_done = 0;
 
                     for hit in hits.iter_mut() {
-
                         if hit.is_done { continue; }
                         if hit.at_y != y { continue; }
     
@@ -184,7 +218,6 @@ impl Parser {
                         let mut y_neighbour = None;
     
                         for maps in grouped_mappings.iter().rev() {
-    
                             let map = maps.iter().find(|&map| 
                                 last_map_cell_rng.contains(&map.cell.x)
                                 && map.cell.y == hit.by.y
@@ -349,16 +382,9 @@ impl Parser {
         /////////////////////////////////////
 
 
-        /////////////////////////////////////
-        // all cells that we currently process
-        // are related to this number and time
-        let mut current_weekday: Option<Weekday> = None;
-        let mut current_weekday_cell_range: Option<Range<usize>> = None;
-        /////////////////////////////////////
-
-
         let mut all_mappings: Vec<Vec<SubjectMapping>> = vec![];
-        let mut hits: Vec<table::Hit> = vec![];
+        let mut hits: Vec<table::RangeHit> = vec![];
+        //let mut y_hits: HashMap<usize, Vec<table::RangeHit>> = HashMap::new();
 
         let weekday_row = Arc::new(self.weekday_date_row.take()?);
 
@@ -368,6 +394,21 @@ impl Parser {
             v
         };
         let schema_len = schema.len();
+
+
+        for row in schema.iter() {
+            for cell in row {
+                if cell.rowspan > 0 || cell.colspan > 0 {
+                    let hit = table::RangeHit {
+                        by: cell.clone(),
+                        x_rng: cell.x..cell.colspan+cell.x,
+                        y_rng: cell.y..cell.rowspan+cell.y,
+                        is_done: false
+                    };
+                    hits.push(hit);
+                }
+            }
+        }
 
         for (index, row) in schema.into_iter().enumerate() {
             let is_last = index == schema_len - 1;
@@ -435,15 +476,78 @@ impl Parser {
                 is_in_numtime_rng = true;
             }
 
-            println!(
-                "index={}, y={}, current_group={}, current_numtime=n{}(t{:?}), is_in_group_rng={:?}",
-                index,
-                y,
-                current_group.as_ref().unwrap().valid,
-                current_numtime.as_ref().unwrap().num,
-                current_numtime.as_ref().unwrap().time,
-                is_in_group_rng
-            );
+            let mut x: i32 = -1;
+
+            loop {
+                x += 1;
+
+                // x == 0: is a group name
+                // x == 1: is a subject number
+                // x == 2: is a subject time range
+                if x < 3 {
+                    continue;
+                }
+
+                let mut cell = None;
+                let x = x as usize;
+
+                let mut hits_for_this_pos = vec![];
+
+                if let Some(c) = Parser::cell_for_x(x, &row) {
+                    cell = Some(c);
+                } else {
+                    hits_for_this_pos = hits.iter().filter(
+                        |hit| hit.x_rng.contains(&x) && hit.y_rng.contains(&y)
+                    ).collect::<Vec<&table::RangeHit>>();
+                }
+
+                if cell.is_none() && hits_for_this_pos.is_empty() {
+                    break;
+                }
+
+                let current_wkd = weekday_row
+                    .iter()
+                    .find(|wkd| (
+                        // x..colspan+x
+                        wkd.cell.x..wkd.cell.colspan+wkd.cell.x
+                    ).contains(&x));
+
+                if current_wkd.is_none() {
+                    continue;
+                }
+
+                if let Some(cell) = cell {
+                    let is_online_identifier = {
+                        let has_digits = REGEX.digit.find(&cell.text).is_some();
+                        let pure_online = REGEX.digit.replace_all(&cell.text, "");
+                        let is_similar = crate::data::schedule::ONLINE_IDENTIFIER_CORPUS
+                            .search(&pure_online, 0.7)
+                            .first()
+                            .is_some();
+                        has_digits && is_similar
+                    };
+                    println!(
+                        "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\nis_online_identifier {:?},\n{:?}\n",
+                        x,
+                        y,
+                        current_group,
+                        current_numtime,
+                        current_wkd,
+                        is_online_identifier,
+                        cell
+                    );
+                } else if !hits_for_this_pos.is_empty() {
+                    println!(
+                        "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\n{:?}\n",
+                        x,
+                        y,
+                        current_group,
+                        current_numtime,
+                        current_wkd,
+                        hits_for_this_pos
+                    );
+                }
+            }
         }
 
         self.mapping = Some(
