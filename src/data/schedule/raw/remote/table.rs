@@ -32,14 +32,3 @@ pub struct SubjectMapping {
     pub num_time: NumTime,
     pub weekday_date: WeekdayDate,
 }
-
-#[derive(new, Debug, Clone)]
-pub struct SubjectMappingV2 {
-    pub subject_cell: Cell,
-    pub online_cell: Cell,
-    pub teacher_cell: Cell,
-    pub group: raw::table::Group,
-    pub num_time: NumTime,
-    pub weekday_date: WeekdayDate,
-}
-

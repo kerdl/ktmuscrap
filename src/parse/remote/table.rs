@@ -5,7 +5,7 @@ use std::{collections::HashMap, f64::consts::E, ops::{ControlFlow, Range}, sync:
 use crate::{data::{
     schedule::raw::{
         remote::table::{
-            NumTime, SubjectMapping, SubjectMappingV2, WeekdayDate
+            NumTime, SubjectMapping, WeekdayDate
         }, table
     }, 
     Weekday
@@ -373,6 +373,11 @@ impl Parser {
         
 
         /////////////////////////////////////
+        let mut current_numtime_mappings: Vec<SubjectMapping> = vec![];
+        /////////////////////////////////////
+
+
+        /////////////////////////////////////
         // all rows that we currently process
         // are related to this number and time
         let mut current_numtime: Option<NumTime> = None;
@@ -412,6 +417,7 @@ impl Parser {
 
         for (index, row) in schema.into_iter().enumerate() {
             let is_last = index == schema_len - 1;
+            let is_teacher_row = row.get(0).map(|cell| cell.x > 2).unwrap_or(false);
             // y == index
             let y = row.get(0).unwrap().y;
 
@@ -431,6 +437,14 @@ impl Parser {
 
 
             if !is_in_group_rng {
+                if !current_group_mappings.is_empty() {
+                    all_mappings.push({
+                        let mut v = vec![];
+                        v.append(&mut current_group_mappings);
+                        v
+                    });
+                }
+
                 // first cell could also be a group identifier
                 // ("1-кДД-43" for example)
                 first_cell = row.iter().find(|cell| cell.x == 0);
@@ -451,6 +465,10 @@ impl Parser {
             }
 
             if !is_in_numtime_rng {
+                if !current_numtime_mappings.is_empty() {
+                    current_group_mappings.append(&mut current_numtime_mappings);
+                }
+
                 // second cell could also be a subject number
                 // ("1" for example)
                 second_cell = row.iter().find(|cell| cell.x == 1);
@@ -519,13 +537,15 @@ impl Parser {
                 if let Some(cell) = cell {
                     let is_online_identifier = {
                         let has_digits = REGEX.digit.find(&cell.text).is_some();
-                        let pure_online = REGEX.digit.replace_all(&cell.text, "");
+                        // "Онлайн "
+                        let online_word = REGEX.digit.replace_all(&cell.text, "");
                         let is_similar = crate::data::schedule::ONLINE_IDENTIFIER_CORPUS
-                            .search(&pure_online, 0.7)
+                            .search(&online_word, 0.7)
                             .first()
                             .is_some();
                         has_digits && is_similar
                     };
+
                     println!(
                         "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\nis_online_identifier {:?},\n{:?}\n",
                         x,
@@ -536,6 +556,77 @@ impl Parser {
                         is_online_identifier,
                         cell
                     );
+
+                    if cell.text.is_empty() || is_online_identifier {
+                        continue;
+                    }
+
+                    let existing_map;
+
+                    if !is_teacher_row {
+                        existing_map = current_numtime_mappings.iter_mut().find(
+                            |map| 
+                                map.group.valid == current_group.as_ref().unwrap().valid &&
+                                map.weekday_date.weekday == current_wkd.unwrap().weekday &&
+                                map.weekday_date.date == current_wkd.unwrap().date &&
+                                map.num_time.num == current_numtime.as_ref().unwrap().num &&
+                                map.num_time.time == current_numtime.as_ref().unwrap().time &&
+                                map.cell.text == cell.text
+                        );
+                    } else {
+                        existing_map = current_numtime_mappings.iter_mut().find(
+                            |map| 
+                                map.group.valid == current_group.as_ref().unwrap().valid &&
+                                map.weekday_date.weekday == current_wkd.unwrap().weekday &&
+                                map.weekday_date.date == current_wkd.unwrap().date &&
+                                map.num_time.num == current_numtime.as_ref().unwrap().num &&
+                                map.num_time.time == current_numtime.as_ref().unwrap().time
+                        );
+                    }
+
+
+                    if existing_map.is_none() {
+                        let map = SubjectMapping {
+                            cell: cell.clone(),
+                            group: current_group.as_ref().unwrap().clone(),
+                            num_time: current_numtime.as_ref().unwrap().clone(),
+                            weekday_date: current_wkd.unwrap().clone(),
+                        };
+    
+                        current_numtime_mappings.push(map);
+                    } else {
+                        let existing_map = existing_map.unwrap();
+
+                        if !is_teacher_row || cell.x != x {
+                            continue;
+                        }
+
+                        let mut teacher_string = "".to_string();
+                        let teacher_parts = cell.text.split(" ").collect::<Vec<&str>>();
+
+                        if teacher_parts.len() == 1 {
+                            teacher_string+= &teacher_parts[0];
+                        } else if teacher_parts.len() == 2 {
+                            teacher_string += &teacher_parts[0];
+                            teacher_string += " ";
+                            teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                            teacher_string += ".";
+                        } else if teacher_parts.len() > 2 {
+                            teacher_string += &teacher_parts[0];
+                            teacher_string += " ";
+                            teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                            teacher_string += ".";
+                            teacher_string += &teacher_parts[2].chars().nth(0).unwrap().to_string();
+                            teacher_string += ".";
+                        }
+
+                        if !existing_map.cell.text.ends_with(".") {
+                            existing_map.cell.text += ".";
+                        }
+
+                        existing_map.cell.text += " ";
+                        existing_map.cell.text += &teacher_string;
+                    }
                 } else if !hits_for_this_pos.is_empty() {
                     println!(
                         "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\n{:?}\n",
@@ -548,6 +639,18 @@ impl Parser {
                     );
                 }
             }
+        }
+
+        if !current_numtime_mappings.is_empty() {
+            current_group_mappings.append(&mut current_numtime_mappings);
+        }
+
+        if !current_group_mappings.is_empty() {
+            all_mappings.push({
+                let mut v = vec![];
+                v.append(&mut current_group_mappings);
+                v
+            });
         }
 
         self.mapping = Some(
