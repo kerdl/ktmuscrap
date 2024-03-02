@@ -87,6 +87,19 @@ impl Hit {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct RangeHit {
+    pub by: Cell,
+    pub x_rng: std::ops::Range<usize>,
+    pub y_rng: std::ops::Range<usize>,
+    pub is_done: bool,
+}
+impl RangeHit {
+    pub fn done(&mut self) {
+        self.is_done = true;
+    }
+}
+
 #[derive(new, Debug, Clone)]
 pub struct Body {
     pub schema: Vec<Vec<Cell>>,

@@ -81,7 +81,6 @@ impl Parser {
     /// which runs `Dom` parsing, 
     /// may fail
     pub async fn from_string(string: String, path: PathBuf) -> SyncResult<Parser> {
-
         // `spawn_blocking` spawns the task 
         // in a separate thread,
         // but only allows synchronous code
@@ -106,7 +105,6 @@ impl Parser {
     /// # Search for `div` with main content
     fn main_div(&self) -> Option<&Node> {
         self.dom.children.iter().find(|node| {
-
             if node.element().is_none() {
                 return false
             }
@@ -169,7 +167,6 @@ impl Parser {
     ///     - how wide or tall the cells are: `colspan` and `rowspan`,
     ///     - the nested text inside cells, joined in one string
     pub fn table(&mut self) -> Option<&mut TableParser> {
-
         // if the conversion had already been made
         if self.table.is_some() {
             // return reference to converted table
@@ -197,7 +194,6 @@ impl Parser {
         //   □ □ □ □ □ □ ↓
         //   □ □ □ □ □ □ ↓
         for row in self.main_tbody()?.element()?.children.iter() {
-
             // skip if no element
             if row.element().is_none() { continue; }
             // skip if tag is not <tr>
@@ -223,7 +219,6 @@ impl Parser {
             // ■ □ □ □ □ □
             // → → → → → →
             for cell in row.element()?.children.iter() {
-
                 // skip if no element
                 if cell.element().is_none() { continue; }
                 // skip if tag is not <td>

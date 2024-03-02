@@ -21,14 +21,20 @@ use super::Weekday;
 
 
 lazy_static! {
-    static ref FULLTIME_WINDOW_CORPUS: Corpus = {
+    pub static ref FULLTIME_WINDOW_CORPUS: Corpus = {
         let mut corpus = CorpusBuilder::new()
             .arity(2)
             .pad_full(Pad::Auto)
             .finish();
-        
         corpus.add_text("Очные занятия");
-
+        corpus
+    };
+    pub static ref ONLINE_IDENTIFIER_CORPUS: Corpus = {
+        let mut corpus = CorpusBuilder::new()
+            .arity(2)
+            .pad_full(Pad::Auto)
+            .finish();
+        corpus.add_text("Онлайн");
         corpus
     };
 }
@@ -55,6 +61,7 @@ pub enum Format {
     /// college student is the worst 
     /// fucking time of my life 
     /// aaaaaaaaaaaaaaaaaa
+    /// (i'm so happy i dropped out)
     Fulltime,
     /// Means you open up
     /// a `Zoom Meetings` computer
@@ -159,12 +166,11 @@ pub struct Subject {
 }
 impl Subject {
     pub fn is_fulltime_window(&self) -> bool {
-
         let is_similar_to_fulltime_window = {
             FULLTIME_WINDOW_CORPUS
-            .search(&self.name, 0.5)
-            .first()
-            .is_some()
+                .search(&self.name, 0.5)
+                .first()
+                .is_some()
         };
         let no_teachers = self.teachers.is_empty();
 

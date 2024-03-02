@@ -21,8 +21,6 @@ pub struct WeekdayDate {
 
 #[derive(new, Debug, Clone)]
 pub struct NumTime {
-    pub cell: Cell,
-    pub index: usize,
     pub num: u32,
     pub time: Range<NaiveTime>,
 }

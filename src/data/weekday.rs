@@ -76,7 +76,7 @@ pub enum Weekday {
 }
 impl Weekday {
     pub fn guess(weekday: &str) -> Option<Weekday> {
-        CORPUS.search(weekday, 0.5).first().map(
+        CORPUS.search(&weekday, 0.5).first().map(
             |weekday: &SearchResult| {
                 Weekday::from_str(&weekday.text).ok()
             }
