@@ -1,6 +1,6 @@
 use derive_new::new;
 use chrono::NaiveDate;
-use std::{collections::HashMap, f64::consts::E, ops::{ControlFlow, Range}, sync::Arc};
+use std::{collections::HashMap, f64::consts::E, ops::{ControlFlow, Range, RangeInclusive}, sync::Arc};
 
 use crate::{data::{
     schedule::raw::{
@@ -64,7 +64,11 @@ impl Parser {
         for (index, cell) in self.table.schema.get(0)?.iter().enumerate() {
             if cell.text.is_empty() { continue; }
 
-            let string_weekday = date::remove(&cell.text);
+            let mut string_weekday = date::remove(&cell.text).to_lowercase();
+            let mut weekday_chars: Vec<char> = string_weekday.chars().collect();
+            weekday_chars[0] = weekday_chars[0].to_uppercase().nth(0).unwrap();
+            string_weekday = weekday_chars.into_iter().collect();
+
             let weekday = Weekday::guess(&string_weekday);
             if weekday.is_none() { continue; }
 
@@ -388,7 +392,7 @@ impl Parser {
 
 
         let mut all_mappings: Vec<Vec<SubjectMapping>> = vec![];
-        let mut hits: Vec<table::RangeHit> = vec![];
+        let mut y_hits: Vec<table::RangeHit> = vec![];
         //let mut y_hits: HashMap<usize, Vec<table::RangeHit>> = HashMap::new();
 
         let weekday_row = Arc::new(self.weekday_date_row.take()?);
@@ -403,14 +407,14 @@ impl Parser {
 
         for row in schema.iter() {
             for cell in row {
-                if cell.rowspan > 0 || cell.colspan > 0 {
-                    let hit = table::RangeHit {
+                if cell.rowspan > 0 {
+                    let y_hit = table::RangeHit {
                         by: cell.clone(),
                         x_rng: cell.x..cell.colspan+cell.x,
                         y_rng: cell.y..cell.rowspan+cell.y,
                         is_done: false
                     };
-                    hits.push(hit);
+                    y_hits.push(y_hit);
                 }
             }
         }
@@ -437,6 +441,10 @@ impl Parser {
 
 
             if !is_in_group_rng {
+                if !current_numtime_mappings.is_empty() {
+                    current_group_mappings.append(&mut current_numtime_mappings);
+                }
+
                 if !current_group_mappings.is_empty() {
                     all_mappings.push({
                         let mut v = vec![];
@@ -514,7 +522,7 @@ impl Parser {
                 if let Some(c) = Parser::cell_for_x(x, &row) {
                     cell = Some(c);
                 } else {
-                    hits_for_this_pos = hits.iter().filter(
+                    hits_for_this_pos = y_hits.iter().filter(
                         |hit| hit.x_rng.contains(&x) && hit.y_rng.contains(&y)
                     ).collect::<Vec<&table::RangeHit>>();
                 }
@@ -545,17 +553,6 @@ impl Parser {
                             .is_some();
                         has_digits && is_similar
                     };
-
-                    println!(
-                        "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\nis_online_identifier {:?},\n{:?}\n",
-                        x,
-                        y,
-                        current_group,
-                        current_numtime,
-                        current_wkd,
-                        is_online_identifier,
-                        cell
-                    );
 
                     if cell.text.is_empty() || is_online_identifier {
                         continue;
@@ -601,42 +598,73 @@ impl Parser {
                             continue;
                         }
 
+                        let has_another_teacher = REGEX.end_teacher.find(
+                            &existing_map.cell.text
+                        ).is_some();
+
                         let mut teacher_string = "".to_string();
                         let teacher_parts = cell.text.split(" ").collect::<Vec<&str>>();
 
-                        if teacher_parts.len() == 1 {
-                            teacher_string+= &teacher_parts[0];
-                        } else if teacher_parts.len() == 2 {
-                            teacher_string += &teacher_parts[0];
-                            teacher_string += " ";
-                            teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
-                            teacher_string += ".";
-                        } else if teacher_parts.len() > 2 {
-                            teacher_string += &teacher_parts[0];
-                            teacher_string += " ";
-                            teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
-                            teacher_string += ".";
-                            teacher_string += &teacher_parts[2].chars().nth(0).unwrap().to_string();
-                            teacher_string += ".";
+                        match teacher_parts.len() {
+                            1 => {
+                                teacher_string+= &teacher_parts[0];
+                            }
+                            2 => {
+                                teacher_string += &teacher_parts[0];
+                                teacher_string += " ";
+                                teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                                teacher_string += ".";
+                            },
+                            _ => {
+                                teacher_string += &teacher_parts[0];
+                                teacher_string += " ";
+                                teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                                teacher_string += ".";
+                                teacher_string += &teacher_parts[2].chars().nth(0).unwrap().to_string();
+                                teacher_string += ".";
+                            }
                         }
 
                         if !existing_map.cell.text.ends_with(".") {
                             existing_map.cell.text += ".";
                         }
 
+                        if has_another_teacher {
+                            existing_map.cell.text += ",";
+                        }
+
                         existing_map.cell.text += " ";
                         existing_map.cell.text += &teacher_string;
                     }
                 } else if !hits_for_this_pos.is_empty() {
-                    println!(
-                        "x={},\ny={},\ngroup {:?},\nnumtime {:?},\nwkd {:?},\n{:?}\n",
-                        x,
-                        y,
-                        current_group,
-                        current_numtime,
-                        current_wkd,
-                        hits_for_this_pos
-                    );
+                    if is_teacher_row {
+                        continue;
+                    }
+
+                    for hit in hits_for_this_pos {
+                        let existing_map = current_numtime_mappings.iter_mut().find(
+                            |map| 
+                                map.group.valid == current_group.as_ref().unwrap().valid &&
+                                map.weekday_date.weekday == current_wkd.unwrap().weekday &&
+                                map.weekday_date.date == current_wkd.unwrap().date &&
+                                map.num_time.num == current_numtime.as_ref().unwrap().num &&
+                                map.num_time.time == current_numtime.as_ref().unwrap().time &&
+                                map.cell.text == hit.by.text
+                        );
+
+                        if existing_map.is_some() {
+                            continue;
+                        }
+
+                        let map = SubjectMapping {
+                            cell: hit.by.clone(),
+                            group: current_group.as_ref().unwrap().clone(),
+                            num_time: current_numtime.as_ref().unwrap().clone(),
+                            weekday_date: current_wkd.unwrap().clone(),
+                        };
+    
+                        current_numtime_mappings.push(map);
+                    }
                 }
             }
         }
@@ -651,6 +679,14 @@ impl Parser {
                 v.append(&mut current_group_mappings);
                 v
             });
+        }
+
+        for group_map in all_mappings.iter_mut() {
+            group_map.sort_by(|mapa, mapb|
+                mapa.weekday_date.weekday.partial_cmp(
+                    &mapb.weekday_date.weekday
+                ).unwrap()
+            )
         }
 
         self.mapping = Some(

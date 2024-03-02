@@ -67,7 +67,6 @@ impl Last {
         middle: Arc<MiddleLast>,
         path: PathBuf
     ) -> Arc<Self> {
-
         let this = Last {
             path,
             ft_weekly: Arc::new(RwLock::new(middle.ft_daily.clone())),
