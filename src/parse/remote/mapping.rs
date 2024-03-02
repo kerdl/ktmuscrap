@@ -66,12 +66,11 @@ impl Parser {
                 }
 
                 for subject_string in subject_strings.iter_mut() {
-
                     if subject_string.is_empty() { continue; }
 
                     let teachers = teacher::extract_from_end(subject_string);
 
-                    let subject = Subject {
+                    let mut subject = Subject {
                         raw:      subject.cell.text.clone(),
                         num:      subject.num_time.num,
                         time:     subject.num_time.time.clone(),
@@ -81,7 +80,21 @@ impl Parser {
                         cabinet:  None,
                     };
 
-                    if !subject.is_fulltime_window() {
+                    if subject.is_fulltime_window() {
+                        continue;
+                    }
+
+                    let existing_subjects = subjects.iter_mut().filter(
+                        |subj| subj.name == subject.name &&
+                        subj.num == subject.num &&
+                        subj.time == subject.time
+                    ).collect::<Vec<&mut Subject>>();
+
+                    if !existing_subjects.is_empty() {
+                        for existing_subject in existing_subjects {
+                            existing_subject.teachers.append(&mut subject.teachers);
+                        }
+                    } else {
                         subjects.push(subject);
                     }
                 }

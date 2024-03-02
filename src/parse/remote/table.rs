@@ -558,83 +558,86 @@ impl Parser {
                         continue;
                     }
 
-                    let existing_map;
+                    let existing_maps;
 
                     if !is_teacher_row {
-                        existing_map = current_numtime_mappings.iter_mut().find(
+                        existing_maps = current_numtime_mappings.iter_mut().filter(
                             |map| 
                                 map.group.valid == current_group.as_ref().unwrap().valid &&
                                 map.weekday_date.weekday == current_wkd.unwrap().weekday &&
                                 map.weekday_date.date == current_wkd.unwrap().date &&
                                 map.num_time.num == current_numtime.as_ref().unwrap().num &&
                                 map.num_time.time == current_numtime.as_ref().unwrap().time &&
-                                map.cell.text == cell.text
-                        );
+                                map.cell.text == cell.text &&
+                                map.cell.x == cell.x
+                        ).collect::<Vec<&mut SubjectMapping>>();
                     } else {
-                        existing_map = current_numtime_mappings.iter_mut().find(
+                        existing_maps = current_numtime_mappings.iter_mut().filter(
                             |map| 
                                 map.group.valid == current_group.as_ref().unwrap().valid &&
                                 map.weekday_date.weekday == current_wkd.unwrap().weekday &&
                                 map.weekday_date.date == current_wkd.unwrap().date &&
                                 map.num_time.num == current_numtime.as_ref().unwrap().num &&
-                                map.num_time.time == current_numtime.as_ref().unwrap().time
-                        );
+                                map.num_time.time == current_numtime.as_ref().unwrap().time &&
+                                map.cell.x == cell.x
+                        ).collect::<Vec<&mut SubjectMapping>>();
                     }
 
-
-                    if existing_map.is_none() {
+                    if existing_maps.is_empty() {
                         let map = SubjectMapping {
                             cell: cell.clone(),
                             group: current_group.as_ref().unwrap().clone(),
                             num_time: current_numtime.as_ref().unwrap().clone(),
                             weekday_date: current_wkd.unwrap().clone(),
                         };
-    
+
                         current_numtime_mappings.push(map);
                     } else {
-                        let existing_map = existing_map.unwrap();
-
-                        if !is_teacher_row || cell.x != x {
-                            continue;
-                        }
-
-                        let has_another_teacher = REGEX.end_teacher.find(
-                            &existing_map.cell.text
-                        ).is_some();
-
-                        let mut teacher_string = "".to_string();
-                        let teacher_parts = cell.text.split(" ").collect::<Vec<&str>>();
-
-                        match teacher_parts.len() {
-                            1 => {
-                                teacher_string+= &teacher_parts[0];
+                        for existing_map in existing_maps {
+                            if !is_teacher_row || existing_map.cell.x != cell.x || cell.x != x {
+                                continue;
                             }
-                            2 => {
-                                teacher_string += &teacher_parts[0];
-                                teacher_string += " ";
-                                teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
-                                teacher_string += ".";
-                            },
-                            _ => {
-                                teacher_string += &teacher_parts[0];
-                                teacher_string += " ";
-                                teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
-                                teacher_string += ".";
-                                teacher_string += &teacher_parts[2].chars().nth(0).unwrap().to_string();
-                                teacher_string += ".";
+
+                            //existing_map.cell.x != cell.x
+
+                            let has_another_teacher = REGEX.end_teacher.find(
+                                &existing_map.cell.text
+                            ).is_some();
+    
+                            let mut teacher_string = "".to_string();
+                            let teacher_parts = cell.text.split(" ").collect::<Vec<&str>>();
+    
+                            match teacher_parts.len() {
+                                1 => {
+                                    teacher_string+= &teacher_parts[0];
+                                }
+                                2 => {
+                                    teacher_string += &teacher_parts[0];
+                                    teacher_string += " ";
+                                    teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                                    teacher_string += ".";
+                                },
+                                _ => {
+                                    teacher_string += &teacher_parts[0];
+                                    teacher_string += " ";
+                                    teacher_string += &teacher_parts[1].chars().nth(0).unwrap().to_string();
+                                    teacher_string += ".";
+                                    teacher_string += &teacher_parts[2].chars().nth(0).unwrap().to_string();
+                                    teacher_string += ".";
+                                }
                             }
+    
+                            if !existing_map.cell.text.ends_with(".") {
+                                existing_map.cell.text += ".";
+                            }
+    
+                            if has_another_teacher {
+                                existing_map.cell.text += ",";
+                            }
+    
+                            existing_map.cell.text += " ";
+                            existing_map.cell.text += &teacher_string;
                         }
-
-                        if !existing_map.cell.text.ends_with(".") {
-                            existing_map.cell.text += ".";
-                        }
-
-                        if has_another_teacher {
-                            existing_map.cell.text += ",";
-                        }
-
-                        existing_map.cell.text += " ";
-                        existing_map.cell.text += &teacher_string;
                     }
                 } else if !hits_for_this_pos.is_empty() {
                     if is_teacher_row {
@@ -688,7 +691,7 @@ impl Parser {
                 ).unwrap()
             )
         }
-
+        
         self.mapping = Some(
             mapping::Parser::from_schema(all_mappings)
         );
