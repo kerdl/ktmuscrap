@@ -37,7 +37,7 @@ pub async fn parse(
         }
         let mapping = mapping.unwrap();
 
-        perf!(let _ = mapping.page());
+        perf!(let _ = mapping.page_v2());
 
         Ok(table.take_mapping().unwrap())
     }).await??;
