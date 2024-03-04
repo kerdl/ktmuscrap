@@ -356,14 +356,14 @@ impl Parser {
         }
 
         self.mapping = Some(
-            mapping::Parser::from_schema(grouped_mappings)
+            mapping::Parser::from_schema(grouped_mappings, None)
         );
 
         Some(self.mapping.as_mut().unwrap())
     }
 
     pub fn mapping_v2(&mut self) -> Option<&mut mapping::Parser> {
-        self.weekday_date_row()?;
+        let wkd_row = self.weekday_date_row()?.clone();
 
         /////////////////////////////////////
         // all rows that we currently process
@@ -693,7 +693,7 @@ impl Parser {
         }
         
         self.mapping = Some(
-            mapping::Parser::from_schema(all_mappings)
+            mapping::Parser::from_schema(all_mappings, Some(wkd_row))
         );
 
         Some(self.mapping.as_mut().unwrap())
