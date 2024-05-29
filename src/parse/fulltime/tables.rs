@@ -1,29 +1,36 @@
 use derive_new::new;
-use chrono::NaiveTime;
-use std::{collections::HashMap, ops::Range, sync::Arc};
+use chrono::{NaiveTime, NaiveDate};
+use itertools::Itertools;
+use std::{collections::HashMap, ops::Range, sync::{Arc, RwLock}};
 
 use crate::data::{
     schedule::raw::{
         self,
         fulltime::{
-            html::HeaderTable, 
+            html::{HeaderTable, HeaderSpanTable},
             table::{
                 NumTime,
-                SubjectMapping, 
-                GroupSubjects, 
+                NumTimeWithOrigin,
+                SubjectMapping,
+                GroupSubjects,
+                TeacherSubjects,
                 CellType,
-                WeekdayWithOrigin
+                WeekdayWithOrigin,
             }
-        }
+        },
+        table,
     },
-    Weekday
+    Weekday,
 };
 use super::{
     mappings::Parser as MappingsParser, 
+    mappings::TchrDailyParser as TchrDailyMappingsParser, 
+    mappings::TchrWeeklyParser as TchrWeeklyMappingsParser, 
     super::{
         date,
         time,
         group,
+        teacher
     }
 };
 
@@ -159,6 +166,248 @@ impl Parser {
     }
 
     pub fn take_mappings(&mut self) -> Option<MappingsParser> {
+        self.mappings.take()
+    }
+}
+
+#[derive(new, Debug, Clone)]
+pub struct TchrDailyParser {
+    header_table: HeaderSpanTable,
+    num_time_mappings: HashMap<u32, Range<NaiveTime>>,
+
+    mappings: Option<TchrDailyMappingsParser>
+}
+impl TchrDailyParser {
+    pub fn from_header_tables(
+        header_tables: HeaderSpanTable,
+        num_time_mappings: HashMap<u32, Range<NaiveTime>>
+    ) -> Self {
+        Self::new(header_tables, num_time_mappings, None)
+    }
+
+    pub fn mappings(&mut self) -> Option<&mut TchrDailyMappingsParser> {
+        if self.mappings.is_some() {
+            return Some(self.mappings.as_mut().unwrap())
+        }
+
+        let mut teacher_maps: Vec<TeacherSubjects> = vec![];
+        let Some(date_range) = date::parse_dmy_range(&self.header_table.header) else {
+            return None;
+        };
+        let mut weekday: Option<WeekdayWithOrigin> = None;
+        let mut num_row: Vec<NumTimeWithOrigin> = vec![];
+
+        for (row_i, row) in self.header_table.table.iter().enumerate() {
+            match row_i {
+                0 => {
+                    for cell in row {
+                        let Some(wkd) = Weekday::guess(&cell.text) else {
+                            continue;
+                        };
+                        weekday = Some(WeekdayWithOrigin::new(cell.text.clone(), wkd));
+                    }
+                    continue;
+                },
+                1 => {
+                    for cell in row {
+                        let Ok(parsed) = cell.text.parse::<u32>() else {
+                            continue;
+                        };
+                        let Some(time) = self.num_time_mappings.get(&parsed) else {
+                            continue;
+                        };
+                        let num_time = NumTime::new(parsed, time.clone());
+                        let with_origin = NumTimeWithOrigin::new(
+                            num_time,
+                            cell.clone()
+                        );
+                        num_row.push(with_origin);
+                    }
+                    continue;
+                },
+                _ => {},
+            }
+
+            if row.len() < 2 { continue; }
+
+            let teacher = row[0].text.clone();
+            let mut subjects = vec![];
+            for cell in row[1..].iter() {
+                let Some(num_time_with_origin) = num_row.iter().find(
+                    |map| (map.cell.x..map.cell.colspan+map.cell.x).contains(&cell.x)
+                ) else {
+                    continue;
+                };
+
+                subjects.push(SubjectMapping::new(
+                    cell.text.clone(),
+                    weekday.as_ref().unwrap().clone(),
+                    num_time_with_origin.num_time.clone()
+                ));
+            }
+
+            teacher_maps.push(TeacherSubjects::new(
+                table::Teacher::new(teacher.clone(), teacher.clone()),
+                date_range.clone(),
+                subjects
+            ));
+        }
+        
+        let parser = TchrDailyMappingsParser::from_teachers_subjects(
+            teacher_maps,
+            self.header_table.header.clone(),
+        );
+
+        self.mappings = Some(parser);
+
+        Some(self.mappings.as_mut().unwrap())
+    }
+
+    pub fn take_mappings(&mut self) -> Option<TchrDailyMappingsParser> {
+        self.mappings.take()
+    }
+}
+
+#[derive(new, Debug, Clone)]
+pub struct TchrWeeklyParser {
+    header_tables: Vec<HeaderTable>,
+
+    mappings: Option<TchrWeeklyMappingsParser>
+}
+impl TchrWeeklyParser {
+    pub fn from_header_tables(header_tables: Vec<HeaderTable>) -> Self {
+        Self::new(header_tables, None)
+    }
+
+    pub fn mappings(&mut self) -> (
+        Option<&mut TchrWeeklyMappingsParser>, Option<HashMap<u32, Range<NaiveTime>>>
+    ) {
+        if self.mappings.is_some() {
+            return (Some(self.mappings.as_mut().unwrap()), None)
+        }
+
+        let mut tasks = vec![];
+
+        let mut teachers_maps: Vec<TeacherSubjects> = vec![];
+        let num_time_maps: Arc<RwLock<HashMap<u32, Range<NaiveTime>>>> = Arc::new(RwLock::new(HashMap::new()));
+        let num_time_maps_ref = num_time_maps.clone();
+
+        let header_tables = {
+            let mut v = vec![];
+            v.append(&mut self.header_tables);
+            v
+        };
+
+        for teacher_section in header_tables.into_iter() {
+            if teacher_section.table.len() < 2 { continue };
+
+            let num_time_maps_ref = num_time_maps_ref.clone();
+            let raw_teacher = &teacher_section.header;
+            let Some(valid_teacher) = teacher::parse(&teacher_section.header) else { continue };
+            let Some(date_range) = date::parse_dmy_range(&teacher_section.header) else { continue };
+
+            let teacher = raw::table::Teacher::new(
+                raw_teacher.clone(), 
+                valid_teacher
+            );
+
+            let task = std::thread::spawn(move || -> TeacherSubjects {
+                let num_time_maps_ref = num_time_maps_ref.clone();
+                let table_header = &teacher_section.table[0];
+
+                let mut weekdays_map: HashMap<usize, WeekdayWithOrigin> = HashMap::new();
+                let mut subject_maps: Vec<SubjectMapping> = vec![];
+
+                for (index, cell) in table_header.iter().enumerate() {
+                    if let Some(weekday) = Weekday::guess(cell) {
+                        let w_origin = WeekdayWithOrigin::new(
+                            cell.to_owned(), 
+                            weekday
+                        );
+
+                        weekdays_map.insert(
+                            index, 
+                            w_origin
+                        );
+                    }
+                }
+
+                let table_body = &teacher_section.table[1..];
+
+                'row: for row in table_body.iter() {
+                    let mut num: Option<u32> = None;
+                    let mut time: Option<NaiveTime> = None;
+    
+                    for (index, cell) in row.iter().enumerate() {
+                        let cell_type = CellType::from_index(index);
+    
+                        match cell_type {
+                            CellType::Num => {
+                                num = cell.parse().ok();
+
+                                if num.is_none() {
+                                    continue 'row;
+                                }
+                            }
+                            CellType::Time => {
+                                time = time::parse_hm(cell);
+
+                                if time.is_none() {
+                                    continue 'row;
+                                }
+
+                                num_time_maps_ref.clone().write().unwrap().insert(
+                                    num.unwrap(),
+                                    time.as_ref().unwrap().clone()..time.as_ref().unwrap().clone()
+                                );
+                            }
+                            CellType::Subject => {
+                                let name = cell.clone();
+                                let weekday = weekdays_map.get(&index).unwrap().clone();
+                                let num_time = NumTime::new(
+                                    num.unwrap(), 
+                                    time.as_ref().unwrap().clone()..time.as_ref().unwrap().clone()
+                                );
+    
+                                let map = SubjectMapping::new(name, weekday, num_time);
+                                subject_maps.push(map);
+                            }
+                        }
+                    }
+                }
+    
+                let mut teacher_map = TeacherSubjects::new(
+                    teacher, 
+                    date_range, 
+                    subject_maps
+                );
+    
+                teacher_map.subjects.sort_by(
+                    |map_a, map_b| map_a.weekday.guessed.cmp(&map_b.weekday.guessed)
+                );
+
+                teacher_map
+            });
+
+            tasks.push(task);
+        }
+
+        for result in tasks {
+            let teacher_map = result.join().unwrap();
+            teachers_maps.push(teacher_map);
+        }
+        
+        let parser = TchrWeeklyMappingsParser::from_teacher_subjects(
+            teachers_maps
+        );
+
+        self.mappings = Some(parser);
+        let mut num_time_maps_guard = num_time_maps.write().unwrap();
+
+        (Some(self.mappings.as_mut().unwrap()), Some(std::mem::take(&mut *num_time_maps_guard)))
+    }
+
+    pub fn take_mappings(&mut self) -> Option<TchrWeeklyMappingsParser> {
         self.mappings.take()
     }
 }

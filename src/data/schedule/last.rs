@@ -11,7 +11,7 @@ use crate::{data::json::{
     DirectSaving,
     DirectLoading,
 }, SyncResult};
-use super::{raw, Page};
+use super::{raw, Page, TchrPage};
 
 
 /// # Stores last converted schedule
@@ -20,7 +20,9 @@ pub struct Last {
     path: PathBuf,
 
     pub weekly: Arc<RwLock<Option<Arc<Page>>>>,
-    pub daily: Arc<RwLock<Option<Arc<Page>>>>
+    pub daily: Arc<RwLock<Option<Arc<Page>>>>,
+    pub tchr_weekly: Arc<RwLock<Option<Arc<TchrPage>>>>,
+    pub tchr_daily: Arc<RwLock<Option<Arc<TchrPage>>>>
 }
 impl json::Path for Last {
     fn path(&self) -> PathBuf {
@@ -38,6 +40,12 @@ impl json::ToMiddle<MiddleLast> for Last {
             daily: self.daily.read().await.as_ref().map(
                 |page| page.clone()
             ),
+            tchr_weekly: self.tchr_weekly.read().await.as_ref().map(
+                |page| page.clone()
+            ),
+            tchr_daily: self.tchr_daily.read().await.as_ref().map(
+                |page| page.clone()
+            ),
         }
     }
 }
@@ -47,7 +55,9 @@ impl Last {
         let this = Self {
             path,
             weekly: Arc::new(RwLock::new(None)),
-            daily: Arc::new(RwLock::new(None))
+            daily: Arc::new(RwLock::new(None)),
+            tchr_daily: Arc::new(RwLock::new(None)),
+            tchr_weekly: Arc::new(RwLock::new(None)),
         };
 
         Arc::new(this)
@@ -58,6 +68,8 @@ impl Last {
             path,
             weekly: Arc::new(RwLock::new(middle.weekly.clone())),
             daily: Arc::new(RwLock::new(middle.daily.clone())),
+            tchr_weekly: Arc::new(RwLock::new(middle.tchr_weekly.clone())),
+            tchr_daily: Arc::new(RwLock::new(middle.tchr_daily.clone())),
         };
 
         Arc::new(this)
@@ -92,6 +104,8 @@ impl Last {
         && self.daily.read().await.is_none()
     }
 
+    // groups
+
     pub async fn set_weekly(self: Arc<Self>, page: Page) {
         *self.weekly.write().await = {
             Some(Arc::new(page))
@@ -116,22 +130,30 @@ impl Last {
         self.poll_save()
     }
 
-    pub async fn clear_from_raw_type(
-        self: Arc<Self>,
-        sc_type: &raw::Type
-    ) {
-        match sc_type {
-            raw::Type::FtDaily => {
-                self.clear_daily().await;
-            }
-            raw::Type::FtWeekly => {
-                self.clear_weekly().await;
-            }
-            raw::Type::RWeekly => {
-                self.clone().clear_daily().await;
-                self.clear_weekly().await;
-            }
-        }
+    // teachers
+
+    pub async fn set_tchr_weekly(self: Arc<Self>, page: TchrPage) {
+        *self.tchr_weekly.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
+    }
+
+    pub async fn clear_tchr_weekly(self: Arc<Self>) {
+        *self.tchr_weekly.write().await = None;
+        self.poll_save()
+    }
+
+    pub async fn set_tchr_daily(self: Arc<Self>, page: TchrPage) {
+        *self.tchr_daily.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
+    }
+
+    pub async fn clear_tchr_daily(self: Arc<Self>) {
+        *self.tchr_daily.write().await = None;
+        self.poll_save()
     }
 }
 
@@ -141,7 +163,9 @@ pub struct MiddleLast {
     path: PathBuf,
 
     weekly: Option<Arc<Page>>,
-    daily: Option<Arc<Page>>
+    daily: Option<Arc<Page>>,
+    tchr_weekly: Option<Arc<TchrPage>>,
+    tchr_daily: Option<Arc<TchrPage>>
 }
 impl json::Path for MiddleLast {
     fn path(&self) -> PathBuf {

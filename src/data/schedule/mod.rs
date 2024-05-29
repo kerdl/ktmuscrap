@@ -16,6 +16,7 @@ use chrono::{NaiveDate, NaiveTime};
 use strum_macros::{EnumString, Display};
 use derivative::Derivative;
 use std::ops::{Range, RangeInclusive};
+use std::collections::HashMap;
 
 use super::Weekday;
 
@@ -61,7 +62,7 @@ pub enum Format {
     /// college student is the worst 
     /// fucking time of my life 
     /// aaaaaaaaaaaaaaaaaa
-    /// (i'm so happy i dropped out)
+    /// (i'm so happy i have dropped out)
     Fulltime,
     /// Means you open up
     /// a `Zoom Meetings` computer
@@ -95,6 +96,8 @@ pub enum Type {
     /// (`ft_daily` or `r_weekly`) schedule
     Daily
 }
+
+// groups
 
 /// # Single subject (lesson) in a `Day`
 #[derive(Derivative)]
@@ -316,6 +319,119 @@ impl Page {
             |group| group.name != name
         ) {
             self.groups.remove(index);
+        }
+    }
+}
+
+
+// teachers
+
+#[derive(Derivative)]
+#[derivative(Hash)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone,
+    PartialEq
+)]
+pub struct Subgroup {
+    pub group: String,
+    pub subgroup: Option<String>,
+}
+
+/// # Single subject (lesson) in a `Day`
+#[derive(Derivative)]
+#[derivative(Hash)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone
+)]
+pub struct TchrSubject {
+    #[derivative(Hash="ignore")]
+    pub raw: String,
+    pub num: u32,
+    pub time: Range<NaiveTime>,
+    pub name: String,
+    pub format: Format,
+    pub groups: Vec<Subgroup>,
+    pub cabinet: Option<String>,
+}
+impl PartialEq for TchrSubject {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+/// # Single weekday (Mon, Tue) in a week
+#[derive(Derivative)]
+#[derivative(Hash)]
+#[derive(
+    Serialize, 
+    Deserialize, 
+    Debug, 
+    Clone
+)]
+pub struct TchrDay {
+    #[derivative(Hash="ignore")]
+    pub raw: String,
+    pub weekday: Weekday,
+    pub date: NaiveDate,
+    pub subjects: Vec<TchrSubject>,
+}
+impl PartialEq for TchrDay {
+    fn eq(&self, other: &Self) -> bool {
+        self.weekday == other.weekday
+    }
+}
+
+/// # Group's full schedule container
+#[derive(Derivative)]
+#[derivative(Hash)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone
+)]
+pub struct TchrTeacher {
+    #[derivative(Hash="ignore")]
+    pub raw: String,
+    pub name: String,
+    pub days: Vec<TchrDay>,
+}
+impl TchrTeacher {
+    pub fn remove_days_except(&mut self, date: &NaiveDate) {
+        while let Some(index) = self.days.iter().position(
+            |day| &day.date != date
+        ) {
+            self.days.remove(index);
+        }
+    }
+}
+impl PartialEq for TchrTeacher {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TchrPage {
+    pub raw: String,
+    pub raw_types: Vec<raw::Type>,
+    pub sc_type: Type,
+    pub date: RangeInclusive<NaiveDate>,
+    pub num_time_mappings: Option<HashMap<u32, Range<NaiveTime>>>,
+    pub teachers: Vec<TchrTeacher>,
+}
+impl TchrPage {
+    pub fn remove_teachers_except(&mut self, name: String) {
+        while let Some(index) = self.teachers.iter().position(
+            |teacher| teacher.name != name
+        ) {
+            self.teachers.remove(index);
         }
     }
 }

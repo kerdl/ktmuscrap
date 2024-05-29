@@ -56,7 +56,9 @@ impl Schedule {
                 random: string::random(16),
                 invoker: update::Invoker::Auto,
                 daily: None,
-                weekly: None
+                weekly: None,
+                tchr_daily: None,
+                tchr_weekly: None,
             };
 
             Arc::new(notify)
@@ -114,23 +116,76 @@ impl Schedule {
             let ft_daily = self.index.ft_daily().await;
             let ft_weekly = self.index.ft_weekly().await;
             let r_weekly = self.index.r_weekly().await;
+            let tchr_ft_daily = self.index.tchr_ft_daily().await;
+            let tchr_ft_weekly = self.index.tchr_ft_weekly().await;
+            let tchr_r_weekly = self.index.tchr_r_weekly().await;
 
             let new_last = self.last.clone().clone_cleared();
             let new_raw_last = self.raw_last.clone().clone_cleared();
 
+            // groups 
+
             if ft_daily.has_latest().await || r_weekly.has_latest().await {
+                let ft = ft_daily.latest.read().await;
+                let r = r_weekly.latest.read().await;
+
+                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
+
                 parse::daily(
-                    ft_daily.latest.read().await.clone(),
-                    r_weekly.latest.read().await.clone(),
+                    Some(ft_path),
+                    Some(r_paths),
+                    raw::Mode::Groups,
                     new_last.clone(),
                     new_raw_last.clone()
                 ).await.unwrap();
             }
 
             if ft_weekly.has_latest().await || r_weekly.has_latest().await {
+                let ft = ft_weekly.latest.read().await;
+                let r = r_weekly.latest.read().await;
+
+                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
+
                 parse::weekly(
-                    ft_weekly.latest.read().await.clone(),
-                    r_weekly.latest.read().await.clone(),
+                    Some(ft_path),
+                    Some(r_paths),
+                    raw::Mode::Groups,
+                    new_last.clone(),
+                    new_raw_last.clone()
+                ).await.unwrap();
+            }
+
+            // teachers
+
+            if tchr_ft_weekly.has_latest().await || tchr_r_weekly.has_latest().await {
+                let ft = tchr_ft_weekly.latest.read().await;
+                let r = tchr_r_weekly.latest.read().await;
+
+                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
+
+                parse::weekly(
+                    Some(ft_path),
+                    Some(r_paths),
+                    raw::Mode::Teachers,
+                    new_last.clone(),
+                    new_raw_last.clone()
+                ).await.unwrap();
+            }
+
+            if tchr_ft_daily.has_latest().await || tchr_r_weekly.has_latest().await {
+                let ft = tchr_ft_daily.latest.read().await;
+                let r = tchr_r_weekly.latest.read().await;
+
+                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
+
+                parse::daily(
+                    Some(ft_path),
+                    Some(r_paths),
+                    raw::Mode::Teachers,
                     new_last.clone(),
                     new_raw_last.clone()
                 ).await.unwrap();
@@ -142,7 +197,12 @@ impl Schedule {
                 let daily_new = new_last.daily.read().await;
                 let weekly_old = self.last.weekly.read().await;
                 let weekly_new = new_last.weekly.read().await;
-    
+
+                let tchr_daily_old = self.last.tchr_daily.read().await;
+                let tchr_daily_new = new_last.tchr_daily.read().await;
+                let tchr_weekly_old = self.last.tchr_weekly.read().await;
+                let tchr_weekly_new = new_last.tchr_weekly.read().await;
+
                 let daily_changes = compare::schedule::Page::compare(
                     daily_old.as_ref().map(|old| (**old).clone()),
                     daily_new.as_ref().map(|new| (**new).clone()),
@@ -150,6 +210,15 @@ impl Schedule {
                 let weekly_changes = compare::schedule::Page::compare(
                     weekly_old.as_ref().map(|old| (**old).clone()),
                     weekly_new.as_ref().map(|new| (**new).clone()),
+                ).await;
+
+                let tchr_daily_changes = compare::schedule::TchrPage::compare(
+                    tchr_daily_old.as_ref().map(|old| (**old).clone()),
+                    tchr_daily_new.as_ref().map(|new| (**new).clone()),
+                ).await;
+                let tchr_weekly_changes = compare::schedule::TchrPage::compare(
+                    tchr_weekly_old.as_ref().map(|old| (**old).clone()),
+                    tchr_weekly_new.as_ref().map(|new| (**new).clone()),
                 ).await;
 
                 let notify = Notify {
@@ -162,6 +231,16 @@ impl Schedule {
                     },
                     weekly: if weekly_changes.groups.has_changes() {
                         Some(weekly_changes)
+                    } else {
+                        None
+                    },
+                    tchr_daily: if tchr_daily_changes.teachers.has_changes() {
+                        Some(tchr_daily_changes)
+                    } else {
+                        None
+                    },
+                    tchr_weekly: if tchr_weekly_changes.teachers.has_changes() {
+                        Some(tchr_weekly_changes)
                     } else {
                         None
                     }
@@ -209,6 +288,50 @@ impl Schedule {
                         notify.weekly.as_ref().unwrap().groups.changed.len(),
                         notify.weekly.as_ref().unwrap().groups.changed.iter().map(
                             |group| group.name.as_ref().unwrap_or(&none)
+                        ).collect::<Vec<&String>>()
+                    );
+                }
+
+                if notify.tchr_daily.is_some() {
+                    info!("TCHR DAILY CHANGES");
+                    info!("   appeared teachers {}: {:?}",
+                        notify.tchr_daily.as_ref().unwrap().teachers.appeared.len(),
+                        notify.tchr_daily.as_ref().unwrap().teachers.appeared.iter().map(
+                            |teacher| &teacher.name
+                        ).collect::<Vec<&String>>()
+                    );
+                    info!("   disappeared teachers {}: {:?}",
+                        notify.tchr_daily.as_ref().unwrap().teachers.disappeared.len(),
+                        notify.tchr_daily.as_ref().unwrap().teachers.disappeared.iter().map(
+                            |teacher| &teacher.name
+                        ).collect::<Vec<&String>>()
+                    );
+                    info!("   changed teachers {}: {:?}",
+                        notify.tchr_daily.as_ref().unwrap().teachers.changed.len(),
+                        notify.tchr_daily.as_ref().unwrap().teachers.changed.iter().map(
+                            |teacher| teacher.name.as_ref().unwrap_or(&none)
+                        ).collect::<Vec<&String>>()
+                    );
+                }
+
+                if notify.tchr_weekly.is_some() {
+                    info!("TCHR WEEKLY CHANGES");
+                    info!("   appeared teachers {}: {:?}",
+                        notify.tchr_weekly.as_ref().unwrap().teachers.appeared.len(),
+                        notify.tchr_weekly.as_ref().unwrap().teachers.appeared.iter().map(
+                            |teacher| &teacher.name
+                        ).collect::<Vec<&String>>()
+                    );
+                    info!("   disappeared teachers {}: {:?}",
+                        notify.tchr_weekly.as_ref().unwrap().teachers.disappeared.len(),
+                        notify.tchr_weekly.as_ref().unwrap().teachers.disappeared.iter().map(
+                            |teacher| &teacher.name
+                        ).collect::<Vec<&String>>()
+                    );
+                    info!("   changed teachers {}: {:?}",
+                        notify.tchr_weekly.as_ref().unwrap().teachers.changed.len(),
+                        notify.tchr_weekly.as_ref().unwrap().teachers.changed.iter().map(
+                            |teacher| teacher.name.as_ref().unwrap_or(&none)
                         ).collect::<Vec<&String>>()
                     );
                 }

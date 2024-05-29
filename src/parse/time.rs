@@ -27,6 +27,20 @@ pub fn parse_range_hm(string: &str) -> Option<Range<NaiveTime>> {
     Some(start..end)
 }
 
+pub fn parse_hm(string: &str) -> Option<NaiveTime> {
+    let time_match = REGEX.single_time.find(string)?.as_str();
+
+    // `h`ours `m`inutes
+    let hm: Vec<&str> = time_match.split(":").collect();
+
+    let start_hour = hm.get(0).unwrap().parse::<u32>().ok()?;
+    let start_minute = hm.get(1).unwrap().parse::<u32>().ok()?;
+
+    let parsed = NaiveTime::from_hms(start_hour, start_minute, 0);
+
+    Some(parsed)
+}
+
 pub fn remove(string: &str) -> String {
     REGEX.time.replace_all(string, "").trim().to_string()
 }

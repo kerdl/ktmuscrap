@@ -1,19 +1,25 @@
 use std::{path::PathBuf, collections::HashSet};
 
 
-pub async fn except(path: &PathBuf) -> tokio::io::Result<HashSet<PathBuf>> {
+pub async fn except(paths: &HashSet<PathBuf>) -> tokio::io::Result<HashSet<PathBuf>> {
     let mut ignored = HashSet::new();
 
-    let dir = match path.clone() {
-        p if path.is_dir() => p.clone(),
-        p if path.is_file() => p.parent().unwrap().to_path_buf(),
+    if paths.is_empty() {
+        return Ok(ignored);
+    }
+
+    let first_path = paths.iter().nth(0).unwrap();
+
+    let dir = match first_path.clone() {
+        p if first_path.is_dir() => p.clone(),
+        p if first_path.is_file() => p.parent().unwrap().to_path_buf(),
         _ => unreachable!()
     };
 
     let mut contents = tokio::fs::read_dir(dir).await?;
 
     while let Ok(Some(entry)) = contents.next_entry().await {
-        if &entry.path() == path {
+        if paths.contains(&entry.path()) {
             continue;
         }
 

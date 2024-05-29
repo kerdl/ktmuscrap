@@ -1,5 +1,12 @@
 # 🚀KTMU scrap🚀
 
+#### Funny little note
+- I acknowledge the shittiness of this code
+- Couldn't fucking care less
+- Not willing to maintain this anymore (but have to)
+- No one pays me for that
+- L + Ratio
+
 #### 🚀 Blazingly fast 🚀, 🚀Memory-safe🚀, 🚀Optimized🚀 HTTP REST API server for 🚀schedule conversion🚀 from 🤮 https://ktmu-sutd.ru 🤮
 
 ## 🚀FAST🚀 Overview

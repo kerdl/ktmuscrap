@@ -1,8 +1,18 @@
 use chrono::NaiveDate;
 
-use crate::{data::schedule::{Page, Group, Day, raw}, SyncResult};
+use crate::{data::schedule::{
+    Page,
+    Group,
+    Day,
+    TchrPage,
+    TchrTeacher,
+    TchrDay,
+    raw
+}, SyncResult};
 use super::error;
 
+
+// groups
 
 /// # Moves data from `r_day` to `ft_day`
 pub async fn day(
@@ -83,6 +93,97 @@ pub async fn page(
             }
 
             ft_daily.groups.push(r_group);
+        }
+    }
+
+    ft_daily.raw_types = vec![
+        raw::Type::FtDaily, 
+        raw::Type::RWeekly
+    ];
+
+    Ok(())
+}
+
+// teachers
+
+/// # Moves data from `r_day` to `ft_day`
+pub async fn tchr_day(
+    ft_day: &mut TchrDay,
+    r_day: &mut TchrDay
+) {
+    ft_day.subjects.append(&mut r_day.subjects);
+
+    ft_day.subjects.sort_by(
+        |subj_a, subj_b| subj_a.num.cmp(&subj_b.num)
+    );
+}
+
+/// # Moves data from `r_teacher` to `ft_teacher`
+pub async fn tchr_teacher(
+    ft_date: &NaiveDate,
+    ft_teacher: &mut TchrTeacher,
+    r_teacher: &mut TchrTeacher,
+) {
+    let r_days = {
+        let mut v = vec![];
+        v.append(&mut r_teacher.days);
+        v
+    };
+
+    for mut r_day in r_days.into_iter() {
+        if &r_day.date != ft_date {
+            continue;
+        }
+
+        if let Some(ft_day) = ft_teacher.days.iter_mut().find(
+            |ft_day| &ft_day.date == ft_date
+        ) {
+            tchr_day(ft_day, &mut r_day).await;
+        }
+    }
+
+    ft_teacher.days.sort_by(
+        |day_a, day_b| day_a.weekday.cmp(&day_b.weekday)
+    );
+}
+
+
+/// # Moves data from `r_weekly` to `ft_daily`
+pub async fn tchr_page(
+    ft_daily: &mut TchrPage, 
+    r_weekly: &mut TchrPage,
+) -> Result<(), error::FtDateIsNotInRWeeklyRange> {
+    let ft_date = ft_daily.date.start();
+
+    if !r_weekly.date.contains(&ft_date) {
+        return Err(error::FtDateIsNotInRWeeklyRange {
+            latest: if ft_date > r_weekly.date.end() {
+                raw::Type::FtDaily
+            } else {
+                raw::Type::RWeekly
+            }
+        })
+    }
+
+    let r_teachers = {
+        let mut v = vec![];
+        v.append(&mut r_weekly.teachers);
+        v
+    };
+
+    for mut r_teacher in r_teachers.into_iter() {
+        if let Some(ft_teacher) = ft_daily.teachers.iter_mut().find(
+            |ft_teacher| ft_teacher.name == r_teacher.name
+        ) {
+            tchr_teacher(ft_date, ft_teacher, &mut r_teacher).await;
+        } else {
+            r_teacher.remove_days_except(ft_date);
+
+            if r_teacher.days.is_empty() {
+                continue
+            }
+
+            ft_daily.teachers.push(r_teacher);
         }
     }
 
