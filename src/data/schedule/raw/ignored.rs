@@ -28,3 +28,7 @@ pub async fn except(paths: &HashSet<PathBuf>) -> tokio::io::Result<HashSet<PathB
 
     Ok(ignored)
 }
+
+pub fn except_difference(paths: &HashSet<PathBuf>, except: &HashSet<PathBuf>) -> HashSet<PathBuf> {
+    paths.difference(&except).map(|path| path.clone()).collect()
+}

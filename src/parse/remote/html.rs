@@ -1,10 +1,11 @@
 use derive_new::new;
 use html_parser::{Dom, Node, Error};
+use bytes::{Buf, Bytes};
 use std::path::PathBuf;
 
 use crate::{
-    data::schedule::raw::table, 
-    SyncResult
+    data::schedule::{raw::table, update}, 
+    SyncResult,
 };
 use super::{
     node, 
@@ -96,6 +97,11 @@ impl Parser {
         let table = None;
 
         Ok(Parser::new(dom, path, table))
+    }
+
+    pub async fn from_file(file: &update::File) -> SyncResult<Parser> {
+        let string = String::from_utf8(file.bytes.to_vec())?;
+        Self::from_string(string, file.path.clone()).await
     }
 
     /// # Load from HTML file
@@ -431,6 +437,17 @@ impl TchrParser {
         let table = None;
 
         Ok(Self::new(dom, path, table))
+    }
+
+    pub async fn from_files(files: &Vec<update::File>) -> SyncResult<Vec<Self>> {
+        let mut parsers = vec![];
+
+        for file in files {
+            let string = String::from_utf8(file.bytes.to_vec())?;
+            parsers.push(Self::from_string(string, file.path.clone()).await?)
+        }
+
+        Ok(parsers)
     }
 
     /// # Load from HTML file

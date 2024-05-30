@@ -3,7 +3,7 @@ use chrono::NaiveDate;
 use tokio::sync::RwLock;
 use std::{path::PathBuf, sync::Arc, collections::{HashMap, HashSet}};
 
-use crate::{parse::remote::html, SyncResult, schedule::raw};
+use crate::{parse::remote::html, SyncResult, schedule::{raw, update}};
 
 
 #[derive(new)]
@@ -20,6 +20,18 @@ impl Container {
 
         let _ = this.add_from_paths(paths).await;
         let _ = this.add_from_tchr_paths(tchr_paths).await;
+
+        Ok(this)
+    }
+
+    pub async fn from_files(
+        files: Vec<update::File>,
+        tchr_files: Vec<update::File>
+    ) -> SyncResult<Container> {
+        let mut this = Container::default();
+
+        let _ = this.add_from_files(files).await;
+        let _ = this.add_from_tchr_files(tchr_files).await;
 
         Ok(this)
     }
@@ -58,6 +70,37 @@ impl Container {
         Ok(())
     }
 
+    pub async fn add_from_files(
+        &mut self, 
+        files: Vec<update::File>
+    ) -> SyncResult<()> {
+        let mut htmls = vec![];
+        let mut handles = vec![];
+
+        for file in files {
+            let handle = tokio::spawn(async move {
+                let html = html::Parser::from_file(&file).await?;
+                Ok::<
+                    html::Parser,
+                    Box<dyn std::error::Error + Send + Sync>
+                >(html)
+            });
+
+            handles.push(handle);
+        }
+
+        // wait for all tasks to finish
+        for handle in handles {
+            let html = handle.await??;
+            htmls.push(html);
+        }
+
+        // add everything to `self` container
+        self.list.extend_from_slice(&htmls);
+
+        Ok(())
+    }
+
     pub async fn add_from_tchr_paths(
         &mut self, 
         paths: Vec<PathBuf>
@@ -71,6 +114,38 @@ impl Container {
 
                 let html = html::TchrParser::from_paths(&[path]).await?;
 
+                Ok::<
+                    Vec<html::TchrParser>,
+                    Box<dyn std::error::Error + Send + Sync>
+                >(html)
+            });
+
+            handles.push(handle);
+        }
+
+        // wait for all tasks to finish
+        for handle in handles {
+            let mut html = handle.await??;
+            htmls.append(&mut html);
+        }
+
+        // add everything to `self` container
+        self.tchr_list.extend_from_slice(&htmls);
+
+        Ok(())
+    }
+
+    pub async fn add_from_tchr_files(
+        &mut self, 
+        files: Vec<update::File>
+    ) -> SyncResult<()> {
+        let mut htmls = vec![];
+        let mut handles = vec![];
+
+        for file in files {
+            let handle = tokio::spawn(async move {
+                let v = vec![file];
+                let html = html::TchrParser::from_files(&v).await?;
                 Ok::<
                     Vec<html::TchrParser>,
                     Box<dyn std::error::Error + Send + Sync>

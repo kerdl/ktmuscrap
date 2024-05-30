@@ -365,6 +365,16 @@ impl Schedule {
                     new_raw_last.r_weekly.read().await.clone()
                 };
 
+                *self.raw_last.tchr_ft_daily.write().await = {
+                    new_raw_last.tchr_ft_daily.read().await.clone()
+                };
+                *self.raw_last.tchr_ft_weekly.write().await = {
+                    new_raw_last.tchr_ft_weekly.read().await.clone()
+                };
+                *self.raw_last.tchr_r_weekly.write().await = {
+                    new_raw_last.tchr_r_weekly.read().await.clone()
+                };
+
                 self.raw_last.save().await.unwrap();
             }
 

@@ -1,3 +1,4 @@
+use futures_lite::AsyncReadExt;
 use log::{debug, warn};
 use chrono::{NaiveDateTime, DateTime, Utc, Duration};
 use async_zip::tokio::read::seek::ZipFileReader;
@@ -6,12 +7,9 @@ use serde_derive::{Serialize, Deserialize};
 use reqwest;
 use actix_web::web::Bytes;
 use tokio::{
-    sync::{
-        RwLock,
-        Mutex,
-        mpsc
-    },
-    task::JoinHandle
+    io::AsyncWriteExt, sync::{
+        mpsc, Mutex, RwLock
+    }, task::JoinHandle
 };
 use tokio_util::compat::TokioAsyncWriteCompatExt;
 use std::{
@@ -313,7 +311,7 @@ impl Index {
                 let handle = tokio::spawn(async move {
                     loop {
                         let bytes = schedule.refetch_until_success().await;
-    
+
                         if let Err(error) = schedule.clone().unpack(bytes).await {
                             warn!(
                                 "{} unpack error, will refetch and unpack again in {:?}: {:?}",
@@ -604,19 +602,17 @@ impl Schedule {
         self.root.join(self.sc_type.to_string())
     }
 
-    pub async fn get_latest(&self) -> SyncResult<HashSet<PathBuf>> {
-        let dir = self.dir();
-
+    pub async fn get_latest(&self, files: &Vec<update::File>) -> SyncResult<HashSet<PathBuf>> {
         let paths = match self.sc_type {
             Type::FtDaily | Type::TchrFtDaily | Type::FtWeekly | Type::TchrFtWeekly => {
                 let mut hs = HashSet::new();
-                if let Some(path) = fulltime::latest(&dir).await.unwrap() {
+                if let Some(path) = fulltime::latest(&files).await {
                     hs.insert(path);
                 }
                 hs
             },
-            Type::RWeekly => remote::latest(&dir, super::Mode::Groups).await.unwrap(),
-            Type::TchrRWeekly => remote::latest(&dir, super::Mode::Teachers).await.unwrap(),
+            Type::RWeekly => remote::latest(&files, super::Mode::Groups).await.unwrap(),
+            Type::TchrRWeekly => remote::latest(&files, super::Mode::Teachers).await.unwrap(),
         };
 
         *self.latest.write().await = paths.clone();
@@ -628,13 +624,16 @@ impl Schedule {
         !self.latest.read().await.is_empty()
     }
 
-    pub async fn get_ignored(&self) -> tokio::io::Result<Option<HashSet<PathBuf>>> {
+    pub async fn get_ignored(&self, files: &Vec<update::File>) -> tokio::io::Result<Option<HashSet<PathBuf>>> {
         let latest = self.latest.read().await;
         if latest.is_empty() {
             return Ok(None)
         }
 
-        let ignored = ignored::except(&latest).await?;
+        let ignored = ignored::except_difference(
+            &HashSet::from_iter(files.iter().map(|file| file.path.clone())),
+            &latest,
+        );
 
         let ignored_htmls = ignored.into_iter().filter(
             |path| if let Some(ext) = path.extension() {
@@ -711,11 +710,13 @@ impl Schedule {
         }
 
         let mut archive = archive_result.unwrap();
+        let mut files: Vec<update::File> = vec![];
 
         debug!("extracting {:?} archive", sc_type);
         for index in 0..archive.file().entries().len() {
             let entry = archive.file().entries().get(index).unwrap();
-            let path = dir.join(fs::path::sanitize(entry.filename().as_str().unwrap()));
+            let filename_pathbuf = fs::path::sanitize(entry.filename().as_str().unwrap());
+            let path = dir.join(filename_pathbuf);
             let entry_is_dir = entry.dir().unwrap();
 
             let entry_reader = archive.reader_without_entry(index).await;
@@ -750,48 +751,65 @@ impl Schedule {
                         continue;
                     }
                 }
-                let writer = tokio::fs::OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .open(&path)
-                    .await;
-                if let Err(err) = writer {
-                    warn!("failed to create extracted file: {:?}", err);
-                    continue;
-                }
-                let writer = writer.unwrap();
 
-                let copy_result = futures_lite::io::copy(&mut entry_reader, &mut writer.compat_write()).await;
+                let mut buf = vec![];
+                let copy_result = entry_reader.read_to_end(&mut buf).await;
 
                 if let Err(err) = copy_result {
                     warn!("failed to copy to extracted file: {:?}", err);
                     continue;
                 }
+
+                let file = update::File {
+                    path,
+                    bytes: buf.into()
+                };
+                files.push(file);
     
                 // Closes the file and manipulates its metadata here if you wish to preserve its metadata from the archive.
             }
         }
         debug!("extracted {:?} archive", sc_type);
 
-        self.post_unpack().await;
+        self.post_unpack(files).await;
 
         Ok(())
     }
 
-    async fn post_unpack(self: Arc<Self>) {
-        self.purge_ignored().await.unwrap();
-        self.get_latest().await.unwrap();
-        self.get_ignored().await.unwrap();
+    async fn post_unpack(self: Arc<Self>, mut files: Vec<update::File>) {
+        files.retain(|file| file.path.extension() == Some(std::ffi::OsStr::new("html")));
 
-        tokio::spawn(async move {
-            if let Err(error) = self.purge_ignored().await {
-                warn!("error while purging ignored: {:?}", error);
+        let latest = self.purge_ignored(files.clone()).await;
+        self.get_latest(&latest).await.unwrap();
+        self.get_ignored(&files).await.unwrap();
+
+        let latest = self.latest.read().await;
+
+        for latest_path in latest.iter() {
+            let writer = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&latest_path)
+                .await;
+            if let Err(err) = writer {
+                warn!("failed to create extracted file: {:?}", err);
+                continue;
             }
-        });
+            let mut writer = writer.unwrap();
+
+            let file = files.iter().find(|file| &file.path == latest_path).unwrap();
+ 
+            if let Err(err) = writer.write(&file.bytes[..]).await {
+                warn!("failed to write file: {:?}", err);
+                continue;
+            }
+        }
     }
 
-    pub async fn purge_ignored(&self) -> tokio::io::Result<()> {
-        fs::remove::from_set(self.ignored.read().await.clone()).await
+    pub async fn purge_ignored(&self, mut files: Vec<update::File>) -> Vec<update::File> {
+        let ignored = self.ignored.read().await;
+        files.retain(|file| !ignored.contains(&file.path));
+        files
     }
 }
 

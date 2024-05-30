@@ -1119,6 +1119,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "async_zip",
+ "bytes",
  "chrono",
  "colored",
  "derivative",
