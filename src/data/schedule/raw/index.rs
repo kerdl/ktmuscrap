@@ -1,8 +1,7 @@
 use log::{debug, warn};
-use chrono::{NaiveDateTime, Utc, Duration};
-use ::zip::ZipArchive;
+use chrono::{NaiveDateTime, DateTime, Utc, Duration};
+use async_zip::tokio::read::seek::ZipFileReader;
 use async_trait::async_trait;
-use async_recursion::async_recursion;
 use serde_derive::{Serialize, Deserialize};
 use reqwest;
 use actix_web::web::Bytes;
@@ -14,6 +13,7 @@ use tokio::{
     },
     task::JoinHandle
 };
+use tokio_util::compat::TokioAsyncWriteCompatExt;
 use std::{
     io::Cursor,
     path::PathBuf,
@@ -101,7 +101,7 @@ impl Index {
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
             updated: Arc::new(RwLock::new(
-                NaiveDateTime::from_timestamp(0, 0)
+                DateTime::from_timestamp(0, 0).unwrap().naive_utc()
             )),
             period: Duration::minutes(10),
             types: vec![
@@ -244,11 +244,13 @@ impl Index {
     pub async fn update_all_auto(
         self: Arc<Self>
     ) {
+        debug!("staring auto update_all");
         self.update_all(
             update::Params {
                 invoker: update::Invoker::Auto
             }
         ).await;
+        debug!("finished auto update_all");
     }
 
     pub async fn update_all_manually(
@@ -649,7 +651,8 @@ impl Schedule {
 
     pub async fn fetch(&self) -> Result<Bytes, reqwest::Error> {
         let resp = self.reqwest.get(&self.url).send().await?;
-        resp.bytes().await
+        let bytes = resp.bytes().await;
+        bytes
     }
 
     pub async fn fetch_after(&self, after: Duration) -> Result<Bytes, reqwest::Error> {
@@ -657,27 +660,30 @@ impl Schedule {
         self.fetch().await
     }
 
-    #[async_recursion]
     pub async fn refetch_until_success(&self) -> Bytes {
-        debug!("fetching {}", self.sc_type);
-        let fetch_result = self.fetch().await;
-
-        if let Err(error) = &fetch_result {
-            warn!(
-                "refetching {} because of error {:?}",
-                self.sc_type,
-                error
-            );
-
-            tokio::time::sleep(self.retry_period).await;
-            return self.refetch_until_success().await
-        }
-        
-        fetch_result.unwrap()
+        loop {
+            debug!("fetching {}", self.sc_type);
+            let fetch_result = self.fetch().await;
+    
+            if let Err(error) = &fetch_result {
+                warn!(
+                    "refetching {} because of error {:?}",
+                    self.sc_type,
+                    error
+                );
+    
+                tokio::time::sleep(self.retry_period).await;
+                continue;
+            }
+            
+            debug!("fetching {} success", self.sc_type);
+            return fetch_result.unwrap()
+        };
     }
 
     pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<(), error::UnpackError> {
         let dir = self.dir();
+        let sc_type = self.sc_type.clone();
 
         debug!("unpacking {:?}", dir);
 
@@ -695,22 +701,77 @@ impl Schedule {
             }
         }
 
-        tokio::task::spawn_blocking(move || -> Result<(), error::UnpackError> {
-            let cursor = Cursor::new(bytes);
-            let archive_result = ZipArchive::new(cursor);
+        let cursor = Cursor::new(bytes);
+        debug!("parsing {:?} archive", sc_type);
+        let archive_result = ZipFileReader::with_tokio(cursor).await;
+        debug!("parsed {:?} archive", sc_type);
 
-            if let Err(error) = archive_result {
-                return Err(error::UnpackError::Zip(error));
+        if let Err(error) = archive_result {
+            return Err(error::UnpackError::Zip(error));
+        }
+
+        let mut archive = archive_result.unwrap();
+
+        debug!("extracting {:?} archive", sc_type);
+        for index in 0..archive.file().entries().len() {
+            let entry = archive.file().entries().get(index).unwrap();
+            let path = dir.join(fs::path::sanitize(entry.filename().as_str().unwrap()));
+            let entry_is_dir = entry.dir().unwrap();
+
+            let entry_reader = archive.reader_without_entry(index).await;
+            if let Err(err) = entry_reader {
+                warn!("entry reader error: {:?}", err);
+                continue;
             }
+            let mut entry_reader = entry_reader.unwrap();
 
-            let mut archive = archive_result.unwrap();
+            if entry_is_dir {
+                // The directory may have been created if iteration is out of order.
+                if !path.exists() {
+                    let result = tokio::fs::create_dir_all(&path).await;
+                    if let Err(err) = result {
+                        warn!("failed to create extracted directory: {:?}", err);
+                        continue;
+                    }
+                }
+            } else {
+                // Creates parent directories. They may not exist if iteration is out of order
+                // or the archive does not contain directory entries.
+                let parent = path.parent();
+                if parent.is_none() {
+                    warn!("a file entry should have parent directories");
+                    continue;
+                }
+                let parent = parent.unwrap();
+                if !parent.is_dir() {
+                    let result = tokio::fs::create_dir_all(parent).await;
+                    if let Err(err) = result {
+                        warn!("failed to create parent directories: {:?}", err);
+                        continue;
+                    }
+                }
+                let writer = tokio::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(&path)
+                    .await;
+                if let Err(err) = writer {
+                    warn!("failed to create extracted file: {:?}", err);
+                    continue;
+                }
+                let writer = writer.unwrap();
 
-            if let Err(error) = archive.extract(dir) {
-                return Err(error::UnpackError::Zip(error));
-            }
+                let copy_result = futures_lite::io::copy(&mut entry_reader, &mut writer.compat_write()).await;
+
+                if let Err(err) = copy_result {
+                    warn!("failed to copy to extracted file: {:?}", err);
+                    continue;
+                }
     
-            Ok(())
-        }).await.unwrap()?;
+                // Closes the file and manipulates its metadata here if you wish to preserve its metadata from the archive.
+            }
+        }
+        debug!("extracted {:?} archive", sc_type);
 
         self.post_unpack().await;
 
