@@ -333,6 +333,7 @@ impl Page {
     Deserialize, 
     Debug, 
     Clone,
+    Eq,
     PartialEq
 )]
 pub struct Subgroup {

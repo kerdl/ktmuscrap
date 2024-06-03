@@ -1,4 +1,6 @@
 use derive_new::new;
+use itertools::Itertools;
+use std::collections::HashSet;
 
 use crate::data::schedule::{
     raw::{
@@ -317,82 +319,74 @@ impl TchrParser {
 
         let mut teachers: Vec<TchrTeacher> = vec![];
 
-        for numtime_row in self.schema.iter() {
-            let teacher_name = &numtime_row.get(0)?.teacher;
+        for weekday_row in self.schema.iter() {
+            for map in weekday_row.iter() {
+                let teacher_name = &map.teacher;
+                let teacher = match teachers.iter_mut().find(|teacher| teacher.name == teacher_name.valid) {
+                    Some(teacher) => teacher,
+                    None => {
+                        let teacher = TchrTeacher {
+                            raw: map.teacher.raw.clone(),
+                            name: map.teacher.valid.clone(),
+                            days: vec![],
+                        };
+                        teachers.push(teacher);
+                        teachers.last_mut().unwrap()
+                    }
+                };
 
-            let mut days: Vec<TchrDay> = vec![];
-            let mut subjects: Vec<TchrSubject> = vec![];
+                let day = match teacher.days.iter_mut().find(|day| day.weekday == map.weekday_date.weekday) {
+                    Some(day) => day,
+                    None => {
+                        let day = TchrDay {
+                            raw: map.weekday_date.cell.text.clone(),
+                            weekday: map.weekday_date.weekday.clone(),
+                            date: map.weekday_date.date,
+                            subjects: vec![],
+                        };
+                        teacher.days.push(day);
+                        teacher.days.last_mut().unwrap()
+                    }
+                };
 
-            for (index, subject) in numtime_row.iter().enumerate() {
-                let next_subject = numtime_row.get(index + 1);
-
-                let (groups, subject_name) = subject.cell.text.split_once(
+                let (groups, name) = map.cell.text.split_once(
                     "*&^%$#@!FUCKING_SEPARATOR!@#$%^&*"
                 ).unwrap();
-
-                if groups.is_empty() || subject_name.is_empty() { continue; }
-
                 let groups = group::parse_multiple(groups);
 
-                let mut parsed_subject = TchrSubject {
-                    raw:      subject.cell.text.clone(),
-                    num:      subject.num_time.num,
-                    time:     subject.num_time.time.clone(),
-                    name:     subject_name.to_string(),
-                    format:   Format::Remote,
-                    groups,
-                    cabinet:  None,
-                };
-
-                let existing_subjects = subjects.iter_mut().filter(
-                    |subj| subj.name == parsed_subject.name &&
-                    subj.num == parsed_subject.num &&
-                    subj.time == parsed_subject.time
-                ).collect::<Vec<&mut TchrSubject>>();
-
-                if !existing_subjects.is_empty() {
-                    for existing_subject in existing_subjects {
-                        existing_subject.groups.append(&mut parsed_subject.groups);
+                let mut subject_created = false;
+                let subject = match day.subjects.iter_mut().find(
+                    |subject|
+                        subject.name == name &&
+                        subject.num == map.num_time.num &&
+                        subject.time == map.num_time.time
+                ) {
+                    Some(subject) => subject,
+                    None => {
+                        subject_created = true;
+                        let subject = TchrSubject {
+                            raw: map.cell.text.clone(),
+                            num: map.num_time.num,
+                            time: map.num_time.time.clone(),
+                            name: name.to_string(),
+                            format: Format::Remote,
+                            groups: groups.clone(),
+                            cabinet: None,
+                        };
+                        day.subjects.push(subject);
+                        day.subjects.last_mut().unwrap()
                     }
-                } else {
-                    subjects.push(parsed_subject);
-                }
-
-                let is_changing_weekday = {
-                    next_subject.is_some()
-                    && next_subject.as_ref().unwrap().weekday_date != subject.weekday_date
                 };
 
-                let was_last = {
-                    next_subject.is_none()
-                };
-
-                if (is_changing_weekday || was_last) && !subjects.is_empty() {
-                    let day = TchrDay {
-                        raw:      subject.weekday_date.cell.text.clone(),
-                        weekday:  subject.weekday_date.weekday.clone(),
-                        date:     subject.weekday_date.date.clone(),
-                        subjects: {
-                            let mut subjs = vec![];
-                            subjs.append(&mut subjects);
-                            subjs
-                        }
-                    };
-                    days.push(day);
+                if subject_created {
+                    let this_groups_hs: HashSet<_> = HashSet::from_iter(groups.iter().cloned());
+                    let mut ext_groups_hs: HashSet<_> = HashSet::from_iter(subject.groups.iter().cloned());
+    
+                    ext_groups_hs.extend(this_groups_hs);
+    
+                    subject.groups = ext_groups_hs.into_iter().collect_vec();
                 }
             }
-
-            if days.is_empty() {
-                continue
-            }
-
-            let teacher = TchrTeacher {
-                raw:  teacher_name.raw.to_owned(),
-                name: teacher_name.valid.to_owned(),
-                days
-            };
-
-            teachers.push(teacher);
         }
 
         let page = TchrPage {

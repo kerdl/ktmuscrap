@@ -1077,7 +1077,7 @@ impl TchrParser {
                 &wkdb.weekday
             ).unwrap()
         );
-        
+
         self.mapping = Some(
             mapping::TchrParser::from_schema(all_mappings, Some(seen_weekdays))
         );
