@@ -16,6 +16,8 @@ pub struct Data {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Arc<sc::Page>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub tchr_page: Option<Arc<sc::TchrPage>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub interactor: Option<Arc<Interactor>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notify: Option<Arc<Notify>>,
@@ -28,27 +30,31 @@ pub struct Data {
 }
 impl Data {
     pub fn from_page(schedule: Arc<sc::Page>) -> Data {
-        Data::new(Some(schedule), None, None, None, None, None)
+        Data::new(Some(schedule), None, None, None, None, None, None)
+    }
+
+    pub fn from_tchr_page(schedule: Arc<sc::TchrPage>) -> Data {
+        Data::new(None, Some(schedule), None, None, None, None, None)
     }
 
     pub fn from_interactor(interactor: Arc<Interactor>) -> Data {
-        Data::new(None, Some(interactor), None, None, None, None)
+        Data::new(None, None, Some(interactor), None, None, None, None)
     }
 
     pub fn from_notify(notify: Arc<Notify>) -> Data {
-        Data::new(None, None, Some(notify), None, None, None)
+        Data::new(None, None, None, Some(notify), None, None, None)
     }
 
     pub fn from_url(url: String) -> Data {
-        Data::new(None, None, None, Some(url), None, None)
+        Data::new(None, None, None, None, Some(url), None, None)
     }
 
     pub fn from_period(period: std::time::Duration) -> Data {
-        Data::new(None, None, None, None, Some(period), None)
+        Data::new(None, None, None, None, None, Some(period), None)
     }
 
     pub fn from_last_update(last_update: NaiveDateTime) -> Data {
-        Data::new(None, None, None, None, None, Some(last_update))
+        Data::new(None, None, None, None, None, None, Some(last_update))
     }
 }
 
@@ -67,6 +73,11 @@ impl Response {
 
     pub fn from_page(schedule: Arc<sc::Page>) -> Response {
         let data = Data::from_page(schedule);
+        Response::new(true, Some(data), None)
+    }
+
+    pub fn from_tchr_page(schedule: Arc<sc::TchrPage>) -> Response {
+        let data = Data::from_tchr_page(schedule);
         Response::new(true, Some(data), None)
     }
 

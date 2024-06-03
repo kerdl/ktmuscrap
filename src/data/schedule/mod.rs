@@ -423,6 +423,7 @@ pub struct TchrPage {
     pub raw_types: Vec<raw::Type>,
     pub sc_type: Type,
     pub date: RangeInclusive<NaiveDate>,
+    #[serde(skip)]
     pub num_time_mappings: Option<HashMap<u32, Range<NaiveTime>>>,
     pub teachers: Vec<TchrTeacher>,
 }

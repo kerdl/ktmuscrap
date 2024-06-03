@@ -467,7 +467,7 @@ impl Schedule {
     }
 
     pub fn default_ft_daily(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -480,7 +480,7 @@ impl Schedule {
             url:           "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
@@ -489,7 +489,7 @@ impl Schedule {
     }
 
     pub fn default_ft_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -502,7 +502,7 @@ impl Schedule {
             url:           "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
@@ -511,7 +511,7 @@ impl Schedule {
     }
 
     pub fn default_r_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -524,7 +524,7 @@ impl Schedule {
             url:           "https://docs.google.com/spreadsheets/d/1khl9YgQ9cAwFYdnHUsr0jfvCr2cea3WhTjBKfILdEeE/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/spreadsheets/d/1khl9YgQ9cAwFYdnHUsr0jfvCr2cea3WhTjBKfILdEeE".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
@@ -533,7 +533,7 @@ impl Schedule {
     }
 
     pub fn default_tchr_ft_daily(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -546,7 +546,7 @@ impl Schedule {
             url:           "https://docs.google.com/document/d/1gEP_8FhNRWQuKSLTnynqJWFcCCpyDaetu-fqw_gvFjs/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/document/d/1gEP_8FhNRWQuKSLTnynqJWFcCCpyDaetu-fqw_gvFjs".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
@@ -555,7 +555,7 @@ impl Schedule {
     }
 
     pub fn default_tchr_ft_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -568,7 +568,7 @@ impl Schedule {
             url:           "https://docs.google.com/document/d/16JJ-auyHCNdNNOF71bkkIe0o089NjCKp6DgcDrMgn9I/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/document/d/16JJ-auyHCNdNNOF71bkkIe0o089NjCKp6DgcDrMgn9I".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };
@@ -577,7 +577,7 @@ impl Schedule {
     }
 
     pub fn default_tchr_r_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(60);
+        let fetch_timeout = std::time::Duration::from_secs(90);
         let reqwest = reqwest::ClientBuilder::new()
             .timeout(fetch_timeout.clone())
             .build()
@@ -590,7 +590,7 @@ impl Schedule {
             url:           "https://docs.google.com/spreadsheets/d/1vX4TCTZTZtg8b1LMC_tbYFZw-7tD4JQ2UwxEvagTb1k/export?format=zip".to_owned(),
             friendly_url:  "https://docs.google.com/spreadsheets/d/1vX4TCTZTZtg8b1LMC_tbYFZw-7tD4JQ2UwxEvagTb1k".to_owned(),
             fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(10),
+            retry_period:  std::time::Duration::from_secs(2),
             latest:        Arc::new(RwLock::new(HashSet::new())),
             ignored:       Arc::new(RwLock::new(HashSet::new())),
         };

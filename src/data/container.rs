@@ -191,6 +191,21 @@ impl Schedule {
                 ).await.unwrap();
             }
 
+            /* remove num_time_mappings */
+            {
+                let mut tchr_daily_new = new_last.tchr_daily.write().await;
+                let mut tchr_weekly_new = new_last.tchr_weekly.write().await;
+
+                let mut daily_clone = tchr_daily_new.as_ref().map(|page| (**page).clone());
+                let mut weekly_clone = tchr_weekly_new.as_ref().map(|page| (**page).clone());
+
+                daily_clone.as_mut().map(|page| page.num_time_mappings = None);
+                weekly_clone.as_mut().map(|page| page.num_time_mappings = None);
+
+                *tchr_daily_new = daily_clone.map(|page| Arc::new(page));
+                *tchr_weekly_new = weekly_clone.map(|page| Arc::new(page));
+            }
+
             /* compare old last with new last */
             {
                 let daily_old = self.last.daily.read().await;

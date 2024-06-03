@@ -60,6 +60,9 @@ async fn main() -> std::io::Result<()> {
             .service(api::schedule::raw::ft_daily::friendly_url)
             .service(api::schedule::raw::ft_weekly::friendly_url)
             .service(api::schedule::raw::r_weekly::friendly_url)
+            .service(api::schedule::raw::tchr_ft_daily::friendly_url)
+            .service(api::schedule::raw::tchr_ft_weekly::friendly_url)
+            .service(api::schedule::raw::tchr_r_weekly::friendly_url)
             .service(api::schedule::interact)
             .service(api::schedule::interact_keep_alive)
             .service(api::schedule::key_is_valid)
@@ -69,6 +72,8 @@ async fn main() -> std::io::Result<()> {
             .service(api::schedule::update_last)
             .service(api::schedule::daily::get)
             .service(api::schedule::weekly::get)
+            .service(api::schedule::tchr_daily::get)
+            .service(api::schedule::tchr_weekly::get)
     })
         .bind(addr)?
         .run()
