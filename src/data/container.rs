@@ -110,7 +110,7 @@ impl Schedule {
                 let mut rx = self.updated_rx.write().await;
                 params = rx.recv().await.unwrap();
 
-                debug!("updated signal recieved");
+                debug!("updated signal received");
             }
 
             let ft_daily = self.index.ft_daily().await;

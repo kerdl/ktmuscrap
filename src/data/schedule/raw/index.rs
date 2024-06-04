@@ -350,7 +350,7 @@ impl Index {
 
     async fn await_converted(self: Arc<Self>) {
         self.converted_rx.write().await.recv().await.unwrap();
-        debug!("converted signal recieved");
+        debug!("converted signal received");
     }
 
     async fn post_update_all(self: Arc<Self>, params: update::Params) {
