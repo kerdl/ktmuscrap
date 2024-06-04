@@ -2,6 +2,7 @@ use derive_new::new;
 use html_parser::{Dom, Node, Error};
 use bytes::{Buf, Bytes};
 use std::path::PathBuf;
+use log::warn;
 
 use crate::{
     data::schedule::{raw::table, update}, 
@@ -106,9 +107,19 @@ impl Parser {
 
     /// # Load from HTML file
     pub async fn from_path(path: PathBuf) -> SyncResult<Parser> {
-        let string = tokio::fs::read_to_string(&path).await?;
+        let result = tokio::fs::read_to_string(&path).await;
+        if let Err(err) = result {
+            warn!("remote html read error: {:?}", err);
+            return Err(Box::new(err));
+        }
+        let string = result.unwrap();
 
-        Parser::from_string(string, path).await
+        let parser = Parser::from_string(string, path).await;
+        if let Err(err) = parser {
+            warn!("remote html from_string error: {:?}", err);
+            return Err(err);
+        };
+        parser
     }
 
     /// # Search for `div` with main content
@@ -197,19 +208,34 @@ impl Parser {
         // ↕ Y axis of a table cell
         let mut y = 0;
 
+        let table = self.main_table();
+        let tbody = self.main_tbody();
+
+        let element = if table.is_some() && tbody.is_some() {
+            tbody.unwrap().element()
+        } else if table.is_some() && tbody.is_none() {
+            table.unwrap().element()
+        } else {
+            None
+        };
+
+        let Some(element) = element else {
+            return None;
+        };
+
         // iterate rows
         //
         // > ■■■■■■■■■■■ ↓
         //   □ □ □ □ □ □ ↓
         //   □ □ □ □ □ □ ↓
-        for row in self.main_tbody()?.element()?.children.iter() {
+        for row in element.children.iter() {
             // skip if no element
             if row.element().is_none() { continue; }
             // skip if tag is not <tr>
-            if row.element()?.name != "tr" { continue; }
+            if row.element().unwrap().name != "tr" { continue; }
             // skip if entire row is made out
             // of "freezebar-cell" cells
-            if row.element()?.children.iter().all(|cell| 
+            if row.element().unwrap().children.iter().all(|cell| 
                 cell.element().is_some() 
                 && cell.element().unwrap().classes.contains(
                     &"freezebar-cell".to_owned()
@@ -227,14 +253,14 @@ impl Parser {
             // ⌄
             // ■ □ □ □ □ □
             // → → → → → →
-            for cell in row.element()?.children.iter() {
+            for cell in row.element().unwrap().children.iter() {
                 // skip if no element
                 if cell.element().is_none() { continue; }
                 // skip if tag is not <td>
-                if cell.element()?.name != "td" { continue; }
+                if cell.element().unwrap().name != "td" { continue; }
                 // skip if this <td> has "freezebar-cell" class
                 // (it's actually just a separator)
-                if cell.element()?.classes.contains(
+                if cell.element().unwrap().classes.contains(
                     &"freezebar-cell".to_owned()
                 ) { continue; }
 
@@ -295,7 +321,7 @@ impl Parser {
                 // □ □ □ □ □
                 // □ □ □ □ □
                 let colspan = {
-                    cell.element()?
+                    cell.element().unwrap()
                     .attributes.get("colspan")
                     .unwrap_or(&some_zero).as_ref()
                     .unwrap_or(&zero)
@@ -323,7 +349,7 @@ impl Parser {
                 // □ □ □ □ □ □
                 // □ □ □ □ □ □
                 let rowspan = {
-                    cell.element()?
+                    cell.element().unwrap()
                     .attributes.get("rowspan")
                     .unwrap_or(&some_zero).as_ref()
                     .unwrap_or(&zero)

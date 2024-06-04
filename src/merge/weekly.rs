@@ -123,7 +123,19 @@ pub async fn tchr_day(
     };
 
     for r_subject in r_subjects.into_iter() {
-        ft_day.subjects.push(r_subject);
+        if let Some(_existing_subject) = ft_day.subjects.iter().find(
+            |subj|
+                subj.num == r_subject.num &&
+                subj.time == r_subject.time &&
+                subj.name == r_subject.name &&
+                subj.format == r_subject.format &&
+                subj.groups == r_subject.groups &&
+                subj.cabinet == r_subject.cabinet
+        ) {
+            continue;
+        } else {
+            ft_day.subjects.push(r_subject);
+        }
     }
 
     ft_day.subjects.sort_by(

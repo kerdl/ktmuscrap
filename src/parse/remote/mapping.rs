@@ -378,13 +378,15 @@ impl TchrParser {
                     }
                 };
 
-                if subject_created {
-                    let this_groups_hs: HashSet<_> = HashSet::from_iter(groups.iter().cloned());
-                    let mut ext_groups_hs: HashSet<_> = HashSet::from_iter(subject.groups.iter().cloned());
-    
-                    ext_groups_hs.extend(this_groups_hs);
-    
-                    subject.groups = ext_groups_hs.into_iter().collect_vec();
+                if !subject_created {
+                    for this_group in groups {
+                        let existing = subject.groups.iter().find(
+                            |group| group.to_string() == this_group.to_string()
+                        );
+                        if existing.is_none() {
+                            subject.groups.push(this_group);
+                        }
+                    }
                 }
             }
         }

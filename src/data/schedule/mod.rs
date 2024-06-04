@@ -340,6 +340,15 @@ pub struct Subgroup {
     pub group: String,
     pub subgroup: Option<String>,
 }
+impl ToString for Subgroup {
+    fn to_string(&self) -> String {
+        if let Some(sub) = &self.subgroup {
+            format!("{} {}", self.group, sub)
+        } else {
+            self.group.to_owned()
+        }
+    }
+}
 
 /// # Single subject (lesson) in a `Day`
 #[derive(Derivative)]

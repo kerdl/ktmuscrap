@@ -3,6 +3,7 @@ pub mod table;
 pub mod mapping;
 
 use std::{sync::Arc, path::PathBuf};
+use log::warn;
 
 use crate::{
     data::schedule::{raw, TchrPage}, 
@@ -17,7 +18,14 @@ pub async fn parse(
     path: PathBuf,
     last: Arc<raw::Last>,
 ) -> SyncResult<()> {
-    let parser = html::Parser::from_path(path).await?;
+    let parser = html::Parser::from_path(path).await;
+
+    if let Err(err) = parser {
+        warn!("remote parser initialization error: {:?}", err);
+        return Err(err);
+    }
+
+    let parser = parser.unwrap();
 
     let mut mapping = tokio::task::spawn_blocking(move || -> SyncResult<mapping::Parser> {
         let mut parser = parser;
