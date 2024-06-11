@@ -126,7 +126,7 @@ pub struct Subject {
     /// 
     /// - parsed from smth like
     /// `9:00-10:00`
-    pub time: Range<NaiveTime>,
+    pub time: Option<Range<NaiveTime>>,
     /// # Subject name
     /// 
     /// - doesn't have a specific format,
@@ -363,7 +363,7 @@ pub struct TchrSubject {
     #[derivative(Hash="ignore")]
     pub raw: String,
     pub num: u32,
-    pub time: Range<NaiveTime>,
+    pub time: Option<Range<NaiveTime>>,
     pub name: String,
     pub format: Format,
     pub groups: Vec<Subgroup>,
@@ -434,7 +434,7 @@ pub struct TchrPage {
     pub sc_type: Type,
     pub date: RangeInclusive<NaiveDate>,
     #[serde(skip)]
-    pub num_time_mappings: Option<HashMap<u32, Range<NaiveTime>>>,
+    pub num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>,
     pub teachers: Vec<TchrTeacher>,
 }
 impl TchrPage {

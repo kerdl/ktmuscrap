@@ -118,6 +118,24 @@ pub async fn tchr_day(
     );
 }
 
+pub async fn tchr_ft_day(
+    daily_day: &mut TchrDay,
+    weekly_day: &TchrDay
+) {
+    for daily_subject in daily_day.subjects.iter_mut() {
+        if daily_subject.name.trim().is_empty() {
+            let Some(weekly_subject) = weekly_day.subjects.iter().find(
+                |subj| subj.num == daily_subject.num &&
+                subj.format == daily_subject.format
+            ) else {
+                continue
+            };
+
+            daily_subject.name = weekly_subject.name.clone();
+        }
+    }
+}
+
 /// # Moves data from `r_teacher` to `ft_teacher`
 pub async fn tchr_teacher(
     ft_date: &NaiveDate,
@@ -147,6 +165,24 @@ pub async fn tchr_teacher(
     );
 }
 
+pub async fn tchr_ft_teacher(
+    daily_date: &NaiveDate,
+    daily_teacher: &mut TchrTeacher,
+    weekly_teacher: TchrTeacher,
+) {
+    for mut daily_day in daily_teacher.days.iter_mut() {
+        if let Some(weekly_day) = weekly_teacher.days.iter().find(
+            |weekly_day| &weekly_day.date == daily_date
+        ) {
+            tchr_ft_day(&mut daily_day, &weekly_day).await;
+        }
+    }
+
+    daily_teacher.days.sort_by(
+        |day_a, day_b| day_a.weekday.cmp(&day_b.weekday)
+    );
+}
+
 
 /// # Moves data from `r_weekly` to `ft_daily`
 pub async fn tchr_page(
@@ -158,9 +194,9 @@ pub async fn tchr_page(
     if !r_weekly.date.contains(&ft_date) {
         return Err(error::FtDateIsNotInRWeeklyRange {
             latest: if ft_date > r_weekly.date.end() {
-                raw::Type::FtDaily
+                raw::Type::TchrFtDaily
             } else {
-                raw::Type::RWeekly
+                raw::Type::TchrRWeekly
             }
         })
     }
@@ -188,8 +224,40 @@ pub async fn tchr_page(
     }
 
     ft_daily.raw_types = vec![
-        raw::Type::FtDaily, 
-        raw::Type::RWeekly
+        raw::Type::TchrFtDaily, 
+        raw::Type::TchrRWeekly
+    ];
+
+    Ok(())
+}
+
+pub async fn tchr_ft_page(
+    daily: &mut TchrPage, 
+    weekly: TchrPage,
+) -> Result<(), error::FtDateIsNotInRWeeklyRange> {
+    let daily_date = daily.date.start();
+
+    if !weekly.date.contains(&daily_date) {
+        return Err(error::FtDateIsNotInRWeeklyRange {
+            latest: if daily_date > weekly.date.end() {
+                raw::Type::TchrFtDaily
+            } else {
+                raw::Type::TchrFtWeekly
+            }
+        })
+    }
+
+    for mut daily_teacher in daily.teachers.iter_mut() {
+        if let Some(weekly_teacher) = weekly.teachers.iter().find(
+            |weekly_teacher| weekly_teacher.name == daily_teacher.name
+        ) {
+            tchr_ft_teacher(daily_date, &mut daily_teacher, weekly_teacher.clone()).await;
+        }
+    }
+
+    daily.raw_types = vec![
+        raw::Type::TchrFtDaily, 
+        raw::Type::TchrFtWeekly
     ];
 
     Ok(())

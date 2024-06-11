@@ -185,9 +185,9 @@ pub async fn tchr_page(
     if ft_week != r_week {
         return Err(error::DifferentWeeks {
             latest: if ft_week.start > r_week.start {
-                raw::Type::FtWeekly
+                raw::Type::TchrFtWeekly
             } else {
-                raw::Type::RWeekly
+                raw::Type::TchrRWeekly
             }
         }.into())
     }
@@ -209,8 +209,8 @@ pub async fn tchr_page(
     }
 
     ft_weekly.raw_types = vec![
-        raw::Type::FtWeekly, 
-        raw::Type::RWeekly
+        raw::Type::TchrFtWeekly, 
+        raw::Type::TchrRWeekly
     ];
 
     Ok(())

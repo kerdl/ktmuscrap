@@ -5,6 +5,7 @@ use std::ops::Range;
 use crate::data::{
     schedule::raw::{
         self,
+        NumTime,
         table::{Cell, Teacher as TeacherDescriptor}
     }, 
     weekday::Weekday
@@ -24,12 +25,6 @@ pub struct Teacher {
     pub cell: Cell,
     pub index: usize,
     pub teacher: TeacherDescriptor
-}
-
-#[derive(new, Debug, Clone)]
-pub struct NumTime {
-    pub num: u32,
-    pub time: Range<NaiveTime>,
 }
 
 #[derive(new, Debug, Clone)]

@@ -3,7 +3,7 @@ use chrono::{NaiveTime, NaiveDate};
 use std::ops::Range;
 
 use crate::data::{
-    schedule::raw::{self, table::Cell}, weekday::Weekday
+    schedule::raw::{self, NumTime, table::Cell}, weekday::Weekday
 };
 
 
@@ -20,12 +20,6 @@ impl CellType {
             _ => CellType::Subject
         }
     }
-}
-
-#[derive(new, Debug, Clone)]
-pub struct NumTime {
-    pub num: u32,
-    pub time: Range<NaiveTime>,
 }
 
 #[derive(new, Debug, Clone)]

@@ -1,11 +1,12 @@
 use derive_new::new;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveTime};
 use std::{collections::HashMap, f64::consts::E, ops::{ControlFlow, Range, RangeInclusive}, sync::Arc};
 
 use crate::{data::{
     schedule::raw::{
+        NumTime,
         remote::{self, table::{
-            NumTime, SubjectMapping, TchrSubjectMapping, WeekdayDate
+            SubjectMapping, TchrSubjectMapping, WeekdayDate
         }},
         table::{self, Teacher}
     }, 
@@ -106,11 +107,10 @@ impl Parser {
             if num.is_none() { continue; }
 
             let time = time::parse_range_hm(&cell.text);
-            if time.is_none() { continue; }
 
             let num_time = NumTime::new(
                 num.unwrap(), 
-                time.unwrap()
+                time
             );
             row.push(num_time);
         }
@@ -488,10 +488,10 @@ impl Parser {
                 let raw_time = &third_cell.unwrap().text;
                 let valid_num = num::parse_from_digits_only(raw_num);
                 let valid_time = time::parse_range_hm(raw_time);
-                if valid_num.is_none() || valid_time.is_none() { continue; }
+                if valid_num.is_none() { continue; }
                 current_numtime = Some(NumTime::new(
                     valid_num.unwrap() as u32,
-                    valid_time.unwrap()
+                    valid_time
                 ));
                 current_numtime_row_range = Some(y..second_cell.unwrap().rowspan + y);
                 is_in_numtime_rng = true;
@@ -781,8 +781,15 @@ impl TchrParser {
         None
     }
 
-    pub fn mapping(&mut self) -> Option<&mut mapping::TchrParser> {
-        self.teachers_row()?;
+    pub fn mapping(&mut self) -> (
+        Option<&mut mapping::TchrParser>,
+        Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>
+    ) {
+        let Some(_) = self.teachers_row() else {
+            return (None, None)
+        };
+
+        let mut numtime_mappings: HashMap<Weekday, HashMap<u32, Range<NaiveTime>>> = HashMap::new();
 
         let mut current_weekday: Option<WeekdayDate> = None;
         let mut current_weekday_row_range: Option<Range<usize>> = None;
@@ -801,7 +808,10 @@ impl TchrParser {
         let mut all_mappings: Vec<Vec<TchrSubjectMapping>> = vec![];
         let mut y_hits: Vec<table::RangeHit> = vec![];
 
-        let teacher_row = Arc::new(self.teachers_row.take()?);
+        let Some(teacher_row) = self.teachers_row.take() else {
+            return (None, None)
+        };
+        let teacher_row = Arc::new(teacher_row);
 
         let schema = {
             let mut v = vec![];
@@ -911,12 +921,30 @@ impl TchrParser {
                 let raw_time = &third_cell.unwrap().text;
                 let valid_num = num::parse_from_digits_only(raw_num);
                 let valid_time = time::parse_range_hm(raw_time);
-                if valid_num.is_none() || valid_time.is_none() { continue; }
+                if valid_num.is_none() { continue; }
                 current_numtime = Some(NumTime::new(
                     valid_num.unwrap() as u32,
-                    valid_time.unwrap()
+                    valid_time
                 ));
                 current_numtime_row_range = Some(y..third_cell.unwrap().rowspan + y);
+            }
+
+            if let (Some(cur_weekday), Some(cur_numtime)) = (&current_weekday, &current_numtime) {
+                let numtime_map_wkd = match numtime_mappings.get_mut(&cur_weekday.weekday) {
+                    Some(wkd) => wkd,
+                    None => {
+                        numtime_mappings.insert(cur_weekday.weekday.clone(), HashMap::new());
+                        numtime_mappings.get_mut(&cur_weekday.weekday).unwrap()
+                    }
+                };
+                match numtime_map_wkd.get_mut(&cur_numtime.num) {
+                    Some(_) => (),
+                    None => {
+                        if let Some(time) = cur_numtime.time.as_ref().cloned() {
+                            numtime_map_wkd.insert(cur_numtime.num, time);
+                        }
+                    }
+                };
             }
 
             let mut x: i32 = -1;
@@ -1082,7 +1110,7 @@ impl TchrParser {
             mapping::TchrParser::from_schema(all_mappings, Some(seen_weekdays))
         );
 
-        Some(self.mapping.as_mut().unwrap())
+        (Some(self.mapping.as_mut().unwrap()), Some(numtime_mappings))
     }
 
     pub fn take_mapping(&mut self) -> Option<mapping::TchrParser> {

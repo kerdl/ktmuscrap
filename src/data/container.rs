@@ -6,16 +6,13 @@ use log::{info, debug};
 use tokio::sync::{RwLock, mpsc, watch};
 
 use crate::{
-    SyncResult,
-    parse, 
     compare::{
         self,
         DetailedCmp
-    },
-    data::{
+    }, data::{
         json::Saving,
         schedule::Lifetime
-    }, string
+    }, merge, parse, string, SyncResult
 };
 
 use super::{
@@ -129,11 +126,11 @@ impl Schedule {
                 let ft = ft_daily.latest.read().await;
                 let r = r_weekly.latest.read().await;
 
-                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let ft_path = ft.iter().nth(0).cloned();
                 let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
 
                 parse::daily(
-                    Some(ft_path),
+                    ft_path,
                     Some(r_paths),
                     raw::Mode::Groups,
                     new_last.clone(),
@@ -145,11 +142,11 @@ impl Schedule {
                 let ft = ft_weekly.latest.read().await;
                 let r = r_weekly.latest.read().await;
 
-                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let ft_path = ft.iter().nth(0).cloned();
                 let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
 
                 parse::weekly(
-                    Some(ft_path),
+                    ft_path,
                     Some(r_paths),
                     raw::Mode::Groups,
                     new_last.clone(),
@@ -163,11 +160,11 @@ impl Schedule {
                 let ft = tchr_ft_weekly.latest.read().await;
                 let r = tchr_r_weekly.latest.read().await;
 
-                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let ft_path = ft.iter().nth(0).cloned();
                 let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
 
                 parse::weekly(
-                    Some(ft_path),
+                    ft_path,
                     Some(r_paths),
                     raw::Mode::Teachers,
                     new_last.clone(),
@@ -179,11 +176,11 @@ impl Schedule {
                 let ft = tchr_ft_daily.latest.read().await;
                 let r = tchr_r_weekly.latest.read().await;
 
-                let ft_path = ft.iter().nth(0).unwrap().clone();
+                let ft_path = ft.iter().nth(0).cloned();
                 let r_paths = r.iter().map(|path|path.clone()).collect::<Vec<PathBuf>>();
 
                 parse::daily(
-                    Some(ft_path),
+                    ft_path,
                     Some(r_paths),
                     raw::Mode::Teachers,
                     new_last.clone(),
@@ -204,6 +201,18 @@ impl Schedule {
 
                 *tchr_daily_new = daily_clone.map(|page| Arc::new(page));
                 *tchr_weekly_new = weekly_clone.map(|page| Arc::new(page));
+            }
+
+            /* merge tchr daily with tchr weekly */
+            {
+                let mut new_tchr_daily = new_last.tchr_daily.write().await;
+                let new_tchr_weekly = new_last.tchr_weekly.read().await;
+    
+                if let (Some(daily), Some(weekly)) = (new_tchr_daily.clone(), new_tchr_weekly.clone()) {
+                    let mut new_daily = (*daily).clone();
+                    let _ = merge::daily::tchr_ft_page(&mut new_daily, (*weekly).clone()).await;
+                    *new_tchr_daily = Some(Arc::new(new_daily));
+                }
             }
 
             /* compare old last with new last */

@@ -6,10 +6,10 @@ use std::{collections::HashMap, ops::Range, sync::{Arc, RwLock}};
 use crate::data::{
     schedule::raw::{
         self,
+        NumTime,
         fulltime::{
             html::{HeaderTable, HeaderSpanTable},
             table::{
-                NumTime,
                 NumTimeWithOrigin,
                 SubjectMapping,
                 GroupSubjects,
@@ -82,7 +82,6 @@ impl Parser {
 
                 for (index, cell) in table_header.iter().enumerate() {
                     if let Some(weekday) = Weekday::guess(cell) {
-
                         let w_origin = WeekdayWithOrigin::new(
                             cell.to_owned(), 
                             weekday
@@ -124,7 +123,7 @@ impl Parser {
                                 let weekday = weekdays_map.get(&index).unwrap().clone();
                                 let num_time = NumTime::new(
                                     num.unwrap(), 
-                                    time.as_ref().unwrap().clone()
+                                    time.clone()
                                 );
     
                                 let map = SubjectMapping::new(name, weekday, num_time);
@@ -173,19 +172,18 @@ impl Parser {
 #[derive(new, Debug, Clone)]
 pub struct TchrDailyParser {
     header_table: HeaderSpanTable,
-    num_time_mappings: HashMap<u32, Range<NaiveTime>>,
 
     mappings: Option<TchrDailyMappingsParser>
 }
 impl TchrDailyParser {
-    pub fn from_header_tables(
-        header_tables: HeaderSpanTable,
-        num_time_mappings: HashMap<u32, Range<NaiveTime>>
-    ) -> Self {
-        Self::new(header_tables, num_time_mappings, None)
+    pub fn from_header_tables(header_tables: HeaderSpanTable) -> Self {
+        Self::new(header_tables, None)
     }
 
-    pub fn mappings(&mut self) -> Option<&mut TchrDailyMappingsParser> {
+    pub fn mappings(
+        &mut self,
+        num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>
+    ) -> Option<&mut TchrDailyMappingsParser> {
         if self.mappings.is_some() {
             return Some(self.mappings.as_mut().unwrap())
         }
@@ -213,9 +211,11 @@ impl TchrDailyParser {
                         let Ok(parsed) = cell.text.parse::<u32>() else {
                             continue;
                         };
-                        let Some(time) = self.num_time_mappings.get(&parsed) else {
-                            continue;
-                        };
+                        let time = weekday.as_ref().map(
+                            |wkd| num_time_mappings.as_ref().map(|maps| maps.get(&wkd.guessed).map(
+                                |map| map.get(&parsed).cloned()
+                            ))
+                        ).flatten().flatten().flatten();
                         let num_time = NumTime::new(parsed, time.clone());
                         let with_origin = NumTimeWithOrigin::new(
                             num_time,
@@ -279,18 +279,17 @@ impl TchrWeeklyParser {
         Self::new(header_tables, None)
     }
 
-    pub fn mappings(&mut self) -> (
-        Option<&mut TchrWeeklyMappingsParser>, Option<HashMap<u32, Range<NaiveTime>>>
-    ) {
+    pub fn mappings(
+        &mut self,
+        num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>
+    ) -> Option<&mut TchrWeeklyMappingsParser> {
         if self.mappings.is_some() {
-            return (Some(self.mappings.as_mut().unwrap()), None)
+            return Some(self.mappings.as_mut().unwrap())
         }
 
         let mut tasks = vec![];
 
         let mut teachers_maps: Vec<TeacherSubjects> = vec![];
-        let num_time_maps: Arc<RwLock<HashMap<u32, Range<NaiveTime>>>> = Arc::new(RwLock::new(HashMap::new()));
-        let num_time_maps_ref = num_time_maps.clone();
 
         let header_tables = {
             let mut v = vec![];
@@ -301,7 +300,6 @@ impl TchrWeeklyParser {
         for teacher_section in header_tables.into_iter() {
             if teacher_section.table.len() < 2 { continue };
 
-            let num_time_maps_ref = num_time_maps_ref.clone();
             let raw_teacher = &teacher_section.header;
             let Some(valid_teacher) = teacher::parse(&teacher_section.header) else { continue };
             let Some(date_range) = date::parse_dmy_range(&teacher_section.header) else { continue };
@@ -311,8 +309,8 @@ impl TchrWeeklyParser {
                 valid_teacher
             );
 
+            let num_time_maps_clone = num_time_mappings.as_ref().cloned();
             let task = std::thread::spawn(move || -> TeacherSubjects {
-                let num_time_maps_ref = num_time_maps_ref.clone();
                 let table_header = &teacher_section.table[0];
 
                 let mut weekdays_map: HashMap<usize, WeekdayWithOrigin> = HashMap::new();
@@ -355,18 +353,26 @@ impl TchrWeeklyParser {
                                 if time.is_none() {
                                     continue 'row;
                                 }
-
-                                num_time_maps_ref.clone().write().unwrap().insert(
-                                    num.unwrap(),
-                                    time.as_ref().unwrap().clone()..time.as_ref().unwrap().clone()
-                                );
                             }
                             CellType::Subject => {
                                 let name = cell.clone();
                                 let weekday = weekdays_map.get(&index).unwrap().clone();
+
+                                let mut numtime_map_override = None;
+                                if let Some(numtime_maps) = &num_time_maps_clone {
+                                    if let Some(wkd_map) = numtime_maps.get(&weekday.guessed) {
+                                        numtime_map_override = wkd_map.get(&num.unwrap()).cloned()
+                                    }
+                                }
+                                let usable_time = if let Some(map_override) = numtime_map_override {
+                                    Some(map_override)
+                                } else {
+                                    time.as_ref().map(|time| time.clone()..time.clone())
+                                };
+
                                 let num_time = NumTime::new(
                                     num.unwrap(), 
-                                    time.as_ref().unwrap().clone()..time.as_ref().unwrap().clone()
+                                    usable_time
                                 );
     
                                 let map = SubjectMapping::new(name, weekday, num_time);
@@ -402,9 +408,8 @@ impl TchrWeeklyParser {
         );
 
         self.mappings = Some(parser);
-        let mut num_time_maps_guard = num_time_maps.write().unwrap();
 
-        (Some(self.mappings.as_mut().unwrap()), Some(std::mem::take(&mut *num_time_maps_guard)))
+        Some(self.mappings.as_mut().unwrap())
     }
 
     pub fn take_mappings(&mut self) -> Option<TchrWeeklyMappingsParser> {

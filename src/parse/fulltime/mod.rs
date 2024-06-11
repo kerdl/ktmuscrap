@@ -6,6 +6,8 @@ use chrono::{NaiveDate, NaiveTime};
 use std::{sync::Arc, path::PathBuf};
 use std::{collections::HashMap, ops::Range};
 
+use crate::data::Weekday;
+use crate::merge;
 use crate::{
     data::schedule::raw,
     perf
@@ -111,6 +113,7 @@ pub async fn parse_ft_daily(
 pub async fn parse_tchr_ft_weekly(
     path: PathBuf,
     last: Arc<raw::Last>,
+    num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>
 ) -> Result<(), GenericParsingError> {
     let sc_type = raw::Type::TchrFtWeekly;
 
@@ -132,14 +135,14 @@ pub async fn parse_tchr_ft_weekly(
 
 
         // map tables (connect each subject to time, num and weekday)
-        let (mappings, num_time_mappings) = tables.mappings();
+        let mappings = tables.mappings(num_time_mappings);
         if mappings.is_none() {
             return Err(error::NoMappings::new(sc_type_clone).into())
         }
         let mappings = mappings.unwrap();
 
         // generate page
-        perf!(let _ = mappings.page(num_time_mappings));
+        perf!(let _ = mappings.page());
 
         Ok(tables.take_mappings().unwrap())
     }).await.unwrap()?;
@@ -155,11 +158,11 @@ pub async fn parse_tchr_ft_weekly(
 pub async fn parse_tchr_ft_daily(
     path: PathBuf,
     last: Arc<raw::Last>,
-    num_time_mappings: HashMap<u32, Range<NaiveTime>>
+    num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>
 ) -> Result<(), GenericParsingError> {
     let sc_type = raw::Type::TchrFtDaily;
 
-    let parser = html::TchrDailyParser::from_path(path, num_time_mappings).await?;
+    let parser = html::TchrDailyParser::from_path(path).await?;
 
     let sc_type_clone = sc_type.clone();
 
@@ -175,7 +178,7 @@ pub async fn parse_tchr_ft_daily(
 
 
         // map tables (connect each subject to time, num and weekday)
-        perf!(let mappings = tables.mappings());
+        perf!(let mappings = tables.mappings(num_time_mappings));
         if mappings.is_none() {
             return Err(error::NoMappings::new(sc_type_clone).into())
         }

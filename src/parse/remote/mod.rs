@@ -78,7 +78,7 @@ pub async fn tchr_parse(
             }
             let table = table.unwrap();
     
-            perf!(let mapping = table.mapping());
+            perf!(let (mapping, numtime_mappings) = table.mapping());
             if mapping.is_none() {
                 return Err(error::NoMappings::new(
                     raw::Type::RWeekly
@@ -87,8 +87,11 @@ pub async fn tchr_parse(
             let mapping = mapping.unwrap();
     
             perf!(let _ = mapping.page());
+
+            let mut page = table.take_mapping().unwrap().page;
+            page.as_mut().map(|page| page.num_time_mappings = numtime_mappings);
     
-            Ok(table.take_mapping().unwrap().page)
+            Ok(page)
         });
         tasks.push(task);
     }

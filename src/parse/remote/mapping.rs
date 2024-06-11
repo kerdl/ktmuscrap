@@ -393,7 +393,7 @@ impl TchrParser {
 
         let page = TchrPage {
             raw:       base_weekday.cell.text.to_owned(),
-            raw_types: vec![raw::Type::RWeekly],
+            raw_types: vec![raw::Type::TchrRWeekly],
             sc_type:   Type::Weekly,
             date: {
                 let wkd_range = self.weekday_date_range.as_ref().unwrap();

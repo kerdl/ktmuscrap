@@ -17,6 +17,7 @@ use log::warn;
 use tokio::task::JoinHandle;
 use chrono::NaiveTime;
 
+use crate::data::Weekday;
 use crate::{
     SyncResult, 
     data::schedule::{
@@ -32,19 +33,35 @@ fn poll_fulltime(
     path: PathBuf,
     sc_type: raw::Type,
     raw_last: Arc<raw::Last>,
-    num_time_mappings: Option<HashMap<u32, Range<NaiveTime>>>,
+    num_time_mappings: Option<HashMap<Weekday, HashMap<u32, Range<NaiveTime>>>>,
 ) -> JoinHandle<Result<(), fulltime::GenericParsingError>> {
     tokio::spawn(async move {
         match sc_type {
             raw::Type::FtDaily => fulltime::parse_ft_daily(path, raw_last).await?,
             raw::Type::FtWeekly => fulltime::parse_ft_weekly(path, raw_last).await?,
-            raw::Type::TchrFtDaily => fulltime::parse_tchr_ft_daily(path, raw_last, num_time_mappings.unwrap()).await?,
-            raw::Type::TchrFtWeekly => fulltime::parse_tchr_ft_weekly(path, raw_last).await?,
+            raw::Type::TchrFtDaily => fulltime::parse_tchr_ft_daily(path, raw_last, num_time_mappings).await?,
+            raw::Type::TchrFtWeekly => fulltime::parse_tchr_ft_weekly(path, raw_last, num_time_mappings).await?,
             _ => unreachable!()
         }
 
         Ok::<(), fulltime::GenericParsingError>(())
     })
+}
+
+async fn await_remote(
+    paths: Vec<PathBuf>,
+    sc_mode: raw::Mode,
+    raw_last: Arc<raw::Last>
+) -> SyncResult<()> {
+    match sc_mode {
+        raw::Mode::Groups => {
+            if paths.is_empty() {
+                return Ok(());
+            }
+            remote::parse(paths.get(0).unwrap().clone(), raw_last).await
+        },
+        raw::Mode::Teachers => remote::tchr_parse(paths.as_slice(), raw_last).await
+    }
 }
 
 fn poll_remote(
@@ -53,14 +70,8 @@ fn poll_remote(
     raw_last: Arc<raw::Last>
 ) -> JoinHandle<SyncResult<()>> {
     tokio::spawn(async move {
-        match sc_mode {
-            raw::Mode::Groups => remote::parse(paths.get(0).unwrap().clone(), raw_last).await?,
-            raw::Mode::Teachers => remote::tchr_parse(paths.as_slice(), raw_last).await?
-        };
-        
-        Ok::<(), Box<dyn std::error::Error + Sync + Send>>(())
+        await_remote(paths, sc_mode, raw_last).await
     })
-
 }
 
 async fn handle_fail(
@@ -73,13 +84,23 @@ async fn handle_fail(
 ) -> ControlFlow<()> {
     if ft_failed && !r_failed {
         match sc_mode {
-            raw::Mode::Groups => {
-                let r_page = raw_last.r_weekly.read().await.as_ref().unwrap().clone();
-                last.set_weekly((*r_page).clone()).await;
+            raw::Mode::Groups => match sc_type {
+                Type::Weekly => {
+                    let r_page = raw_last.r_weekly.read().await.as_ref().unwrap().clone();
+                    last.set_weekly((*r_page).clone()).await;
+                },
+                Type::Daily => {
+
+                },
             },
-            raw::Mode::Teachers => {
-                let r_page = raw_last.tchr_r_weekly.read().await.as_ref().unwrap().clone();
-                last.set_tchr_weekly((*r_page).clone()).await;
+            raw::Mode::Teachers => match sc_type {
+                Type::Weekly => {
+                    let r_page = raw_last.tchr_r_weekly.read().await.as_ref().unwrap().clone();
+                    last.set_tchr_weekly((*r_page).clone()).await;
+                },
+                Type::Daily => {
+
+                },
             }
         }
 
@@ -127,6 +148,12 @@ async fn generic(
     let mut ft_process = None;
     let mut r_process = None;
 
+    let mut ft_result = None;
+    let mut r_result = None;
+
+    let mut ft_failed = false;
+    let mut r_failed = false;
+
     let ft_converted = match sc_mode {
         raw::Mode::Groups => match sc_type {
             Type::Weekly => raw_last.clone().ft_weekly_is_some().await,
@@ -141,6 +168,29 @@ async fn generic(
         raw::Mode::Groups => raw_last.clone().r_weekly_is_some().await,
         raw::Mode::Teachers => raw_last.clone().tchr_r_weekly_is_some().await,
     };
+
+    if !r_converted && r.is_some() {
+        match sc_mode {
+            raw::Mode::Groups => {
+                r_process = Some(poll_remote(
+                    r.as_ref().unwrap().clone(),
+                    sc_mode.clone(),
+                    raw_last.clone()
+                ));
+            },
+            raw::Mode::Teachers => {
+                r_result = Some(await_remote(
+                    r.as_ref().unwrap().clone(),
+                    sc_mode.clone(),
+                    raw_last.clone()
+                ).await);
+
+                if r_result.as_ref().unwrap().is_err() {
+                    warn!("remote {} parsing error: {:?}", sc_type, r_result.as_ref().unwrap());
+                }
+            }
+        }
+    }
 
     if !ft_converted && ft.is_some() {
         ft_process = Some(poll_fulltime(
@@ -160,35 +210,16 @@ async fn generic(
                 },
             },
             raw_last.clone(),
-            match sc_type {
-                Type::Weekly => None,
-                Type::Daily => {
-                    if matches!(sc_mode, raw::Mode::Teachers) {
-                        let tchr_ft_weekly = raw_last.tchr_ft_weekly.read().await;
-                        tchr_ft_weekly.as_ref().map(
-                            |sch| sch.num_time_mappings.clone()
-                        ).flatten()
-                    } else {
-                        None
-                    }
-                }
+            if matches!(sc_mode, raw::Mode::Teachers) {
+                let tchr_r_weekly = raw_last.tchr_r_weekly.read().await;
+                tchr_r_weekly.as_ref().map(
+                    |sch| sch.num_time_mappings.clone()
+                ).flatten()
+            } else {
+                None
             }
         ));
     }
-
-    if !r_converted && r.is_some() {
-        r_process = Some(poll_remote(
-            r.as_ref().unwrap().clone(),
-            sc_mode.clone(),
-            raw_last.clone()
-        ));
-    }
-
-    let mut ft_result = None;
-    let mut r_result = None;
-
-    let mut ft_failed = false;
-    let mut r_failed = false;
 
     if let Some(ft) = ft_process {
         let result = ft.await.unwrap();
@@ -244,10 +275,16 @@ async fn generic(
             
             if ft_page.is_some() && r_page.is_none() {
                 let ft_page = ft_page.unwrap();
-                last.set_weekly(ft_page).await;
+                match sc_type {
+                    Type::Daily => last.set_daily(ft_page).await,
+                    Type::Weekly => last.set_weekly(ft_page).await,
+                };
             } else if ft_page.is_none() && r_page.is_some() {
                 let r_page = r_page.unwrap();
-                last.set_weekly(r_page).await;
+                match sc_type {
+                    Type::Daily => (),
+                    Type::Weekly => last.set_weekly(r_page).await,
+                };
             } else if ft_page.is_some() && r_page.is_some() {
                 let mut ft_page = ft_page.unwrap();
                 let mut r_page = r_page.unwrap();
@@ -306,10 +343,16 @@ async fn generic(
             
             if ft_page.is_some() && r_page.is_none() {
                 let ft_page = ft_page.unwrap();
-                last.set_tchr_weekly(ft_page).await;
+                match sc_type {
+                    Type::Daily => last.set_tchr_daily(ft_page).await,
+                    Type::Weekly => last.set_tchr_weekly(ft_page).await,
+                };
             } else if ft_page.is_none() && r_page.is_some() {
                 let r_page = r_page.unwrap();
-                last.set_tchr_weekly(r_page).await;
+                match sc_type {
+                    Type::Daily => (),
+                    Type::Weekly => last.set_tchr_weekly(r_page).await,
+                };
             } else if ft_page.is_some() && r_page.is_some() {
                 let mut ft_page = ft_page.unwrap();
                 let mut r_page = r_page.unwrap();
@@ -341,9 +384,7 @@ async fn generic(
                                         // remain only first day of the week
                                         teacher.remove_days_except(r_page.date.start());
                                     }
-        
                                     r_page.teachers.retain(|tchr| !tchr.days.is_empty());
-                    
                                     r_page
                                 },
                                 _ => unreachable!()

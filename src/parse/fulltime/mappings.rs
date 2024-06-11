@@ -6,14 +6,25 @@ use chrono::NaiveTime;
 use std::{ops::Range, collections::HashMap};
 
 use crate::{
-    data::schedule::{
+    data::{schedule::{
         raw::{
             self,
             fulltime::table::{
                 GroupSubjects, SubjectMapping, TeacherSubjects
             }
-        }, Day, Format, Group, Page, Subgroup, Subject, TchrDay, TchrPage, TchrSubject, TchrTeacher, Type
-    },
+        },
+        Day,
+        Format,
+        Group,
+        Page,
+        Subgroup,
+        Subject,
+        TchrDay,
+        TchrPage,
+        TchrSubject,
+        TchrTeacher,
+        Type
+    }, Weekday},
     parse::{cabinet, group}
 };
 use super::super::teacher;
@@ -188,21 +199,17 @@ impl TchrDailyParser {
 
                 let name_clone = subject.name.clone();
                 let mut groups = vec![];
+                let raw_groups;
+                let mut cabinet = None;
 
-                let Some((all_raw_groups, cabinet)) = name_clone.split_once(" ") else {
-                    let parsed_subject = TchrSubject {
-                        raw: subject.name.clone(),
-                        num: subject.num_time.num,
-                        time: subject.num_time.time.clone(),
-                        name: subject.name.clone(),
-                        format: Format::Fulltime,
-                        groups,
-                        cabinet: None
-                    };
-                    subjects.push(parsed_subject);
-                    continue;
-                };
-                let raw_groups = all_raw_groups.split(",").collect_vec();
+                let all_raw_groups_and_cabient = name_clone.split_once(" ");
+                if all_raw_groups_and_cabient.is_none() {
+                    raw_groups = name_clone.split(",").collect_vec();
+                } else {
+                    let (all_raw_groups, cab) = all_raw_groups_and_cabient.unwrap();
+                    cabinet = Some(cab.to_string());
+                    raw_groups = all_raw_groups.split(",").collect_vec();
+                }
 
                 for grp in raw_groups {
                     let Some(parsed_group) = group::parse(grp) else {
@@ -222,7 +229,7 @@ impl TchrDailyParser {
                     name:   "".to_string(),
                     format: Format::Fulltime,
                     groups,
-                    cabinet: Some(cabinet.to_string())
+                    cabinet: cabinet
                 };
 
                 subjects.push(parsed_subject);
@@ -315,7 +322,7 @@ impl TchrWeeklyParser {
         Self::new(teacher_subjects, None)
     }
 
-    pub fn page(&mut self, num_time_mappings: Option<HashMap<u32, Range<NaiveTime>>>) -> Option<&TchrPage> {
+    pub fn page(&mut self) -> Option<&TchrPage> {
         let mut teachers: Vec<TchrTeacher> = vec![];
 
         for teacher_map in self.teacher_subjects.iter() {
@@ -335,7 +342,7 @@ impl TchrWeeklyParser {
 
                 let cabinet = cabinet::extract_from_end(&mut name);
                 let groups = group::extract_from_start(&mut name).iter().map(
-                    |group| Subgroup { group: group.clone(), subgroup: None }
+                    |grp| Subgroup { group: group::parse(&grp).unwrap(), subgroup: None }
                 ).collect_vec();
 
                 let parsed_subject = TchrSubject {
@@ -418,7 +425,7 @@ impl TchrWeeklyParser {
 
                 start..=end
             },
-            num_time_mappings,
+            num_time_mappings: None,
             teachers
         };
 

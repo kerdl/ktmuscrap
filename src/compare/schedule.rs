@@ -19,7 +19,7 @@ pub struct Subject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cabinet: Option<Primitive<Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<Primitive<Range<NaiveTime>>>
+    pub time: Option<Primitive<Option<Range<NaiveTime>>>>
 }
 #[async_trait]
 impl DetailedCmp<regular::Subject, Subject> for Subject {
@@ -151,7 +151,7 @@ pub struct TchrSubject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cabinet: Option<Primitive<Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<Primitive<Range<NaiveTime>>>
+    pub time: Option<Primitive<Option<Range<NaiveTime>>>>
 }
 #[async_trait]
 impl DetailedCmp<regular::TchrSubject, TchrSubject> for TchrSubject {

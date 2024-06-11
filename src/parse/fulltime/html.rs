@@ -5,6 +5,7 @@ use chrono::NaiveTime;
 use std::path::PathBuf;
 use std::{collections::HashMap, ops::Range};
 
+use crate::data::Weekday;
 use crate::{
     REGEX,
     data::schedule::raw::{
@@ -169,15 +170,11 @@ impl Parser {
 
 #[derive(new, Debug, Clone)]
 pub struct TchrDailyParser {
-    num_time_mappings: HashMap<u32, Range<NaiveTime>>,
     dom: Dom,
     tables: Option<tables::TchrDailyParser>,
 }
 impl TchrDailyParser {
-    pub async fn from_string(
-        html_text: String,
-        num_time_mappings: HashMap<u32, Range<NaiveTime>>
-    ) -> Result<Self, Error> {
+    pub async fn from_string(html_text: String,) -> Result<Self, Error> {
         let handle = tokio::task::spawn_blocking(move || -> Result<Dom, Error> {
             // SLOW AS FUCK
             // ~1s ON 480 KB HTML
@@ -187,18 +184,15 @@ impl TchrDailyParser {
         let dom = handle.await.unwrap()?;
         let table = None;
 
-        let parser = Self::new(num_time_mappings, dom, table);
+        let parser = Self::new(dom, table);
 
         Ok(parser)
     }
 
-    pub async fn from_path(
-        path: PathBuf,
-        num_time_mappings: HashMap<u32, Range<NaiveTime>>
-    ) -> Result<Self, LoadingError> {
+    pub async fn from_path(path: PathBuf) -> Result<Self, LoadingError> {
         let html_text = tokio::fs::read_to_string(path).await?;
         let decoded_html_text = htmlescape::decode_html(&html_text).unwrap();
-        let parser = Self::from_string(decoded_html_text, num_time_mappings).await?;
+        let parser = Self::from_string(decoded_html_text).await?;
 
         Ok(parser)
     }
@@ -392,8 +386,7 @@ impl TchrDailyParser {
 
         self.tables = Some(
             tables::TchrDailyParser::from_header_tables(
-                header_tables,
-                self.num_time_mappings.clone()
+                header_tables
             )
         );
 

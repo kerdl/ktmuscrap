@@ -9,6 +9,9 @@ pub mod error;
 pub use index::Index;
 pub use last::Last;
 
+use std::ops::Range;
+use chrono::NaiveTime;
+use derive_new::new;
 use serde_derive::{Serialize, Deserialize};
 use strum_macros::{EnumString, Display};
 
@@ -51,4 +54,10 @@ pub enum Type {
 pub enum Mode {
     Groups,
     Teachers
+}
+
+#[derive(new, Debug, Clone)]
+pub struct NumTime {
+    pub num: u32,
+    pub time: Option<Range<NaiveTime>>,
 }
