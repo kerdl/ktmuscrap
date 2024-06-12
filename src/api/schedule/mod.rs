@@ -1,5 +1,7 @@
 pub mod weekly;
 pub mod daily;
+pub mod tchr_weekly;
+pub mod tchr_daily;
 pub mod raw;
 
 use serde_derive::Deserialize;
@@ -24,6 +26,11 @@ struct ScheduleGetQuery {
     group: Option<String>
 }
 
+#[derive(Deserialize)]
+struct TchrScheduleGetQuery {
+    teacher: Option<String>
+}
+
 
 async fn generic_get(sc_type: Type) -> HttpResponse {
     let schedule = match sc_type {
@@ -39,6 +46,24 @@ async fn generic_get(sc_type: Type) -> HttpResponse {
     }
 
     Response::from_page(
+        schedule.as_ref().unwrap().clone()
+    ).to_json()
+}
+
+async fn generic_tchr_get(sc_type: Type) -> HttpResponse {
+    let schedule = match sc_type {
+        Type::Weekly => DATA.get().unwrap().schedule.last.tchr_weekly.read().await,
+        Type::Daily => DATA.get().unwrap().schedule.last.tchr_daily.read().await
+    };
+
+    if schedule.is_none() {
+        return error::NoLastSchedule::new(sc_type)
+            .to_api_error()
+            .to_response()
+            .to_json()
+    }
+
+    Response::from_tchr_page(
         schedule.as_ref().unwrap().clone()
     ).to_json()
 }
@@ -60,6 +85,25 @@ async fn generic_group_get(sc_type: Type, group: String) -> HttpResponse {
     page.remove_groups_except(group.to_string());
 
     Response::from_page(Arc::new(page)).to_json()
+}
+
+async fn generic_teacher_get(sc_type: Type, teacher: String) -> HttpResponse {
+    let schedule = match sc_type {
+        Type::Weekly => DATA.get().unwrap().schedule.last.tchr_weekly.read().await,
+        Type::Daily  => DATA.get().unwrap().schedule.last.tchr_daily.read().await
+    };
+
+    if schedule.is_none() {
+        return error::NoLastSchedule::new(sc_type)
+            .to_api_error()
+            .to_response()
+            .to_json()
+    }
+
+    let mut page = (**schedule.as_ref().unwrap()).clone();
+    page.remove_teachers_except(teacher.to_string());
+
+    Response::from_tchr_page(Arc::new(page)).to_json()
 }
 
 struct UpdatesWs {

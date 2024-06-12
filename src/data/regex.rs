@@ -9,6 +9,11 @@ pub struct Container {
     /// - ...
     pub group: Arc<Regex>,
     /// ## Matches
+    /// - **"1КДД69"**
+    /// - **"1-кДД-69"**
+    /// but from the start of the string
+    pub start_group: Arc<Regex>,
+    /// ## Matches
     /// - **"01.01.22"**
     /// - **"01/01/22"**
     /// - **"01.01.2022"**
@@ -24,6 +29,12 @@ pub struct Container {
     /// - **"10:00–11:00"**
     /// - ...
     pub time: Arc<Regex>,
+    /// ## Matches
+    /// - **"8:00"**
+    /// - **"09:00"**
+    /// - **"10:00"**
+    /// - ...
+    pub single_time: Arc<Regex>,
     /// ## Matches
     /// - **"-"**
     /// - **"–"**
@@ -55,8 +66,10 @@ pub struct Container {
 impl Default for Container {
     fn default() -> Container {
         let group = r"([0-9])([-]{0,1})([а-яёА-ЯЁ]{3})([-]{0,1})([0-9]{1,2})";
+        let start_group = format!(r"^{}", group);
         let date = r"(\d{1,2})\W(\d{1,2})\W(\d{4}|\d{2})";
         let time = r"(\d{1,2}:\d{2})[-–](\d{1,2}:\d{2})";
+        let single_time = r"(\d{1,2}:\d{2})";
         let time_sep = r"[-–]";
         let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
         let teacher_full = r"([A-ZА-ЯЁ][a-za-яё]{1,}\s[A-ZА-ЯЁ][a-za-яё]{1,}\s[A-ZА-ЯЁ][a-za-яё]{1,})";
@@ -68,8 +81,10 @@ impl Default for Container {
 
         Container {
             group: Arc::new(Regex::new(group).unwrap()), 
+            start_group: Arc::new(Regex::new(&start_group).unwrap()), 
             date: Arc::new(Regex::new(date).unwrap()), 
-            time: Arc::new(Regex::new(time).unwrap()), 
+            time: Arc::new(Regex::new(time).unwrap()),
+            single_time: Arc::new(Regex::new(single_time).unwrap()),
             time_sep: Arc::new(Regex::new(time_sep).unwrap()),
             teacher: Arc::new(Regex::new(teacher).unwrap()),
             teacher_full: Arc::new(Regex::new(teacher_full).unwrap()),

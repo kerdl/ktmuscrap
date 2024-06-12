@@ -20,4 +20,3 @@ async fn get(query: web::Query<ScheduleGetQuery>) -> impl Responder {
 
     generic_get(sc_type).await
 }
-

@@ -9,7 +9,7 @@ use std::{
 use crate::{
     SyncResult,
     data::{
-        schedule::Page,
+        schedule::{Page, TchrPage},
         json::{
             self,
             Path,
@@ -31,6 +31,12 @@ pub struct Last {
     pub ft_daily: Arc<RwLock<Option<Arc<Page>>>>,
     /// ## `R`emote `weekly` schedule `Page`
     pub r_weekly: Arc<RwLock<Option<Arc<Page>>>>,
+    /// ## `F`ull`t`ime `weekly` `t`ea`ch`e`r` schedule `Page`
+    pub tchr_ft_weekly: Arc<RwLock<Option<Arc<TchrPage>>>>,
+    /// ## `F`ull`t`ime `daily` `t`ea`ch`e`r` schedule `Page`
+    pub tchr_ft_daily: Arc<RwLock<Option<Arc<TchrPage>>>>,
+    /// ## `R`emote `weekly` `t`ea`ch`e`r` schedule `Page`
+    pub tchr_r_weekly: Arc<RwLock<Option<Arc<TchrPage>>>>,
 }
 impl json::Path for Last {
     fn path(&self) -> PathBuf {
@@ -41,10 +47,13 @@ impl json::Path for Last {
 impl json::ToMiddle<MiddleLast> for Last {
     async fn to_middle(&self) -> MiddleLast {
         let middle = MiddleLast {
-            path:      self.path(),
-            ft_daily:  self.ft_daily.read().await.clone(),
+            path: self.path(),
+            ft_daily: self.ft_daily.read().await.clone(),
             ft_weekly: self.ft_weekly.read().await.clone(),
-            r_weekly:  self.r_weekly.read().await.clone()
+            r_weekly: self.r_weekly.read().await.clone(),
+            tchr_ft_daily: self.tchr_ft_daily.read().await.clone(),
+            tchr_ft_weekly: self.tchr_ft_weekly.read().await.clone(),
+            tchr_r_weekly: self.tchr_r_weekly.read().await.clone()
         };
 
         middle
@@ -58,6 +67,9 @@ impl Last {
             ft_weekly: Arc::new(RwLock::new(None)),
             ft_daily: Arc::new(RwLock::new(None)),
             r_weekly: Arc::new(RwLock::new(None)),
+            tchr_ft_weekly: Arc::new(RwLock::new(None)),
+            tchr_ft_daily: Arc::new(RwLock::new(None)),
+            tchr_r_weekly: Arc::new(RwLock::new(None)),
         };
 
         Arc::new(this)
@@ -70,8 +82,11 @@ impl Last {
         let this = Last {
             path,
             ft_weekly: Arc::new(RwLock::new(middle.ft_daily.clone())),
-            ft_daily:  Arc::new(RwLock::new(middle.ft_weekly.clone())),
-            r_weekly:  Arc::new(RwLock::new(middle.r_weekly.clone())),
+            ft_daily: Arc::new(RwLock::new(middle.ft_weekly.clone())),
+            r_weekly: Arc::new(RwLock::new(middle.r_weekly.clone())),
+            tchr_ft_weekly: Arc::new(RwLock::new(middle.tchr_ft_daily.clone())),
+            tchr_ft_daily: Arc::new(RwLock::new(middle.tchr_ft_weekly.clone())),
+            tchr_r_weekly: Arc::new(RwLock::new(middle.tchr_r_weekly.clone())),
         };
 
         Arc::new(this)
@@ -101,28 +116,14 @@ impl Last {
         Self::default(self.path.clone())
     }
 
-    pub async fn is_cleared(self: Arc<Self>) -> bool {
-        self.ft_daily.read().await.is_none()
-        && self.ft_weekly.read().await.is_none()
-        && self.r_weekly.read().await.is_none()
-    }
-
-    pub async fn clear_ft_daily(self: Arc<Self>) {
-        *self.ft_daily.write().await = None;
-        self.poll_save();
-    }
+    // groups
 
     pub async fn ft_daily_is_none(self: Arc<Self>) -> bool {
         self.ft_daily.read().await.is_none()
     }
 
     pub async fn ft_daily_is_some(self: Arc<Self>) -> bool {
-        !self.ft_daily_is_none().await
-    }
-
-    pub async fn clear_ft_weekly(self: Arc<Self>) {
-        *self.ft_weekly.write().await = None;
-        self.poll_save();
+        self.ft_daily.read().await.is_some()
     }
 
     pub async fn ft_weekly_is_none(self: Arc<Self>) -> bool {
@@ -130,12 +131,7 @@ impl Last {
     }
 
     pub async fn ft_weekly_is_some(self: Arc<Self>) -> bool {
-        !self.ft_weekly_is_none().await
-    }
-
-    pub async fn clear_r_weekly(self: Arc<Self>) {
-        *self.r_weekly.write().await = None;
-        self.poll_save();
+        self.ft_weekly.read().await.is_some()
     }
 
     pub async fn r_weekly_is_none(self: Arc<Self>) -> bool {
@@ -143,7 +139,33 @@ impl Last {
     }
 
     pub async fn r_weekly_is_some(self: Arc<Self>) -> bool {
-        !self.r_weekly_is_none().await
+        self.r_weekly.read().await.is_some()
+    }
+
+    // teachers
+
+    pub async fn tchr_ft_daily_is_none(self: Arc<Self>) -> bool {
+        self.tchr_ft_daily.read().await.is_none()
+    }
+
+    pub async fn tchr_ft_daily_is_some(self: Arc<Self>) -> bool {
+        self.tchr_ft_daily.read().await.is_some()
+    }
+
+    pub async fn tchr_ft_weekly_is_none(self: Arc<Self>) -> bool {
+        self.tchr_ft_weekly.read().await.is_none()
+    }
+
+    pub async fn tchr_ft_weekly_is_some(self: Arc<Self>) -> bool {
+        self.tchr_ft_weekly.read().await.is_some()
+    }
+
+    pub async fn tchr_r_weekly_is_none(self: Arc<Self>) -> bool {
+        self.tchr_r_weekly.read().await.is_none()
+    }
+
+    pub async fn tchr_r_weekly_is_some(self: Arc<Self>) -> bool {
+        self.tchr_r_weekly.read().await.is_some()
     }
 }
 
@@ -156,6 +178,9 @@ pub struct MiddleLast {
     ft_weekly: Option<Arc<Page>>,
     ft_daily: Option<Arc<Page>>,
     r_weekly: Option<Arc<Page>>,
+    tchr_ft_weekly: Option<Arc<TchrPage>>,
+    tchr_ft_daily: Option<Arc<TchrPage>>,
+    tchr_r_weekly: Option<Arc<TchrPage>>,
 }
 impl json::Path for MiddleLast {
     fn path(&self) -> PathBuf {

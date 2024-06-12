@@ -5,7 +5,8 @@ use std::ops::Range;
 use crate::data::{
     schedule::raw::{
         self,
-        table::Cell
+        NumTime,
+        table::{Cell, Teacher as TeacherDescriptor}
     }, 
     weekday::Weekday
 };
@@ -19,16 +20,25 @@ pub struct WeekdayDate {
     pub date: NaiveDate
 }
 
-#[derive(new, Debug, Clone)]
-pub struct NumTime {
-    pub num: u32,
-    pub time: Range<NaiveTime>,
+#[derive(new, Debug, Clone, PartialEq, Eq)]
+pub struct Teacher {
+    pub cell: Cell,
+    pub index: usize,
+    pub teacher: TeacherDescriptor
 }
 
 #[derive(new, Debug, Clone)]
 pub struct SubjectMapping {
     pub cell: Cell,
     pub group: raw::table::Group,
+    pub num_time: NumTime,
+    pub weekday_date: WeekdayDate,
+}
+
+#[derive(new, Debug, Clone)]
+pub struct TchrSubjectMapping {
+    pub cell: Cell,
+    pub teacher: raw::table::Teacher,
     pub num_time: NumTime,
     pub weekday_date: WeekdayDate,
 }

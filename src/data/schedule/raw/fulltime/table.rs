@@ -3,8 +3,7 @@ use chrono::{NaiveTime, NaiveDate};
 use std::ops::Range;
 
 use crate::data::{
-    weekday::Weekday,
-    schedule::raw
+    schedule::raw::{self, NumTime, table::Cell}, weekday::Weekday
 };
 
 
@@ -24,9 +23,9 @@ impl CellType {
 }
 
 #[derive(new, Debug, Clone)]
-pub struct NumTime {
-    pub num: u32,
-    pub time: Range<NaiveTime>,
+pub struct NumTimeWithOrigin {
+    pub num_time: NumTime,
+    pub cell: Cell,
 }
 
 #[derive(new, Debug, Clone)]
@@ -44,7 +43,7 @@ pub struct SubjectMapping {
 impl SubjectMapping {
     pub fn is_empty(&self) -> bool {
         let is_no_chars = self.name.is_empty();
-        let only_dashes = self.name.chars().all(|char| { char == '-'});
+        let only_dashes = self.name.chars().all(|char| char == '-');
 
         is_no_chars || only_dashes
     }
@@ -53,6 +52,13 @@ impl SubjectMapping {
 #[derive(new, Debug, Clone)]
 pub struct GroupSubjects {
     pub group: raw::table::Group,
+    pub date_range: Range<NaiveDate>,
+    pub subjects: Vec<SubjectMapping>,
+}
+
+#[derive(new, Debug, Clone)]
+pub struct TeacherSubjects {
+    pub teacher: raw::table::Teacher,
     pub date_range: Range<NaiveDate>,
     pub subjects: Vec<SubjectMapping>,
 }

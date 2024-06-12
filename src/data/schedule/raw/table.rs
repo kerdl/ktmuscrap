@@ -110,3 +110,9 @@ pub struct Group {
     pub raw: String,
     pub valid: String,
 }
+
+#[derive(new, Debug, Clone, PartialEq, Eq)]
+pub struct Teacher {
+    pub raw: String,
+    pub valid: String,
+}

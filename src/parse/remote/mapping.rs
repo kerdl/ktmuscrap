@@ -1,23 +1,31 @@
 use derive_new::new;
+use itertools::Itertools;
+use std::collections::HashSet;
 
 use crate::data::schedule::{
     raw::{
         self,
         remote::table::{
             SubjectMapping,
+            TchrSubjectMapping,
             WeekdayDate
         },
     },
-    Type,
-    Subject,
     Day,
+    Format,
     Group,
-    Page, 
-    Format
+    Page,
+    Subject,
+    TchrPage,
+    TchrTeacher,
+    TchrDay,
+    TchrSubject,
+    Type
 };
 use super::super::{
     teacher,
-    subject
+    subject,
+    group
 };
 
 
@@ -278,6 +286,125 @@ impl Parser {
                 start..=end
             },
             groups,
+        };
+
+        self.page = Some(page);
+
+        Some(self.page.as_ref().unwrap())
+    }
+}
+
+/// # 3rd, final step of parsing remote schedule
+#[derive(new, Debug, Clone)]
+pub struct TchrParser {
+    schema: Vec<Vec<TchrSubjectMapping>>,
+    weekday_date_range: Option<Vec<WeekdayDate>>,
+
+    pub page: Option<TchrPage>
+}
+impl TchrParser {
+    pub fn from_schema(
+        schema: Vec<Vec<TchrSubjectMapping>>,
+        weekday_date_range: Option<Vec<WeekdayDate>>
+    ) -> Self {
+        Self::new(schema, weekday_date_range, None)
+    }
+
+    pub fn page(&mut self) -> Option<&TchrPage> {
+        if self.page.is_some() {
+            return Some(self.page.as_ref().unwrap())
+        }
+
+        let base_weekday: &WeekdayDate = &self.schema.get(0)?.get(0)?.weekday_date;
+
+        let mut teachers: Vec<TchrTeacher> = vec![];
+
+        for weekday_row in self.schema.iter() {
+            for map in weekday_row.iter() {
+                let teacher_name = &map.teacher;
+                let teacher = match teachers.iter_mut().find(|teacher| teacher.name == teacher_name.valid) {
+                    Some(teacher) => teacher,
+                    None => {
+                        let teacher = TchrTeacher {
+                            raw: map.teacher.raw.clone(),
+                            name: map.teacher.valid.clone(),
+                            days: vec![],
+                        };
+                        teachers.push(teacher);
+                        teachers.last_mut().unwrap()
+                    }
+                };
+
+                let day = match teacher.days.iter_mut().find(|day| day.weekday == map.weekday_date.weekday) {
+                    Some(day) => day,
+                    None => {
+                        let day = TchrDay {
+                            raw: map.weekday_date.cell.text.clone(),
+                            weekday: map.weekday_date.weekday.clone(),
+                            date: map.weekday_date.date,
+                            subjects: vec![],
+                        };
+                        teacher.days.push(day);
+                        teacher.days.last_mut().unwrap()
+                    }
+                };
+
+                let (groups, name) = map.cell.text.split_once(
+                    "*&^%$#@!FUCKING_SEPARATOR!@#$%^&*"
+                ).unwrap();
+                let groups = group::parse_multiple(groups);
+
+                let mut subject_created = false;
+                let subject = match day.subjects.iter_mut().find(
+                    |subject|
+                        subject.name == name &&
+                        subject.num == map.num_time.num &&
+                        subject.time == map.num_time.time
+                ) {
+                    Some(subject) => subject,
+                    None => {
+                        subject_created = true;
+                        let subject = TchrSubject {
+                            raw: map.cell.text.clone(),
+                            num: map.num_time.num,
+                            time: map.num_time.time.clone(),
+                            name: name.to_string(),
+                            format: Format::Remote,
+                            groups: groups.clone(),
+                            cabinet: None,
+                        };
+                        day.subjects.push(subject);
+                        day.subjects.last_mut().unwrap()
+                    }
+                };
+
+                if !subject_created {
+                    for this_group in groups {
+                        let existing = subject.groups.iter().find(
+                            |group| group.to_string() == this_group.to_string()
+                        );
+                        if existing.is_none() {
+                            subject.groups.push(this_group);
+                        }
+                    }
+                }
+            }
+        }
+
+        let page = TchrPage {
+            raw:       base_weekday.cell.text.to_owned(),
+            raw_types: vec![raw::Type::TchrRWeekly],
+            sc_type:   Type::Weekly,
+            date: {
+                let wkd_range = self.weekday_date_range.as_ref().unwrap();
+
+                let start = wkd_range.first().unwrap().date;
+                let end = wkd_range.last().unwrap().date;
+
+                start..=end
+            },
+            num_time_mappings: None,
+            teachers,
         };
 
         self.page = Some(page);
