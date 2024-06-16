@@ -364,8 +364,8 @@ async fn generic(
                             &mut r_page
                         ).await {
                             ft_page = match different_weeks.latest {
-                                raw::Type::FtWeekly => ft_page,
-                                raw::Type::RWeekly => r_page,
+                                raw::Type::TchrFtWeekly => ft_page,
+                                raw::Type::TchrRWeekly => r_page,
                                 _ => unreachable!()
                             }
                         }
@@ -378,8 +378,8 @@ async fn generic(
                             &mut r_page
                         ).await {
                             ft_page = match ft_not_in_r_range.latest {
-                                raw::Type::FtDaily => { ft_page },
-                                raw::Type::RWeekly => {
+                                raw::Type::TchrFtDaily => { ft_page },
+                                raw::Type::TchrRWeekly => {
                                     for teacher in r_page.teachers.iter_mut() {
                                         // remain only first day of the week
                                         teacher.remove_days_except(r_page.date.start());
