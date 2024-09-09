@@ -3,42 +3,49 @@ use std::sync::Arc;
 
 
 pub struct Container {
-    /// ## Matches
-    /// - **"1КДД69"**
-    /// - **"1-кДД-69"**
-    /// - ...
+    /// ## Match examples
+    /// - **"4-КРД-36"**
+    /// - **"4-крд-36"**
+    /// - **"4КРД36"**
+    /// - **"4крд36"**
+    /// - **"4-КРД-3"**
+    /// - **"4-крд-3"**
+    /// - **"4КРД3"**
+    /// - **"4крд3"**
+    /// - **"4-РД-36"**
+    /// - **"4-рд-36"**
+    /// - **"4РД36"**
+    /// - **"4рд36"**
+    /// - **"4 РД36"**
+    /// - **"4 рд36"**
+    /// - **"4РД 36"**
+    /// - **"4рд 36"**
+    /// - **"4 РД 36"**
+    /// - **"4 рд 36"**
+    /// - **"4-РД-3"**
+    /// - **"4-рд-3"**
+    /// - **"4РД3"**
+    /// - **"4рд3"**
+    /// - **"4 РД3"**
+    /// - **"4 рд3"**
+    /// - **"4РД 3"**
+    /// - **"4рд 3"**
+    /// - **"4 РД 3"**
+    /// - **"4 рд 3"**
     pub group: Arc<Regex>,
-    /// ## Matches
-    /// - **"1КДД69"**
-    /// - **"1-кДД-69"**
-    /// but from the start of the string
+    /// Same as `group` but asserts the start of the string
     pub start_group: Arc<Regex>,
-    /// ## Matches
+    /// ## Match examples
+    /// - **"01.01"**
+    /// - **"01/01"**
     /// - **"01.01.22"**
     /// - **"01/01/22"**
     /// - **"01.01.2022"**
     /// - **"01/01/2022"**
-    /// - ...
     /// 
-    /// ( *day*.*month*.*year* )
+    /// (*day*.*month*)
+    /// (*day*.*month*.*year*)
     pub date: Arc<Regex>,
-    /// ## Matches
-    /// - **"8:00-9:00"**
-    /// - **"10:00-11:00"**
-    /// - **"8:00–9:00"**
-    /// - **"10:00–11:00"**
-    /// - ...
-    pub time: Arc<Regex>,
-    /// ## Matches
-    /// - **"8:00"**
-    /// - **"09:00"**
-    /// - **"10:00"**
-    /// - ...
-    pub single_time: Arc<Regex>,
-    /// ## Matches
-    /// - **"-"**
-    /// - **"–"**
-    pub time_sep: Arc<Regex>,
     /// ## Matches
     /// - **"Ебанько Х."**
     /// - **"Ебанько Х.Й"**
@@ -49,7 +56,7 @@ pub struct Container {
     /// - **"Ебанько Хуй Йебанько"**
     /// - ...
     pub teacher_full: Arc<Regex>,
-    /// ## The same as `teacher`, but matches from the end
+    /// ## Same as `teacher` but matches from the end
     pub end_teacher: Arc<Regex>,
     /// ## Matches teacher's initial from the end
     /// - Ебанько Х.`Й.`
@@ -65,14 +72,11 @@ pub struct Container {
 }
 impl Default for Container {
     fn default() -> Container {
-        let group = r"([0-9])([-]{0,1})([а-яёА-ЯЁ]{3})([-]{0,1})([0-9]{1,2})";
+        let group = r"([0-9])([-]*|\s*)([а-яёА-ЯЁ]{2,3})([-]*|\s*)([0-9]{1,2})";
         let start_group = format!(r"^{}", group);
-        let date = r"(\d{1,2})\W(\d{1,2})\W(\d{4}|\d{2})";
-        let time = r"(\d{1,2}:\d{2})[-–](\d{1,2}:\d{2})";
-        let single_time = r"(\d{1,2}:\d{2})";
-        let time_sep = r"[-–]";
-        let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]{0,1}){0,1}";
-        let teacher_full = r"([A-ZА-ЯЁ][a-za-яё]{1,}\s[A-ZА-ЯЁ][a-za-яё]{1,}\s[A-ZА-ЯЁ][a-za-яё]{1,})";
+        let date = r"(\d{1,2})\W(\d{1,2})(\W(\d{4}|\d{2}))*";
+        let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]?)?";
+        let teacher_full = r"([A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+)";
         let end_teacher = format!(r"({})$", teacher);
         let initial = r"([А-ЯЁ][.])$";
         let cabinet = r"([аa][уy]д)[.].+";
@@ -83,9 +87,6 @@ impl Default for Container {
             group: Arc::new(Regex::new(group).unwrap()), 
             start_group: Arc::new(Regex::new(&start_group).unwrap()), 
             date: Arc::new(Regex::new(date).unwrap()), 
-            time: Arc::new(Regex::new(time).unwrap()),
-            single_time: Arc::new(Regex::new(single_time).unwrap()),
-            time_sep: Arc::new(Regex::new(time_sep).unwrap()),
             teacher: Arc::new(Regex::new(teacher).unwrap()),
             teacher_full: Arc::new(Regex::new(teacher_full).unwrap()),
             end_teacher: Arc::new(Regex::new(&end_teacher).unwrap()), 

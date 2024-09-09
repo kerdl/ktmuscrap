@@ -1,42 +1,35 @@
-use futures_lite::AsyncReadExt;
 use log::{debug, warn};
 use chrono::{NaiveDateTime, DateTime, Utc, Duration};
 use async_zip::tokio::read::seek::ZipFileReader;
-use async_trait::async_trait;
 use serde_derive::{Serialize, Deserialize};
 use reqwest;
 use actix_web::web::Bytes;
 use tokio::{
-    io::AsyncWriteExt, sync::{
-        mpsc, Mutex, RwLock
-    }, task::JoinHandle
+    io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, Mutex, RwLock}, task::JoinHandle
 };
-use tokio_util::compat::TokioAsyncWriteCompatExt;
+use tokio_util::compat::FuturesAsyncReadCompatExt;
 use std::{
     io::Cursor,
     path::PathBuf,
-    sync::Arc,
-    collections::HashSet
+    sync::Arc
 };
 
 use crate::{
     SyncResult,
-    data::{json::{
-        self,
-        ToMiddle,
-        Saving,
-        DirectSaving,
-        DirectLoading
-    }, schedule::Interactor},
+    data::{
+        json::{
+            self,
+            ToMiddle,
+            Saving,
+            DirectSaving,
+            DirectLoading
+        },
+        schedule::{
+            raw::{Kind, error},
+            File
+        },
+    },
     fs
-};
-use super::{
-    super::update,
-    Type,
-    ignored,
-    fulltime,
-    remote,
-    error,
 };
 
 enum UpdateFinishType {
@@ -46,13 +39,13 @@ enum UpdateFinishType {
 
 #[derive(Debug)]
 pub struct Index {
-    fetch: bool,
     path: PathBuf,
-    updated_tx: mpsc::Sender<update::Params>,
+    updated_tx: mpsc::Sender<()>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
     update_forever_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
     update_lock: Arc<Mutex<()>>,
 
+    pub fetch: bool,
     pub updated: Arc<RwLock<NaiveDateTime>>,
     pub period: Duration,
     pub types: Vec<Arc<Schedule>>
@@ -62,7 +55,7 @@ impl json::Path for Index {
         self.path.clone()
     }
 }
-#[async_trait]
+
 impl json::ToMiddle<MiddleIndex> for Index {
     async fn to_middle(&self) -> MiddleIndex {
         let types = {
@@ -75,6 +68,7 @@ impl json::ToMiddle<MiddleIndex> for Index {
 
         MiddleIndex {
             path: self.path.clone(),
+            fetch: self.fetch,
             updated: self.updated.read().await.clone(),
             period: self.period.clone().to_std().unwrap(),
             types
@@ -85,31 +79,21 @@ impl json::Saving<MiddleIndex> for Index {}
 impl Index {
     fn default(
         path: PathBuf,
-        updated_tx: mpsc::Sender<update::Params>,
+        updated_tx: mpsc::Sender<()>,
         converted_rx: mpsc::Receiver<()>,
     ) -> Arc<Self> {
-
-        let dir = path.parent().unwrap_or(&path).to_path_buf();
-
         let this = Self {
-            fetch: true,
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
+            fetch: true,
             updated: Arc::new(RwLock::new(
                 DateTime::from_timestamp(0, 0).unwrap().naive_utc()
             )),
             period: Duration::minutes(10),
-            types: vec![
-                Schedule::default_ft_daily(dir.clone()),
-                Schedule::default_ft_weekly(dir.clone()),
-                Schedule::default_r_weekly(dir.clone()),
-                Schedule::default_tchr_ft_daily(dir.clone()),
-                Schedule::default_tchr_ft_weekly(dir.clone()),
-                Schedule::default_tchr_r_weekly(dir)
-            ]
+            types: vec![]
         };
 
         Arc::new(this)
@@ -117,12 +101,10 @@ impl Index {
 
     fn from_middle(
         middle: Arc<MiddleIndex>,
-        fetch: bool,
         path: PathBuf,
-        updated_tx: mpsc::Sender<update::Params>,
+        updated_tx: mpsc::Sender<()>,
         converted_rx: mpsc::Receiver<()>
     ) -> Arc<Self> {
-
         let types = {
             let mut types = vec![];
             for sc in middle.types.iter() {
@@ -138,12 +120,12 @@ impl Index {
         };
 
         let this = Self {
-            fetch,
             path,
             updated_tx,
             converted_rx: Arc::new(RwLock::new(converted_rx)),
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
+            fetch: middle.fetch,
             updated: Arc::new(RwLock::new(middle.updated.clone())),
             period: Duration::from_std(middle.period).unwrap(),
             types
@@ -153,9 +135,8 @@ impl Index {
     }
 
     pub async fn load_or_init(
-        fetch: bool,
         path: PathBuf,
-        updated_tx: mpsc::Sender<update::Params>,
+        updated_tx: mpsc::Sender<()>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
         let this;
@@ -164,47 +145,29 @@ impl Index {
             this = Self::default(path, updated_tx, converted_rx);
             this.clone().save().await?;
         } else {
-            this = Self::load(fetch, path, updated_tx, converted_rx).await?;
+            this = Self::load(path, updated_tx, converted_rx).await?;
         }
 
         Ok(this)
     }
 
     pub async fn load(
-        fetch: bool,
         path: PathBuf,
-        updated_tx: mpsc::Sender<update::Params>,
+        updated_tx: mpsc::Sender<()>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
-
         let middle = MiddleIndex::load(path.clone()).await?;
-        let primary = Self::from_middle(middle, fetch, path, updated_tx, converted_rx);
+        let primary = Self::from_middle(middle, path, updated_tx, converted_rx);
 
         Ok(primary)
     }
 
-    pub async fn ft_daily(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::FtDaily).unwrap().clone()
+    pub async fn groups(&self) -> Vec<Arc<Schedule>> {
+        self.types.iter().filter(|sc| sc.kind == Kind::Groups).cloned().collect::<Vec<Arc<Schedule>>>()
     }
 
-    pub async fn ft_weekly(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::FtWeekly).unwrap().clone()
-    }
-
-    pub async fn r_weekly(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::RWeekly).unwrap().clone()
-    }
-
-    pub async fn tchr_ft_daily(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::TchrFtDaily).unwrap().clone()
-    }
-
-    pub async fn tchr_ft_weekly(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::TchrFtWeekly).unwrap().clone()
-    }
-
-    pub async fn tchr_r_weekly(&self) -> Arc<Schedule> {
-        self.types.iter().find(|sc| sc.sc_type == Type::TchrRWeekly).unwrap().clone()
+    pub async fn teachers(&self) -> Vec<Arc<Schedule>> {
+        self.types.iter().filter(|sc| sc.kind == Kind::Teachers).cloned().collect::<Vec<Arc<Schedule>>>()
     }
 
     pub async fn poll_save(self: Arc<Self>) {
@@ -243,23 +206,12 @@ impl Index {
         self: Arc<Self>
     ) {
         debug!("staring auto update_all");
-        self.update_all(
-            update::Params {
-                invoker: update::Invoker::Auto
-            }
-        ).await;
+        self.update_all().await;
         debug!("finished auto update_all");
     }
 
-    pub async fn update_all_manually(
-        self: Arc<Self>,
-        invoker: Arc<Interactor>,
-    ) {
-        match self.clone().update_all(
-            update::Params {
-                invoker: update::Invoker::Manually(invoker)
-            }
-        ).await {
+    pub async fn update_all_manually(self: Arc<Self>) {
+        match self.clone().update_all().await {
             UpdateFinishType::Complete => {
                 self.clone().abort_update_forever().await;
                 self.clone().update_forever().await
@@ -272,10 +224,7 @@ impl Index {
         
     }
 
-    async fn update_all(
-        self: Arc<Self>,
-        params: update::Params
-    ) -> UpdateFinishType {
+    async fn update_all(self: Arc<Self>) -> UpdateFinishType {
         let update_lock_ref = self.update_lock.clone();
 
         if update_lock_ref.try_lock().is_err() {
@@ -315,7 +264,7 @@ impl Index {
                         if let Err(error) = schedule.clone().unpack(bytes).await {
                             warn!(
                                 "{} unpack error, will refetch and unpack again in {:?}: {:?}",
-                                schedule.sc_type,
+                                schedule.kind,
                                 schedule.retry_period,
                                 error
                             );
@@ -336,15 +285,19 @@ impl Index {
 
         Arc::new(self.clone().to_middle().await).poll_save();
 
-        debug!("fetched and unpacked all successfully");
-
-        self.clone().post_update_all(params).await;
+        if self.fetch {
+            debug!("fetched and unpacked all successfully");
+        } else {
+            debug!("fetching is disabled, update bypassed");
+        }
+        
+        self.clone().post_update_all().await;
 
         UpdateFinishType::Complete
     }
 
-    async fn send_updated(self: Arc<Self>, params: update::Params) {
-        self.updated_tx.send(params).await.unwrap();
+    async fn send_updated(self: Arc<Self>) {
+        self.updated_tx.send(()).await.unwrap();
         debug!("updated signal sent");
     }
 
@@ -353,8 +306,8 @@ impl Index {
         debug!("converted signal received");
     }
 
-    async fn post_update_all(self: Arc<Self>, params: update::Params) {
-        self.clone().send_updated(params).await;
+    async fn post_update_all(self: Arc<Self>) {
+        self.clone().send_updated().await;
         self.clone().await_converted().await;
     }
 
@@ -398,6 +351,7 @@ pub struct MiddleIndex {
     #[serde(skip)]
     path: PathBuf,
 
+    pub fetch: bool,
     pub updated: NaiveDateTime,
     pub period: std::time::Duration,
     pub types: Vec<MiddleSchedule>
@@ -416,26 +370,22 @@ pub struct Schedule {
     root: PathBuf,
     reqwest: reqwest::Client,
 
-    pub sc_type: Type,
+    pub kind: Kind,
+    pub name: String,
     pub url: String,
-    pub friendly_url: String,
     pub fetch_timeout: std::time::Duration,
     pub retry_period: std::time::Duration,
-    pub latest: Arc<RwLock<HashSet<PathBuf>>>,
-    pub ignored: Arc<RwLock<HashSet<PathBuf>>>,
 }
-#[async_trait]
+
 impl json::ToMiddle<MiddleSchedule> for Schedule {
     async fn to_middle(&self) -> MiddleSchedule {
         let mid = MiddleSchedule {
-            root:          self.root.clone(),
-            sc_type:       self.sc_type.clone(),
-            url:           self.url.clone(),
-            friendly_url:  self.friendly_url.clone(),
+            root: self.root.clone(),
+            kind: self.kind.clone(),
+            name: self.name.clone(),
+            url: self.url.clone(),
             fetch_timeout: self.fetch_timeout.clone(),
-            retry_period:  self.retry_period.clone(),
-            latest:        self.latest.read().await.clone(),
-            ignored:       self.ignored.read().await.clone()
+            retry_period: self.retry_period.clone(),
         };
 
         mid
@@ -454,198 +404,18 @@ impl Schedule {
         let this = Schedule {
             root,
             reqwest,
-            sc_type:       middle.sc_type.clone(),
-            url:           middle.url.clone(),
-            friendly_url:  middle.friendly_url.clone(),
+            kind: middle.kind.clone(),
+            name: middle.name.clone(),
+            url: middle.url.clone(),
             fetch_timeout: middle.fetch_timeout,
-            retry_period:  middle.retry_period,
-            latest:        Arc::new(RwLock::new(middle.latest.clone())),
-            ignored:       Arc::new(RwLock::new(middle.ignored.clone())),
+            retry_period: middle.retry_period,
         };
 
-        Arc::new(this)
-    }
-
-    pub fn default_ft_daily(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::FtDaily,
-            url:           "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-
-        Arc::new(this)
-    }
-
-    pub fn default_ft_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::FtWeekly,
-            url:           "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/document/d/1dHmldElsQnrdPfvRVOQnnYYG7-FWNQoEkf5a_q1CoEs".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-
-        Arc::new(this)
-    }
-
-    pub fn default_r_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::RWeekly,
-            url:           "https://docs.google.com/spreadsheets/d/1khl9YgQ9cAwFYdnHUsr0jfvCr2cea3WhTjBKfILdEeE/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/spreadsheets/d/1khl9YgQ9cAwFYdnHUsr0jfvCr2cea3WhTjBKfILdEeE".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-        
-        Arc::new(this)
-    }
-
-    pub fn default_tchr_ft_daily(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::TchrFtDaily,
-            url:           "https://docs.google.com/document/d/1gEP_8FhNRWQuKSLTnynqJWFcCCpyDaetu-fqw_gvFjs/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/document/d/1gEP_8FhNRWQuKSLTnynqJWFcCCpyDaetu-fqw_gvFjs".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-
-        Arc::new(this)
-    }
-
-    pub fn default_tchr_ft_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::TchrFtWeekly,
-            url:           "https://docs.google.com/document/d/16JJ-auyHCNdNNOF71bkkIe0o089NjCKp6DgcDrMgn9I/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/document/d/16JJ-auyHCNdNNOF71bkkIe0o089NjCKp6DgcDrMgn9I".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-
-        Arc::new(this)
-    }
-
-    pub fn default_tchr_r_weekly(root: PathBuf) -> Arc<Schedule> {
-        let fetch_timeout = std::time::Duration::from_secs(90);
-        let reqwest = reqwest::ClientBuilder::new()
-            .timeout(fetch_timeout.clone())
-            .build()
-            .unwrap();
-
-        let this = Schedule {
-            root,
-            reqwest,
-            sc_type:       Type::TchrRWeekly,
-            url:           "https://docs.google.com/spreadsheets/d/1vX4TCTZTZtg8b1LMC_tbYFZw-7tD4JQ2UwxEvagTb1k/export?format=zip".to_owned(),
-            friendly_url:  "https://docs.google.com/spreadsheets/d/1vX4TCTZTZtg8b1LMC_tbYFZw-7tD4JQ2UwxEvagTb1k".to_owned(),
-            fetch_timeout,
-            retry_period:  std::time::Duration::from_secs(2),
-            latest:        Arc::new(RwLock::new(HashSet::new())),
-            ignored:       Arc::new(RwLock::new(HashSet::new())),
-        };
-        
         Arc::new(this)
     }
 
     pub fn dir(&self) -> PathBuf {
-        self.root.join(self.sc_type.to_string())
-    }
-
-    pub async fn get_latest(&self, files: &Vec<update::File>) -> SyncResult<HashSet<PathBuf>> {
-        let paths = match self.sc_type {
-            Type::FtDaily | Type::TchrFtDaily | Type::FtWeekly | Type::TchrFtWeekly => {
-                let mut hs = HashSet::new();
-                if let Some(path) = fulltime::latest(&files).await {
-                    hs.insert(path);
-                }
-                hs
-            },
-            Type::RWeekly => remote::latest(&files, super::Mode::Groups).await.unwrap(),
-            Type::TchrRWeekly => remote::latest(&files, super::Mode::Teachers).await.unwrap(),
-        };
-
-        *self.latest.write().await = paths.clone();
-
-        Ok(paths)
-    }
-
-    pub async fn has_latest(&self) -> bool {
-        !self.latest.read().await.is_empty()
-    }
-
-    pub async fn get_ignored(&self, files: &Vec<update::File>) -> tokio::io::Result<Option<HashSet<PathBuf>>> {
-        let latest = self.latest.read().await;
-        if latest.is_empty() {
-            return Ok(None)
-        }
-
-        let ignored = ignored::except_difference(
-            &HashSet::from_iter(files.iter().map(|file| file.path.clone())),
-            &latest,
-        );
-
-        let ignored_htmls = ignored.into_iter().filter(
-            |path| if let Some(ext) = path.extension() {
-                ext == "html"
-            } else {
-                false
-            }
-        ).collect::<HashSet<PathBuf>>();
-
-        *self.ignored.write().await = ignored_htmls.clone();
-
-        Ok(Some(ignored_htmls))
+        self.root.join(self.name.clone())
     }
 
     pub async fn fetch(&self) -> Result<Bytes, reqwest::Error> {
@@ -661,13 +431,13 @@ impl Schedule {
 
     pub async fn refetch_until_success(&self) -> Bytes {
         loop {
-            debug!("fetching {}", self.sc_type);
+            debug!("fetching {} ({})", self.name, self.url);
             let fetch_result = self.fetch().await;
     
             if let Err(error) = &fetch_result {
                 warn!(
                     "refetching {} because of error {:?}",
-                    self.sc_type,
+                    self.name,
                     error
                 );
     
@@ -675,14 +445,13 @@ impl Schedule {
                 continue;
             }
             
-            debug!("fetching {} success", self.sc_type);
+            debug!("fetching {} success", self.name);
             return fetch_result.unwrap()
         };
     }
 
     pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<(), error::UnpackError> {
         let dir = self.dir();
-        let sc_type = self.sc_type.clone();
 
         debug!("unpacking {:?}", dir);
 
@@ -701,18 +470,18 @@ impl Schedule {
         }
 
         let cursor = Cursor::new(bytes);
-        debug!("parsing {:?} archive", sc_type);
+        debug!("parsing {} archive", self.name);
         let archive_result = ZipFileReader::with_tokio(cursor).await;
-        debug!("parsed {:?} archive", sc_type);
+        debug!("parsed {} archive", self.name);
 
         if let Err(error) = archive_result {
             return Err(error::UnpackError::Zip(error));
         }
 
         let mut archive = archive_result.unwrap();
-        let mut files: Vec<update::File> = vec![];
+        let mut files: Vec<File> = vec![];
 
-        debug!("extracting {:?} archive", sc_type);
+        debug!("extracting {} archive", self.name);
         for index in 0..archive.file().entries().len() {
             let entry = archive.file().entries().get(index).unwrap();
             let filename_pathbuf = fs::path::sanitize(entry.filename().as_str().unwrap());
@@ -724,7 +493,7 @@ impl Schedule {
                 warn!("entry reader error: {:?}", err);
                 continue;
             }
-            let mut entry_reader = entry_reader.unwrap();
+            let entry_reader = entry_reader.unwrap();
 
             if entry_is_dir {
                 // The directory may have been created if iteration is out of order.
@@ -753,14 +522,14 @@ impl Schedule {
                 }
 
                 let mut buf = vec![];
-                let copy_result = entry_reader.read_to_end(&mut buf).await;
+                let copy_result = entry_reader.compat().read_to_end(&mut buf).await;
 
                 if let Err(err) = copy_result {
                     warn!("failed to copy to extracted file: {:?}", err);
                     continue;
                 }
 
-                let file = update::File {
+                let file = File {
                     path,
                     bytes: buf.into()
                 };
@@ -769,47 +538,33 @@ impl Schedule {
                 // Closes the file and manipulates its metadata here if you wish to preserve its metadata from the archive.
             }
         }
-        debug!("extracted {:?} archive", sc_type);
+        debug!("extracted {} archive", self.name);
 
         self.post_unpack(files).await;
 
         Ok(())
     }
 
-    async fn post_unpack(self: Arc<Self>, mut files: Vec<update::File>) {
+    async fn post_unpack(self: Arc<Self>, mut files: Vec<File>) {
         files.retain(|file| file.path.extension() == Some(std::ffi::OsStr::new("html")));
 
-        let latest = self.purge_ignored(files.clone()).await;
-        self.get_latest(&latest).await.unwrap();
-        self.get_ignored(&files).await.unwrap();
-
-        let latest = self.latest.read().await;
-
-        for latest_path in latest.iter() {
+        for file in files.iter() {
             let writer = tokio::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
-                .open(&latest_path)
+                .open(&file.path)
                 .await;
             if let Err(err) = writer {
                 warn!("failed to create extracted file: {:?}", err);
                 continue;
             }
             let mut writer = writer.unwrap();
-
-            let file = files.iter().find(|file| &file.path == latest_path).unwrap();
  
-            if let Err(err) = writer.write(&file.bytes[..]).await {
+            if let Err(err) = writer.write_all(&file.bytes[..]).await {
                 warn!("failed to write file: {:?}", err);
                 continue;
             }
         }
-    }
-
-    pub async fn purge_ignored(&self, mut files: Vec<update::File>) -> Vec<update::File> {
-        let ignored = self.ignored.read().await;
-        files.retain(|file| !ignored.contains(&file.path));
-        files
     }
 }
 
@@ -819,16 +574,24 @@ pub struct MiddleSchedule {
     #[serde(skip)]
     root: PathBuf,
 
-    pub sc_type: Type,
+    pub kind: Kind,
+    pub name: String,
     pub url: String,
-    pub friendly_url: String,
     pub fetch_timeout: std::time::Duration,
     pub retry_period: std::time::Duration,
-    pub latest: HashSet<PathBuf>,
-    pub ignored: HashSet<PathBuf>,
 }
 impl MiddleSchedule {
+    pub fn example() -> Self {
+        Self {
+            root: std::path::PathBuf::new(),
+            kind: crate::data::schedule::raw::Kind::Groups,
+            name: "Containing folder name".to_string(),
+            url: "https://docs.google.com/document/d/13FImWkHpdV_dgDCp7Py36gYPr53C-dYeUvNklkndaPA/export?format=zip".to_string(),
+            fetch_timeout: std::time::Duration::from_secs(90),
+            retry_period: std::time::Duration::from_secs(2)
+        }
+    }
     pub fn dir(&self) -> PathBuf {
-        self.root.join(self.sc_type.to_string())
+        self.root.join(self.kind.to_string())
     }
 }

@@ -1,24 +1,27 @@
 //! # I DON'T CARE ABOUT CLONING, NIGGERS
-//! # "UOOOGH BRO!! YOU COULD USE &'a EVERYWHERE IN YOUR CODE!! UOOOGH!!!!!"
+//! # "UOOOGH BRO!! YOU COULD'VE USED &'a EVERYWHERE IN YOUR CODE!! UOOOGH!!!!!"
 //! # SHUT UP BITCH, I'VE HAD ENOUGH, GO FUCK YOUR &'aSS
 
 
+pub mod schedule;
+
 use derive_new::new;
-use async_trait::async_trait;
-use log::info;
 use serde::Serialize;
 use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}, ops::ControlFlow};
 
-pub mod schedule;
 
-
-#[async_trait]
 pub trait DetailedCmp<ToCompare, Compared> {
-    async fn compare(old: Option<ToCompare>, new: Option<ToCompare>) -> Compared;
+    fn compare(old: Option<ToCompare>, new: Option<ToCompare>) -> impl std::future::Future<Output = Compared> + Send;
+}
+
+/// # Partially compares the struct
+/// Used to find a corresponding one from another list
+pub trait FindingCmp {
+    fn is_partially_same_with(&self, other: &Self) -> bool;
 }
 
 
-fn pre_check_both<Primary>(
+fn option_check<Primary>(
     old: &mut Option<Vec<Primary>>,
     new: &mut Option<Vec<Primary>>,
     appeared: &mut Vec<Primary>,
@@ -45,11 +48,11 @@ fn find<'a, Primary>(
     value: &Primary,
     ignored_idx: &'a mut Vec<usize>
 ) -> Option<&'a Primary>
-where Primary: PartialEq + std::fmt::Debug
+where Primary: FindingCmp + std::fmt::Debug
 {
     list.iter().enumerate().find(
         |(index, list_value)| {
-            if list_value == &value && !ignored_idx.contains(index) {
+            if list_value.is_partially_same_with(value) && !ignored_idx.contains(index) {
                 ignored_idx.push(*index);
                 true
             } else {
@@ -66,7 +69,7 @@ fn disappeared_lookup<Primary>(
     new: &mut Vec<Primary>,
     disappeared: &mut Vec<Primary>
 )
-where Primary: PartialEq + Clone + std::fmt::Debug
+where Primary: FindingCmp + Clone + std::fmt::Debug
 {
     let mut new_ignored_idx: Vec<usize> = vec![];
 
@@ -83,24 +86,24 @@ where Primary: PartialEq + Clone + std::fmt::Debug
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DetailedChanges<Primary, Detailed> {
-    pub appeared:    Vec<Primary>,
+    pub appeared: Vec<Primary>,
     pub disappeared: Vec<Primary>,
-    pub changed:     Vec<Detailed>,
+    pub changed: Vec<Detailed>,
 }
 impl<Primary, Detailed> DetailedChanges<Primary, Detailed> 
 where 
-    Primary: Hash + PartialEq + Clone + std::fmt::Debug,
+    Primary: Hash + FindingCmp + Clone + std::fmt::Debug,
     Detailed: DetailedCmp<Primary, Detailed>
 {
     pub async fn compare(
         mut old: Option<Vec<Primary>>,
         mut new: Option<Vec<Primary>>
     ) -> DetailedChanges<Primary, Detailed> {
-        let mut appeared:    Vec<Primary> = vec![];
+        let mut appeared: Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
-        let mut changed:     Vec<Detailed> = vec![];
+        let mut changed: Vec<Detailed> = vec![];
 
-        match pre_check_both(&mut old, &mut new, &mut appeared, &mut disappeared) {
+        match option_check(&mut old, &mut new, &mut appeared, &mut disappeared) {
             ControlFlow::Break(_) => {
                 return DetailedChanges {
                     appeared,
@@ -155,23 +158,23 @@ where
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Changes<Primary> {
-    pub appeared:    Vec<Primary>,
+    pub appeared: Vec<Primary>,
     pub disappeared: Vec<Primary>,
-    pub changed:     Vec<Primary>,
+    pub changed: Vec<Primary>,
 }
 impl<Primary> Changes<Primary> 
 where 
-    Primary: Hash + PartialEq + Clone + std::fmt::Debug
+    Primary: Hash + FindingCmp + Clone + std::fmt::Debug
 {
     pub async fn compare(
         mut old: Option<Vec<Primary>>,
         mut new: Option<Vec<Primary>>
     ) -> Changes<Primary> {
-        let mut appeared:    Vec<Primary> = vec![];
+        let mut appeared: Vec<Primary> = vec![];
         let mut disappeared: Vec<Primary> = vec![];
-        let mut changed:     Vec<Primary> = vec![];
+        let mut changed: Vec<Primary> = vec![];
 
-        match pre_check_both(&mut old, &mut new, &mut appeared, &mut disappeared) {
+        match option_check(&mut old, &mut new, &mut appeared, &mut disappeared) {
             ControlFlow::Break(_) => {
                 return Changes {
                     appeared,

@@ -1,6 +1,6 @@
 [package]
 name = "ktmuscrap"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -8,16 +8,13 @@ edition = "2021"
 [dependencies]
 
 # runtime
-async-recursion = "1.0"
-async-trait = "0.1.58"
 async-stream = "0.3.3"
 tokio = { version = "1.21.2", features = ["full"] }
 tokio-util = "0.7.11"
-futures-lite = "2.3.0"
 actix = "0.13.0"
 actix-web = "4"
 actix-web-actors = "4.1"
-reqwest = "0.11"
+reqwest = "0.12"
 
 # logging, coloring
 log = "0.4"
@@ -47,7 +44,7 @@ htmlescape = "0.3.1"
 
 # strings
 regex = "1.5"
-ngrammatic = "0.3.4"
+strsim = "0.11.1"
 
 # tools
 thiserror = "1.0"
@@ -55,9 +52,7 @@ derive-new = "0.5"
 derivative = "2.2.0"
 itertools = "0.10.5"
 async_zip = { version = "0.0.17", features = ["full"] }
-sha2 = "0.10.6"
-hex = "0.4.3"
-hex-literal = "0.3"
 rand = "0.8"
 sanitize-filename = "0.5.0"
 bytes = "1"
+

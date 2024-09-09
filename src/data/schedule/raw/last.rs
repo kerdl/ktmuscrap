@@ -1,62 +1,45 @@
-use async_trait::async_trait;
 use serde_derive::{Serialize, Deserialize};
 use tokio::sync::RwLock;
-use std::{
-    sync::Arc,
-    path::PathBuf
-};
+use std::{sync::Arc, path::PathBuf};
 
 use crate::{
-    SyncResult,
     data::{
-        schedule::{Page, TchrPage},
+        schedule::Page,
         json::{
             self,
             Path,
             Saving,
-            Loading,
-            DirectLoading
+            DirectLoading,
         }
     },
+    SyncResult
 };
 
 
+/// # Stores last converted schedules
 #[derive(Clone, Debug)]
 pub struct Last {
     path: PathBuf,
-
-    /// ## `F`ull`t`ime `weekly` schedule `Page`
-    pub ft_weekly: Arc<RwLock<Option<Arc<Page>>>>,
-    /// ## `F`ull`t`ime `daily` schedule `Page`
-    pub ft_daily: Arc<RwLock<Option<Arc<Page>>>>,
-    /// ## `R`emote `weekly` schedule `Page`
-    pub r_weekly: Arc<RwLock<Option<Arc<Page>>>>,
-    /// ## `F`ull`t`ime `weekly` `t`ea`ch`e`r` schedule `Page`
-    pub tchr_ft_weekly: Arc<RwLock<Option<Arc<TchrPage>>>>,
-    /// ## `F`ull`t`ime `daily` `t`ea`ch`e`r` schedule `Page`
-    pub tchr_ft_daily: Arc<RwLock<Option<Arc<TchrPage>>>>,
-    /// ## `R`emote `weekly` `t`ea`ch`e`r` schedule `Page`
-    pub tchr_r_weekly: Arc<RwLock<Option<Arc<TchrPage>>>>,
+    pub groups: Arc<RwLock<Option<Arc<Page>>>>,
+    pub teachers: Arc<RwLock<Option<Arc<Page>>>>,
 }
 impl json::Path for Last {
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 }
-#[async_trait]
+
 impl json::ToMiddle<MiddleLast> for Last {
     async fn to_middle(&self) -> MiddleLast {
-        let middle = MiddleLast {
+        MiddleLast {
             path: self.path(),
-            ft_daily: self.ft_daily.read().await.clone(),
-            ft_weekly: self.ft_weekly.read().await.clone(),
-            r_weekly: self.r_weekly.read().await.clone(),
-            tchr_ft_daily: self.tchr_ft_daily.read().await.clone(),
-            tchr_ft_weekly: self.tchr_ft_weekly.read().await.clone(),
-            tchr_r_weekly: self.tchr_r_weekly.read().await.clone()
-        };
-
-        middle
+            groups: self.groups.read().await.as_ref().map(
+                |page| page.clone()
+            ),
+            teachers: self.teachers.read().await.as_ref().map(
+                |page| page.clone()
+            ),
+        }
     }
 }
 impl json::Saving<MiddleLast> for Last {}
@@ -64,35 +47,24 @@ impl Last {
     pub fn default(path: PathBuf) -> Arc<Self> {
         let this = Self {
             path,
-            ft_weekly: Arc::new(RwLock::new(None)),
-            ft_daily: Arc::new(RwLock::new(None)),
-            r_weekly: Arc::new(RwLock::new(None)),
-            tchr_ft_weekly: Arc::new(RwLock::new(None)),
-            tchr_ft_daily: Arc::new(RwLock::new(None)),
-            tchr_r_weekly: Arc::new(RwLock::new(None)),
+            groups: Arc::new(RwLock::new(None)),
+            teachers: Arc::new(RwLock::new(None)),
         };
 
         Arc::new(this)
     }
 
-    fn from_middle(
-        middle: Arc<MiddleLast>,
-        path: PathBuf
-    ) -> Arc<Self> {
+    fn from_middle(middle: Arc<MiddleLast>, path: PathBuf) -> Arc<Self> {
         let this = Last {
             path,
-            ft_weekly: Arc::new(RwLock::new(middle.ft_daily.clone())),
-            ft_daily: Arc::new(RwLock::new(middle.ft_weekly.clone())),
-            r_weekly: Arc::new(RwLock::new(middle.r_weekly.clone())),
-            tchr_ft_weekly: Arc::new(RwLock::new(middle.tchr_ft_daily.clone())),
-            tchr_ft_daily: Arc::new(RwLock::new(middle.tchr_ft_weekly.clone())),
-            tchr_r_weekly: Arc::new(RwLock::new(middle.tchr_r_weekly.clone())),
+            groups: Arc::new(RwLock::new(middle.groups.clone())),
+            teachers: Arc::new(RwLock::new(middle.teachers.clone())),
         };
 
         Arc::new(this)
     }
 
-    pub async fn load(path: PathBuf) -> SyncResult<Arc<Self>> {
+    async fn load(path: PathBuf) -> SyncResult<Arc<Self>> {
         let middle = MiddleLast::load(path.clone()).await?;
         let primary = Self::from_middle(middle, path);
 
@@ -106,7 +78,7 @@ impl Last {
             this = Self::load(path).await?;
         } else {
             this = Self::default(path);
-            this.save().await.unwrap();
+            this.save().await?;
         }
 
         Ok(this)
@@ -116,71 +88,42 @@ impl Last {
         Self::default(self.path.clone())
     }
 
-    // groups
-
-    pub async fn ft_daily_is_none(self: Arc<Self>) -> bool {
-        self.ft_daily.read().await.is_none()
+    pub async fn is_cleared(self: Arc<Self>) -> bool {
+        self.groups.read().await.is_none()
+        && self.teachers.read().await.is_none()
     }
 
-    pub async fn ft_daily_is_some(self: Arc<Self>) -> bool {
-        self.ft_daily.read().await.is_some()
+    pub async fn set_groups(self: Arc<Self>, page: Page) {
+        *self.groups.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
     }
 
-    pub async fn ft_weekly_is_none(self: Arc<Self>) -> bool {
-        self.ft_weekly.read().await.is_none()
+    pub async fn clear_groups(self: Arc<Self>) {
+        *self.groups.write().await = None;
+        self.poll_save()
     }
 
-    pub async fn ft_weekly_is_some(self: Arc<Self>) -> bool {
-        self.ft_weekly.read().await.is_some()
+    pub async fn set_teachers(self: Arc<Self>, page: Page) {
+        *self.teachers.write().await = {
+            Some(Arc::new(page))
+        };
+        self.poll_save()
     }
 
-    pub async fn r_weekly_is_none(self: Arc<Self>) -> bool {
-        self.r_weekly.read().await.is_none()
-    }
-
-    pub async fn r_weekly_is_some(self: Arc<Self>) -> bool {
-        self.r_weekly.read().await.is_some()
-    }
-
-    // teachers
-
-    pub async fn tchr_ft_daily_is_none(self: Arc<Self>) -> bool {
-        self.tchr_ft_daily.read().await.is_none()
-    }
-
-    pub async fn tchr_ft_daily_is_some(self: Arc<Self>) -> bool {
-        self.tchr_ft_daily.read().await.is_some()
-    }
-
-    pub async fn tchr_ft_weekly_is_none(self: Arc<Self>) -> bool {
-        self.tchr_ft_weekly.read().await.is_none()
-    }
-
-    pub async fn tchr_ft_weekly_is_some(self: Arc<Self>) -> bool {
-        self.tchr_ft_weekly.read().await.is_some()
-    }
-
-    pub async fn tchr_r_weekly_is_none(self: Arc<Self>) -> bool {
-        self.tchr_r_weekly.read().await.is_none()
-    }
-
-    pub async fn tchr_r_weekly_is_some(self: Arc<Self>) -> bool {
-        self.tchr_r_weekly.read().await.is_some()
+    pub async fn clear_teachers(self: Arc<Self>) {
+        *self.teachers.write().await = None;
+        self.poll_save()
     }
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct MiddleLast {
     #[serde(skip)]
     path: PathBuf,
-
-    ft_weekly: Option<Arc<Page>>,
-    ft_daily: Option<Arc<Page>>,
-    r_weekly: Option<Arc<Page>>,
-    tchr_ft_weekly: Option<Arc<TchrPage>>,
-    tchr_ft_daily: Option<Arc<TchrPage>>,
-    tchr_r_weekly: Option<Arc<TchrPage>>,
+    groups: Option<Arc<Page>>,
+    teachers: Option<Arc<Page>>,
 }
 impl json::Path for MiddleLast {
     fn path(&self) -> PathBuf {

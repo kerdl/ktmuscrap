@@ -3,7 +3,6 @@ pub mod base;
 use num_derive::ToPrimitive;
 use num_traits::ToPrimitive;
 use serde_derive::Serialize;
-use std::path::PathBuf;
 
 use base::{ApiError, Kind, ToApiError};
 use crate::{data::schedule, derive_new::new};
@@ -21,10 +20,10 @@ use crate::{data::schedule, derive_new::new};
 ///     // type of error
 ///     kind:    Kind::UserFailure,
 ///     // optional, fields inside struct
-///     fields:  (pub error: String, pub sc_type: String),
+///     fields:  (pub error: String, pub other: String),
 ///     // closure to format error text, using `this` instead of `self`
 ///     error:   |this| format!(
-///         "i wish you never born {:?}", 
+///         "i wish you were never born {:?}", 
 ///         this.error
 ///     )
 /// );
@@ -37,7 +36,7 @@ macro_rules! api_err {
         // Kind::UserFailure
         kind: $kind: path,
         // (field1: String, pub field2: String)
-        // OR NOTHING, FIELDS ARE OPRIONAL
+        // OR NOTHING, FIELDS ARE OPTIONAL
         $(fields: ($($visibility: vis $field: ident: $field_type: ty),*),)?
         // |this| format!("fuck you {}", this.field1)
         error: $error_closure: expr
@@ -70,8 +69,7 @@ macro_rules! api_err {
 
 #[derive(ToPrimitive, Serialize, Clone, Debug)]
 pub enum ErrorNum {
-    NoLastSchedule = 100,
-    NoSuchKey = 200,
+    NoLastSchedule = 100
 }
 impl ErrorNum {
     pub fn to_u32(&self) -> u32 {
@@ -83,21 +81,9 @@ api_err!(
     name:    NoLastSchedule,
     as_enum: ErrorNum::NoLastSchedule,
     kind:    Kind::InternalFailure,
-    fields:  (pub sc_type: schedule::Type),
+    fields:  (pub kind: schedule::raw::Kind),
     error:   |this| format!(
         "no {} schedule, make sure raw schedules are still available and are valid",
-        this.sc_type.to_string(),
-    )
-);
-
-api_err!(
-    name:    NoSuchKey,
-    as_enum: ErrorNum::NoSuchKey,
-    kind:    Kind::UserFailure,
-    fields:  (pub key: String),
-    error:   |this| format!(
-        "key {} wasn't generated on this runtime or expired, \
-        consider GET at /schedule/interact",
-        this.key.to_string(),
+        this.kind.to_string(),
     )
 );

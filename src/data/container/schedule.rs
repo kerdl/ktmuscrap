@@ -1,44 +1,29 @@
 use actix_web::web::Bytes;
-use std::{path::PathBuf, sync::Arc, collections::HashSet};
-
 use chrono::Duration;
 use log::{info, debug};
 use tokio::sync::{RwLock, mpsc, watch};
-
+use std::{path::PathBuf, sync::Arc, collections::HashSet};
 use crate::{
-    compare::{
-        self,
-        DetailedCmp
-    }, data::{
+    compare::{self, DetailedCmp},
+    data::{
         json::Saving,
-        schedule::Lifetime
-    }, merge, parse, string, SyncResult
+        schedule::{raw, Notify}
+    },
+    merge, parse, string, SyncResult
 };
-
-use super::{
-    schedule::{
-        raw,
-        update,
-        Last,
-        Notify,
-        Interactor
-    }};
 
 
 #[derive(Debug)]
 pub struct Schedule {
     dir: PathBuf,
-    updated_rx: Arc<RwLock<mpsc::Receiver<update::Params>>>,
+    updated_rx: Arc<RwLock<mpsc::Receiver<()>>>,
     converted_tx: Arc<RwLock<mpsc::Sender<()>>>,
 
     notify_tx: watch::Sender<Arc<Notify>>,
     notify_rx: watch::Receiver<Arc<Notify>>,
 
-    pub last: Arc<Last>,
-    pub raw_last: Arc<raw::Last>,
-    pub index: Arc<raw::Index>,
-
-    pub interactors: Arc<RwLock<HashSet<Arc<Interactor>>>>
+    pub last: Arc<raw::Last>,
+    pub index: Arc<raw::Index>
 }
 impl Schedule {
     pub async fn default_from_dir(dir: PathBuf) -> SyncResult<Arc<Schedule>> {
@@ -46,16 +31,13 @@ impl Schedule {
             tokio::fs::create_dir(&dir).await?;
         }
 
-        let (updated_tx, updated_rx)     = mpsc::channel(1024);
-        let (converted_tx, converted_rx) = mpsc::channel(1024);
-        let (notify_tx, notify_rx)       = watch::channel({
+        let (updated_tx, updated_rx) = mpsc::channel(1);
+        let (converted_tx, converted_rx) = mpsc::channel(1);
+        let (notify_tx, notify_rx) = watch::channel({
             let notify = Notify {
                 random: string::random(16),
-                invoker: update::Invoker::Auto,
-                daily: None,
-                weekly: None,
-                tchr_daily: None,
-                tchr_weekly: None,
+                groups: None,
+                teachers: None,
             };
 
             Arc::new(notify)
@@ -69,20 +51,14 @@ impl Schedule {
             notify_tx,
             notify_rx,
 
-            last: Last::load_or_init(
+            last: raw::Last::load_or_init(
                 dir.join("last.json")
             ).await?,
-            raw_last: raw::Last::load_or_init(
-                dir.join("raw_last.json")
-            ).await?,
             index: raw::Index::load_or_init(
-                crate::FETCH,
                 dir.join("index.json"),
                 updated_tx,
                 converted_rx,
-            ).await?,
-
-            interactors: Arc::new(RwLock::new(HashSet::new()))
+            ).await?
         };
 
         let this = Arc::new(this);
@@ -101,15 +77,12 @@ impl Schedule {
 
     pub async fn await_updates(self: Arc<Self>) {
         loop {
-            let params;
+            let mut rx = self.updated_rx.write().await;
+            rx.recv().await.unwrap();
+            debug!("updated signal received");
+            std::mem::drop(rx);
 
-            {
-                let mut rx = self.updated_rx.write().await;
-                params = rx.recv().await.unwrap();
-
-                debug!("updated signal received");
-            }
-
+            /* 
             let ft_daily = self.index.ft_daily().await;
             let ft_weekly = self.index.ft_weekly().await;
             let r_weekly = self.index.r_weekly().await;
@@ -188,7 +161,7 @@ impl Schedule {
                 ).await.unwrap();
             }
 
-            /* remove num_time_mappings */
+            // remove num_time_mappings
             {
                 let mut tchr_daily_new = new_last.tchr_daily.write().await;
                 let mut tchr_weekly_new = new_last.tchr_weekly.write().await;
@@ -203,7 +176,7 @@ impl Schedule {
                 *tchr_weekly_new = weekly_clone.map(|page| Arc::new(page));
             }
 
-            /* merge tchr daily with tchr weekly */
+            // merge tchr daily with tchr weekly
             {
                 let mut new_tchr_daily = new_last.tchr_daily.write().await;
                 let new_tchr_weekly = new_last.tchr_weekly.read().await;
@@ -215,7 +188,7 @@ impl Schedule {
                 }
             }
 
-            /* compare old last with new last */
+            // compare old last with new last
             {
                 let daily_old = self.last.daily.read().await;
                 let daily_new = new_last.daily.read().await;
@@ -363,7 +336,7 @@ impl Schedule {
                 self.notify_tx.send(Arc::new(notify)).unwrap();
             }
 
-            /* move new last to old last */
+            // move new last to old last
             {
                 debug!("setting last schedules...");
 
@@ -408,156 +381,13 @@ impl Schedule {
 
                 self.raw_last.save().await.unwrap();
             }
+            */
 
-            /* sending an event that conversion had finished */
+            // sending an event that conversion had finished
             {
                 self.converted_tx.read().await.send(()).await.unwrap();
                 debug!("converted signal sent");
             }
         }
-    }
-
-    pub async fn new_interactor(self: Arc<Self>) -> Arc<Interactor> {
-        let mut interactors = self.interactors.write().await;
-
-        let (keep_alive_tx, mut keep_alive_rx) = mpsc::channel(1024);
-        let (ping_tx, ping_rx) = mpsc::channel(1024);
-        let ping_tx = Arc::new(ping_tx);
-
-        let interactor = Interactor::new(keep_alive_tx, ping_rx);
-
-        loop {
-            if interactors.insert(interactor.clone()) {
-                break;
-            }
-        }
-
-        debug!("added new interactor {}", interactor.key);
-
-
-        let self_ref = self.clone();
-        let interactor_ref = interactor.clone();
-        let ping_tx_ref = ping_tx.clone();
-        tokio::spawn(async move {
-            loop {
-                let self_ref = self_ref.clone();
-                let interactor_ref = interactor_ref.clone();
-                let ping_tx_ref = ping_tx_ref.clone();
-
-                /* 
-                debug!(
-                    "spawning destruction handle for {}",
-                    interactor_ref.clone().key
-                );
-                */
-
-                let fuckrust_interactor_ref = interactor_ref.clone();
-                // spawn a task to destruct this interactor later
-                let destruction_handle = tokio::spawn(async move {
-                    // sleep for 10 minutes
-                    let dur = Duration::minutes(10).to_std().unwrap();
-                    tokio::time::sleep(dur).await;
-
-                    let empty_bytes = Bytes::from(vec![]);
-
-                    if fuckrust_interactor_ref.is_connected().await {
-                        // ping interactor 3 times
-                        for _ in 0..3 {
-                            debug!(
-                                "pinging interactor {}",
-                                fuckrust_interactor_ref.clone().key
-                            );
-
-                            ping_tx_ref.clone().send(
-                                empty_bytes.clone()
-                            ).await.unwrap();
-
-                            // sleep for 1 second
-                            let dur = Duration::seconds(1).to_std().unwrap();
-                            tokio::time::sleep(dur).await;
-                        }
-                    }
-
-                    debug!(
-                        "destruction wishes to drop {}",
-                        fuckrust_interactor_ref.clone().key
-                    );
-
-                    fuckrust_interactor_ref.wish_drop().await;
-                });
-
-                match keep_alive_rx.recv().await {
-                    Some(Lifetime::Kept) => {
-                        /* 
-                        debug!(
-                            "watch received kept, aborting destruction {}",
-                            interactor_ref.clone().key
-                        );
-                        */
-
-                        destruction_handle.abort();
-
-                        continue;
-                    },
-                    Some(Lifetime::Drop) => {
-                        debug!(
-                            "watch received drop {}",
-                            interactor_ref.clone().key
-                        );
-
-                        destruction_handle.abort();
-
-                        self_ref.clone().remove_interactor(
-                            interactor_ref.clone()
-                        ).await;
-                    },
-                    _ => ()
-                }
-
-                debug!(
-                    "watch ends for {}",
-                    interactor_ref.key
-                );
-                return
-            }
-        });
-
-        interactors.get(&interactor).unwrap().clone()
-    }
-
-    pub async fn get_interactor(&self, key: String) -> Option<Arc<Interactor>> {
-        let dummy = Interactor::from_key(key);
-
-        self.interactors.read().await.get(&dummy).map(
-            |interactor| interactor.clone()
-        )
-    }
-
-    async fn remove_interactor(&self, interactor: Arc<Interactor>) {
-        self.interactors.write().await.remove(&interactor);
-        debug!("removed interactor {}", interactor.key);
-    }
-}
-
-#[derive(Debug)]
-pub struct Container {
-    pub dir: PathBuf,
-
-    pub schedule: Arc<Schedule>,
-}
-impl Container {
-    pub async fn default_from_dir(dir: PathBuf) -> SyncResult<Container> {
-        if !dir.exists() {
-            tokio::fs::create_dir(&dir).await?;
-        }
-
-        let this = Container {
-            dir: dir.clone(),
-            schedule: Schedule::default_from_dir(
-                dir.join("schedule")
-            ).await?
-        };
-
-        Ok(this)
     }
 }

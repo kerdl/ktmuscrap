@@ -1,36 +1,71 @@
-# 🚀KTMU scrap🚀
+# Schedule parser from https://ktmu-sutd.ru
 
 #### Funny little note
 - I acknowledge the shittiness of this code
 - Couldn't fucking care less
-- Not willing to maintain this anymore (but have to)
 - No one pays me for that
+- This is the last version,
+no further adaptations in case of changing schedule formats
 - L + Ratio
 
-#### 🚀 Blazingly fast 🚀, 🚀Memory-safe🚀, 🚀Optimized🚀 HTTP REST API server for 🚀schedule conversion🚀 from 🤮 https://ktmu-sutd.ru 🤮
+## Overview
+This is a regular HTTP REST API server with a schedule parser under the hood.
 
-## 🚀FAST🚀 Overview
-  - **Getting daily or weekly schedule's JSON**
-    1. `GET localhost:8080/schedule/daily` or `GET localhost:8080/schedule/weekly`
-    2. Enojoy heavily nested and large JSON
-    - Or, to get schedule only for one group, use something like `GET localhost:8080/schedule/daily?group=<GROUP>`
-  - **Force update with a POST request**
-    1. Get your temporary key if still didn't: `GET localhost:8080/schedule/interact`
-    2. Request an update: `POST localhost:8080/schedule/update?key=<YOUR TEMP KEY>`
-    3. After some time it'll return a JSON of changes in schedule (or `null` fields if there aren't any)
-  - **Subscription to update events using WebSocket**
-    1. Get your temporary key if still didn't: `GET localhost:8080/schedule/interact`
-    2. WebSocket to `localhost:8080/schedule/updates?key=<YOUR TEMP KEY>`
-    3. Periodically (10 min) it'll send a JSON of changes in schedule (or `null` fields if there aren't any)
+- Every 10 minutes (configurable) ZIP archives
+from specified URLs to Google Sheets are downloaded
+- ZIPs are extracted and HTMLs are parsed
+- Parsed data is being saved on the disk,
+including the time of last update
+- Schedule diffs are generated and sent
+to the connected WebSocket clients
+- Client uses server APIs to view freshly parsed schedules
 
-## Why use inTeRAKtors and kEYs
-To avoid duplicates 🤪
+## API
+All responses are in JSONs.
+Schemas and examples later.
 
-When you are attached to WebSocket events and also make POST update request, you may get the same notify as a **WebSocket event** AND as an **update response** 😮
+### Getting groups schedule
+`GET http://localhost:8080/schedule/groups`
 
-So keys is just a filter to determine if a WebSocket client should receive the notify
+A schedule for all the groups presented.
 
-## Where it's used
-[**ktmuslave**](https://github.com/kerdl/ktmuslave) is a schedule bot for this server working both in VK and Telegram with some cool features
+### Getting schedule for specific group
+`GET http://localhost:8080/schedule/groups?name=<EXACT GROUP NAME>`
 
-Probs not useful for anything else except for learning 🤔
+A schedule containing only the specified group.
+
+### Getting teachers schedule
+`GET http://localhost:8080/schedule/teachers`
+
+A schedule for all the teachers presented.
+
+### Getting schedule for specific teacher
+`GET http://localhost:8080/schedule/teachers?name=<EXACT TEACHER NAME>`
+
+A schedule containing only the specified teacher.
+
+### Websocket connection with updates
+`WS ws://localhost:8080/schedule/updates`
+
+An update channel with diffs.
+
+Every time after schedule update,
+ktmuscrap generates a diff and sends it
+to everyone connected.
+This diff is always sent, no matter
+the changes - if there any or not.
+
+### Getting update period
+`GET http://localhost:8080/schedule/updates/period`
+
+How often updates are performed. This value is set in the config.
+
+### Getting last update time
+`GET http://localhost:8080/schedule/updates/period`
+
+When was the last update performed.
+
+## Where is it used
+[**ktmuslave**](https://github.com/kerdl/ktmuslave) is a schedule bot built on top of this server. Working both in VK and Telegram.
+
+Pointless for anything else 🤔
