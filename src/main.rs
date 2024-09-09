@@ -15,7 +15,7 @@ pub use derive_new;
 use actix_web::{App, HttpServer};
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
-use std::{sync::Arc, net::SocketAddr};
+use std::sync::Arc;
 
 use logger::Logger;
 use data::regex;

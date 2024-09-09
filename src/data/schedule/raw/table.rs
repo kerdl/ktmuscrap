@@ -33,7 +33,7 @@ impl Cell {
     /// █ □ □ -> true
     /// □ □ □
     /// ```
-    pub fn hits_next_rows(&self) -> bool {
+    pub fn does_hit_next_rows(&self) -> bool {
         self.rowspan > 0
     }
 
@@ -49,7 +49,7 @@ impl Cell {
     /// █ □ □ -> 2 rows
     /// █ □ □
     /// ```
-    pub fn hits(&self) -> usize {
+    pub fn row_hits(&self) -> usize {
         if self.rowspan < 1 { 0 }
         else { self.rowspan - 1 }
     }
@@ -98,21 +98,4 @@ impl RangeHit {
     pub fn done(&mut self) {
         self.is_done = true;
     }
-}
-
-#[derive(new, Debug, Clone)]
-pub struct Body {
-    pub schema: Vec<Vec<Cell>>,
-}
-
-#[derive(new, Debug, Clone)]
-pub struct Group {
-    pub raw: String,
-    pub valid: String,
-}
-
-#[derive(new, Debug, Clone, PartialEq, Eq)]
-pub struct Teacher {
-    pub raw: String,
-    pub valid: String,
 }

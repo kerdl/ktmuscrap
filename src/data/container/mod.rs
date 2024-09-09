@@ -1,22 +1,13 @@
 mod settings;
 mod schedule;
 
-use actix_web::web::Bytes;
-use chrono::Duration;
-use log::{info, debug};
-use tokio::sync::{RwLock, mpsc, watch};
-use std::{path::PathBuf, sync::Arc, collections::HashSet};
+use std::{path::PathBuf, sync::Arc};
 use crate::{
-    compare::{self, DetailedCmp},
-    data::{
-        json::Saving,
-        schedule::{raw::{self, Last}, Notify},
-        container::{
-            settings::Settings,
-            schedule::Schedule
-        }
+    data::container::{
+        settings::Settings,
+        schedule::Schedule
     },
-    merge, parse, string, SyncResult
+    SyncResult
 };
 
 
