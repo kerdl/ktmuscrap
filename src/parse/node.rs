@@ -46,7 +46,6 @@ pub mod text {
     /// - `"text1, text2, text3"`
     pub fn nested_as_string(node: &Node, sep: &str) -> String {
         let texts = nested_as_vec(node);
-
         texts.join(sep)
     }
 }

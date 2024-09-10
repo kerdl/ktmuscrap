@@ -20,10 +20,6 @@ reqwest = "0.12"
 log = "0.4"
 colored = "2"
 
-# static, const
-lazy_static = "1.4.0"
-once_cell = "1.16.0"
-
 # date, time
 chrono = { version = "0.4.38", features = ["serde"]}
 
@@ -41,6 +37,9 @@ num-derive = "0.3"
 # html
 html_parser = "0.6.3"
 htmlescape = "0.3.1"
+
+# css
+cssparser = "0.34.0"
 
 # strings
 regex = "1.5"

@@ -1,10 +1,8 @@
 pub mod index;
-pub mod last;
 pub mod table;
 pub mod error;
 
 pub use index::Index;
-pub use last::Last;
 
 use serde_derive::{Serialize, Deserialize};
 use strum_macros::{EnumString, Display};

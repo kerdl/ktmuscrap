@@ -40,7 +40,7 @@ enum UpdateFinishType {
 #[derive(Debug)]
 pub struct Index {
     path: PathBuf,
-    updated_tx: mpsc::Sender<()>,
+    updated_tx: mpsc::Sender<Vec<PathHolder>>,
     converted_rx: Arc<RwLock<mpsc::Receiver<()>>>,
     update_forever_handle: Arc<RwLock<Option<JoinHandle<()>>>>,
     update_lock: Arc<Mutex<()>>,
@@ -79,7 +79,7 @@ impl json::Saving<MiddleIndex> for Index {}
 impl Index {
     fn default(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<Vec<PathHolder>>,
         converted_rx: mpsc::Receiver<()>,
     ) -> Arc<Self> {
         let this = Self {
@@ -102,7 +102,7 @@ impl Index {
     fn from_middle(
         middle: Arc<MiddleIndex>,
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<Vec<PathHolder>>,
         converted_rx: mpsc::Receiver<()>
     ) -> Arc<Self> {
         let types = {
@@ -136,7 +136,7 @@ impl Index {
 
     pub async fn load_or_init(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<Vec<PathHolder>>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
         let this;
@@ -153,7 +153,7 @@ impl Index {
 
     pub async fn load(
         path: PathBuf,
-        updated_tx: mpsc::Sender<()>,
+        updated_tx: mpsc::Sender<Vec<PathHolder>>,
         converted_rx: mpsc::Receiver<()>
     ) -> SyncResult<Arc<Index>> {
         let middle = MiddleIndex::load(path.clone()).await?;
@@ -202,34 +202,13 @@ impl Index {
         *self.updated.write().await = Utc::now().naive_utc()
     }
 
-    pub async fn update_all_auto(
-        self: Arc<Self>
-    ) {
-        debug!("staring auto update_all");
-        self.update_all().await;
-        debug!("finished auto update_all");
-    }
-
-    pub async fn update_all_manually(self: Arc<Self>) {
-        match self.clone().update_all().await {
-            UpdateFinishType::Complete => {
-                self.clone().abort_update_forever().await;
-                self.clone().update_forever().await
-            },
-            UpdateFinishType::LockRelease => {
-                debug!("update_all_manually() won't restart auto update loop \
-                because it returned LockRelease type")
-            },
-        }
-        
-    }
-
     async fn update_all(self: Arc<Self>) -> UpdateFinishType {
+        let mut paths = vec![];
         let update_lock_ref = self.update_lock.clone();
 
         if update_lock_ref.try_lock().is_err() {
             debug!(
-                "someone tried to update while other update is still running, \
+                "someone tried to update while the other update is still running, \
                 will return after the main one finishes"
             );
 
@@ -258,10 +237,15 @@ impl Index {
                 let schedule = schedule.clone();
     
                 let handle = tokio::spawn(async move {
+                    let paths;
                     loop {
                         let bytes = schedule.refetch_until_success().await;
+                        let unpack_result = schedule.clone().unpack(bytes).await;
 
-                        if let Err(error) = schedule.clone().unpack(bytes).await {
+                        if let Ok(collected_paths) = unpack_result {
+                            paths = collected_paths;
+                            break;
+                        } else if let Err(error) = unpack_result {
                             warn!(
                                 "{} unpack error, will refetch and unpack again in {:?}: {:?}",
                                 schedule.kind,
@@ -270,34 +254,37 @@ impl Index {
                             );
     
                             tokio::time::sleep(schedule.retry_period).await;
-                        } else {
-                            break;
                         }
+                    }
+                    PathHolder {
+                        paths,
+                        name: schedule.name.clone(),
+                        kind: schedule.kind.clone()
                     }
                 });
                 handles.push(handle);
             }
     
             for handle in handles {
-                handle.await.unwrap();
+                let path_index = handle.await.unwrap();
+                paths.push(path_index);
             }
-        }
 
-        Arc::new(self.clone().to_middle().await).poll_save();
-
-        if self.fetch {
             debug!("fetched and unpacked all successfully");
         } else {
             debug!("fetching is disabled, update bypassed");
         }
+
+        Arc::new(self.clone().to_middle().await).poll_save();
         
-        self.clone().post_update_all().await;
+        self.clone().signal_updated(paths).await;
+        self.clone().await_converted().await;
 
         UpdateFinishType::Complete
     }
 
-    async fn send_updated(self: Arc<Self>) {
-        self.updated_tx.send(()).await.unwrap();
+    async fn signal_updated(self: Arc<Self>, paths: Vec<PathHolder>) {
+        self.updated_tx.send(paths).await.unwrap();
         debug!("updated signal sent");
     }
 
@@ -306,35 +293,22 @@ impl Index {
         debug!("converted signal received");
     }
 
-    async fn post_update_all(self: Arc<Self>) {
-        self.clone().send_updated().await;
-        self.clone().await_converted().await;
-    }
-
     pub async fn update_forever(self: Arc<Self>) {
         let self_ref = self.clone();
 
         *self_ref.update_forever_handle.write().await = Some(tokio::spawn(async move {
-            let mut force_until = None;
-
             loop {
                 let next = self.clone().next_update().await;
-                let mut until = if force_until.is_some() {
-                    force_until.unwrap()
-                } else {
-                    self.clone().until_next_update().await
-                };
-
-                force_until = None;
+                let mut until = self.clone().until_next_update().await;
+                let zero_dur = Duration::zero();
     
-                if until < Duration::zero() {
-                    until = Duration::zero()
+                if until < zero_dur {
+                    until = zero_dur;
                 }
 
                 debug!("next fetch: {} (in {} secs)", next, until.num_seconds());
                 tokio::time::sleep(until.to_std().unwrap()).await;
-
-                self.clone().update_all_auto().await;
+                self.clone().update_all().await;
             }
         }));
     }
@@ -450,7 +424,7 @@ impl Schedule {
         };
     }
 
-    pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<(), error::UnpackError> {
+    pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<Vec<PathBuf>, error::UnpackError> {
         let dir = self.dir();
 
         debug!("unpacking {:?}", dir);
@@ -540,13 +514,14 @@ impl Schedule {
         }
         debug!("extracted {} archive", self.name);
 
-        self.post_unpack(files).await;
+        let unpacked_paths = self.post_unpack(files).await;
 
-        Ok(())
+        Ok(unpacked_paths)
     }
 
-    async fn post_unpack(self: Arc<Self>, mut files: Vec<File>) {
-        files.retain(|file| file.path.extension() == Some(std::ffi::OsStr::new("html")));
+    async fn post_unpack(self: Arc<Self>, mut files: Vec<File>) -> Vec<PathBuf> {
+        let html_ext = std::ffi::OsStr::new("html");
+        files.retain(|file| file.path.extension() == Some(html_ext));
 
         for file in files.iter() {
             let writer = tokio::fs::OpenOptions::new()
@@ -565,6 +540,42 @@ impl Schedule {
                 continue;
             }
         }
+
+        files.into_iter().map(|file| file.path).collect()
+    }
+}
+
+#[derive(Debug)]
+pub struct PathHolder {
+    pub paths: Vec<PathBuf>,
+    pub name: String,
+    pub kind: Kind
+}
+
+/// # Stores last converted raw schedules
+#[derive(Debug)]
+pub struct PathContainer {
+    pub list: Arc<RwLock<Vec<PathHolder>>>
+}
+impl PathContainer {
+    pub fn default() -> Arc<Self> {
+        let this = Self {
+            list: Arc::new(RwLock::new(vec![]))
+        };
+        Arc::new(this)
+    }
+
+    /// # Check if all `names` are present
+    pub async fn is_complete(&self, reference: &[String]) -> bool {
+        self.list.read().await.iter().all(|sc| reference.contains(&sc.name))
+    }
+
+    /// # Get `names` that are not present
+    pub async fn missing_names(&self, reference: &[String]) -> Vec<String> {
+        self.list.read().await.iter()
+            .filter(|sc| !reference.contains(&sc.name))
+            .map(|sc| sc.name.clone())
+            .collect()
     }
 }
 

@@ -1,7 +1,4 @@
-use derive_new::new;
-
-
-#[derive(new, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub x: usize,
     pub y: usize,
@@ -10,6 +7,7 @@ pub struct Cell {
     /// # How tall the cell is
     pub rowspan: usize,
     pub text: String,
+    pub color: String
 }
 impl Cell {
     pub fn width(&self) -> usize {

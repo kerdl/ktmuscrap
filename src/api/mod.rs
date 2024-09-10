@@ -2,7 +2,6 @@ pub mod error;
 pub mod schedule;
 
 use chrono::NaiveDateTime;
-use derive_new::new;
 use actix_web::{http::StatusCode, HttpResponse, HttpResponseBuilder};
 use serde_derive::Serialize;
 use std::sync::Arc;
@@ -11,7 +10,7 @@ use crate::data::schedule::{self as sc, Notify};
 use error::base::ApiError;
 
 
-#[derive(new, Serialize)]
+#[derive(Serialize)]
 pub struct Updates {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<std::time::Duration>,

@@ -6,6 +6,7 @@ use crate::api::{Response, ToResponse};
 use super::ErrorNum;
 
 
+/// # Kind of error
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {

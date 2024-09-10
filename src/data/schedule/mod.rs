@@ -1,12 +1,14 @@
 mod file;
 mod notify;
+mod last;
 pub mod raw;
 pub mod attender;
 
 pub use file::File;
 pub use notify::Notify;
+pub use last::Last;
 
-use crate::{compare::FindingCmp, REGEX};
+use crate::{compare::FindingCmp, regex};
 
 use serde_derive::{Serialize, Deserialize};
 use chrono::NaiveDate;
@@ -106,7 +108,7 @@ impl Subject {
         if self.raw.len() != 1 {
             return false;
         }
-        REGEX.digit.is_match(&self.raw)
+        regex().digit.is_match(&self.raw)
     }
 }
 
@@ -155,7 +157,7 @@ impl FindingCmp for Mapping {
 /// # Whole schedule page
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Page {
-    pub kind: Option<raw::Kind>,
+    pub kind: raw::Kind,
     pub date: RangeInclusive<NaiveDate>,
     pub mappings: Vec<Mapping>,
 }

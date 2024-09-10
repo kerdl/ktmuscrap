@@ -1,6 +1,8 @@
 pub mod error;
 
+use chrono::NaiveDate;
 use error::{MergeError, NonOverlappingDates};
+use std::ops::RangeInclusive;
 use crate::data::schedule::{
     raw,
     attender,
@@ -20,14 +22,14 @@ use crate::data::schedule::{
 /// from `teachers`
 /// - `teachers` take subject names
 /// from `groups`
-pub async fn page<'a>(
+pub async fn complement<'a>(
     groups: &'a mut Page, 
     teachers: &'a mut Page,
 ) -> Result<(), MergeError<'a>> {
-    if groups.kind != Some(raw::Kind::Groups) {
+    if groups.kind != raw::Kind::Groups {
         return Err(MergeError::InvalidKind(groups));
     }
-    if teachers.kind != Some(raw::Kind::Teachers) {
+    if teachers.kind != raw::Kind::Teachers {
         return Err(MergeError::InvalidKind(teachers));
     }
 
@@ -49,28 +51,27 @@ pub async fn page<'a>(
             for group_subject in group_day.subjects.iter_mut() {
                 for group_attender in group_subject.attenders.iter_mut() {
                     // find teacher mapping
-                    let Some(teacher) = teachers.mappings.iter_mut().find(
-                        |tchr|
-                        tchr.name == group_attender.name
-                    ) else { continue };
+                    let Some(teacher) = teachers.mappings
+                        .iter_mut()
+                        .find(|tchr| tchr.name == group_attender.name)
+                        else { continue };
 
                     // find the same day within the teacher mapping
-                    let Some(teacher_day) = teacher.days.iter_mut().find(
-                        |tchr_day|
-                        tchr_day.date == group_day.date
-                    ) else { continue };
+                    let Some(teacher_day) = teacher.days
+                        .iter_mut()
+                        .find(|tchr_day| tchr_day.date == group_day.date)
+                        else { continue };
 
                     // find the same subject within the teacher day
-                    let Some(teacher_subject) = teacher_day.subjects.iter_mut().find(
-                        |tchr_subj|
-                        tchr_subj.num == group_subject.num
-                    ) else { continue };
+                    let Some(teacher_subject) = teacher_day.subjects
+                        .iter_mut()
+                        .find(|tchr_subj| tchr_subj.num == group_subject.num)
+                        else { continue };
 
                     // find the group as a teacher attender
-                    let teacher_attender = teacher_subject.attenders.iter_mut().find(
-                        |tchr_attender|
-                        tchr_attender.name == group_attender.name
-                    );
+                    let teacher_attender = teacher_subject.attenders
+                        .iter_mut()
+                        .find(|tchr_attender| tchr_attender.name == group_attender.name);
 
                     // group schedules have better subject naming,
                     // clone it to the teachers
@@ -94,12 +95,16 @@ pub async fn page<'a>(
                     } else {
                         let teacher_attender = teacher_attender.unwrap();
 
-                        teacher_attender.cabinet.opposite = group_attender.cabinet.primary.as_ref().map(
-                            |cab| cab.clone()
-                        );
-                        group_attender.cabinet.opposite = teacher_attender.cabinet.primary.as_ref().map(
-                            |cab| cab.clone()
-                        );
+                        teacher_attender.cabinet.opposite = group_attender
+                            .cabinet
+                            .primary
+                            .as_ref()
+                            .map(|cab| cab.clone());
+                        group_attender.cabinet.opposite = teacher_attender
+                            .cabinet
+                            .primary
+                            .as_ref()
+                            .map(|cab| cab.clone());
                     }
                 }
             }
@@ -107,4 +112,23 @@ pub async fn page<'a>(
     }
 
     Ok(())
+}
+
+/// # Combine multiple pages
+pub async fn combine(
+    pages: Vec<Page>,
+    date: RangeInclusive<NaiveDate>,
+    kind: raw::Kind
+) -> Page {
+    let mut new_page = Page {
+        kind,
+        date,
+        mappings: vec![]
+    };
+
+    for mut page in pages {
+        new_page.mappings.append(&mut page.mappings);
+    }
+
+    new_page
 }

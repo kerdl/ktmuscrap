@@ -7,7 +7,7 @@ use crate::{
     compare::{self, DetailedCmp},
     data::{
         json::Saving,
-        schedule::{raw, Notify}
+        schedule::{raw, Last, Notify}
     },
     merge, parse, string, SyncResult
 };
@@ -16,13 +16,13 @@ use crate::{
 #[derive(Debug)]
 pub struct Schedule {
     dir: PathBuf,
-    updated_rx: Arc<RwLock<mpsc::Receiver<()>>>,
+    updated_rx: Arc<RwLock<mpsc::Receiver<Vec<raw::index::PathHolder>>>>,
     converted_tx: Arc<RwLock<mpsc::Sender<()>>>,
 
     notify_tx: watch::Sender<Arc<Notify>>,
     notify_rx: watch::Receiver<Arc<Notify>>,
 
-    pub last: Arc<raw::Last>,
+    pub last: Arc<Last>,
     pub index: Arc<raw::Index>
 }
 impl Schedule {
@@ -51,7 +51,7 @@ impl Schedule {
             notify_tx,
             notify_rx,
 
-            last: raw::Last::load_or_init(
+            last: Last::load_or_init(
                 dir.join("last.json")
             ).await?,
             index: raw::Index::load_or_init(
@@ -78,9 +78,39 @@ impl Schedule {
     pub async fn await_updates(self: Arc<Self>) {
         loop {
             let mut rx = self.updated_rx.write().await;
-            rx.recv().await.unwrap();
+            let paths = rx.recv().await.unwrap();
             debug!("updated signal received");
             std::mem::drop(rx);
+
+            let group_paths = paths.iter()
+                .filter(|holder| holder.kind == raw::Kind::Groups)
+                .map(|holder| holder.paths.as_slice())
+                .flat_map(|paths| paths)
+                .cloned()
+                .collect::<Vec<PathBuf>>();
+            let teacher_paths = paths.iter()
+                .filter(|holder| holder.kind == raw::Kind::Teachers)
+                .map(|holder| holder.paths.as_slice())
+                .flat_map(|paths| paths)
+                .cloned()
+                .collect::<Vec<PathBuf>>();
+
+            let self_ref = self.clone();
+            let groups_handle = tokio::spawn(async move {
+                parse::groups(
+                    group_paths.as_slice(), self_ref.last.clone()
+                ).await.unwrap()
+            });
+            let self_ref = self.clone();
+            let teachers_handle = tokio::spawn(async move {
+                parse::teachers(
+                    teacher_paths.as_slice(), self_ref.last.clone()
+                ).await.unwrap()
+            });
+
+            groups_handle.await.unwrap();
+            teachers_handle.await.unwrap();
+            
 
             /* 
             let ft_daily = self.index.ft_daily().await;
