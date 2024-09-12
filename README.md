@@ -5,7 +5,7 @@
 - Couldn't fucking care less
 - No one pays me for that
 - This is the last version,
-no further adaptations in case of changing schedule formats
+no further updates in case of changing schedule formats
 - L + Ratio
 
 ## Overview
@@ -14,7 +14,7 @@ This is a regular HTTP REST API server with a schedule parser under the hood.
 - Every 10 minutes (configurable) ZIP archives
 from specified URLs to Google Sheets are downloaded
 - ZIPs are extracted and HTMLs are parsed
-- Parsed data is being saved on the disk,
+- Parsed data is being saved onto the disk,
 including the time of last update
 - Schedule diffs are generated and sent
 to the connected WebSocket clients

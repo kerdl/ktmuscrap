@@ -8,7 +8,7 @@ pub use file::File;
 pub use notify::Notify;
 pub use last::Last;
 
-use crate::{compare::FindingCmp, regex};
+use crate::{compare::FindingCmp, regexes};
 
 use serde_derive::{Serialize, Deserialize};
 use chrono::NaiveDate;
@@ -108,7 +108,7 @@ impl Subject {
         if self.raw.len() != 1 {
             return false;
         }
-        regex().digit.is_match(&self.raw)
+        regexes().digit.is_match(&self.raw)
     }
 }
 

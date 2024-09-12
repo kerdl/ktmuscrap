@@ -26,11 +26,11 @@ pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
-pub fn regex() -> &'static regex::Container {
+pub fn regexes() -> &'static regex::Container {
     unsafe { &*(REGEX) }
 }
 
-pub fn data() -> &'static data::Container {
+pub fn options() -> &'static data::Container {
     unsafe { &*(DATA) }
 }
 
@@ -49,7 +49,7 @@ async fn main() -> std::io::Result<()> {
         DATA = &data_own;
     }
 
-    if data().schedule.index.types.len() < 1 {
+    if options().schedule.index.types.len() < 1 {
         let example = crate::data::schedule::raw::index::MiddleSchedule::example();
         let json_example = serde_json::to_string_pretty(&example).unwrap();
 
@@ -66,9 +66,9 @@ async fn main() -> std::io::Result<()> {
         ));
     }
 
-    data().schedule.index.clone().update_forever().await;
+    options().schedule.index.clone().update_forever().await;
 
-    let addr = data().settings.server.address.clone();
+    let addr = options().settings.server.address.clone();
     info!("http server will be ran on {}", addr);
     // start http server
     HttpServer::new(|| {

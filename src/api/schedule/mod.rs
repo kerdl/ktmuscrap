@@ -8,7 +8,7 @@ use actix_web_actors::ws;
 use log::debug;
 use std::sync::Arc;
 
-use crate::{data, data::schedule::raw::Kind};
+use crate::{options, data::schedule::raw::Kind};
 use super::{error::{self, base::ToApiError}, ToResponse, Response};
 
 
@@ -22,8 +22,8 @@ async fn generic_get(
     query: web::Query<ScheduleGetNameQuery>
 ) -> HttpResponse {
     let page_guard = match kind {
-        Kind::Groups => data().schedule.last.groups.read().await,
-        Kind::Teachers => data().schedule.last.teachers.read().await
+        Kind::Groups => options().schedule.last.groups.read().await,
+        Kind::Teachers => options().schedule.last.teachers.read().await
     };
 
     let Some(mut page) = page_guard.clone() else {
@@ -52,7 +52,7 @@ impl Actor for UpdatesWs {
 
     fn started(&mut self, ctx: &mut Self::Context) {
         let updates_stream = async_stream::stream! {
-            let mut notify_rx = data().schedule.clone().get_notify_rx();
+            let mut notify_rx = options().schedule.clone().get_notify_rx();
 
             while notify_rx.changed().await.is_ok() {
                 let notify = notify_rx.borrow();
@@ -114,13 +114,13 @@ async fn updates(
 #[get("/schedule/updates/period")]
 async fn updates_period() -> impl Responder {
     Response::from_updates_period(
-        data().schedule.index.period.to_std().unwrap()
+        options().schedule.index.period.to_std().unwrap()
     ).to_json()
 }
 
 #[get("/schedule/updates/last")]
 async fn updates_last() -> impl Responder {
     Response::from_updates_last(
-        data().schedule.index.updated.read().await.clone()
+        options().schedule.index.updated.read().await.clone()
     ).to_json()
 }

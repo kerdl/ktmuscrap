@@ -32,7 +32,7 @@ impl Cell {
     /// □ □ □
     /// ```
     pub fn does_hit_next_rows(&self) -> bool {
-        self.rowspan > 0
+        self.rowspan > 1
     }
 
     /// # How much other rows this cell affects

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use crate::data::schedule::raw::table;
+use crate::data::{self, schedule::raw::table};
 use crate::parse;
 
 
@@ -11,6 +11,7 @@ const TR: &str = "tr";
 const TD: &str = "td";
 const COLSPAN: &str = "colspan";
 const ROWSPAN: &str = "rowspan";
+const HEIGHT: &str = "height";
 const GRID_CONTAINER: &str = "grid-container";
 const FREEZEBAR_CELL: &str = "freezebar-cell";
 
@@ -92,6 +93,11 @@ impl Parser {
             return Err(ParsingError::NoTbody)
         };
 
+        if self.string_dom.contains("3 ПОТОК") && self.string_dom.contains("2-КДД-33") {
+            println!();
+        }
+
+        let mut x_jumping_conds: Vec<table::XJump> = vec![];
         let mut schema: Vec<Vec<table::Cell>> = vec![];
         let mut y = 0;
 
@@ -109,6 +115,22 @@ impl Parser {
             if row_is_only_freezebar_cells {
                 continue;
             };
+
+            let style_string = elm_row.attributes
+                .get(STYLE)
+                .map(|opt| opt.clone())
+                .flatten();
+
+            if let Some(style_string) = style_string {
+                let mut parser = parse::css::Properties::from_str(&style_string);
+                let props = parser.hashmap();
+                match props.get(HEIGHT) {
+                    Some(data::css::Value::Dimension(dim)) => {
+                        if dim.value < 3.0 { continue; }
+                    },
+                    _ => ()
+                }
+            }
 
             let mut cells = vec![];
             let mut x = 0;
@@ -128,6 +150,26 @@ impl Parser {
                     continue;
                 }
 
+                loop {
+                    let mut performed_jumps_count = 0;
+
+                    for condition in x_jumping_conds.iter_mut() {
+                        if {
+                            !condition.is_done
+                            && condition.at_x == x
+                            && condition.at_y == y
+                        } {
+                            x += condition.by;
+                            condition.done();
+                            performed_jumps_count += 1;
+                        }
+                    };
+
+                    if performed_jumps_count < 1 {
+                        break;
+                    }
+                }
+
                 let colspan_string = elm_cell.attributes
                     .get(COLSPAN)
                     .map(|opt| opt.clone())
@@ -136,6 +178,10 @@ impl Parser {
                 let colspan = colspan_string
                     .parse::<usize>()
                     .unwrap_or(0);
+                let cell_width = {
+                    if colspan < 1 { 1 }
+                    else { colspan }
+                };
 
                 let rowspan_string = elm_cell.attributes
                     .get(ROWSPAN)
@@ -159,9 +205,25 @@ impl Parser {
                     color
                 };
 
+                if cell.does_hit_next_rows() {
+                    let mut future_y = y + 1;
+
+                    for _ in 0..cell.row_hits() {
+                        let jump = table::XJump {
+                            at_x: x,
+                            at_y: future_y,
+                            by: cell_width,
+                            is_done: false,
+                        };
+    
+                        x_jumping_conds.push(jump);
+                        future_y += 1;
+                    }
+                }
+
                 cells.push(cell);
 
-                x += 1;
+                x += cell_width;
             }
 
             schema.push(cells);
