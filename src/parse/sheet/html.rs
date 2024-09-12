@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use crate::data::{self, schedule::raw::table};
 use crate::parse;
 
-
+ 
 const STYLE: &str = "style";
 const DIV: &str = "div";
 const TABLE: &str = "table";
@@ -14,6 +14,10 @@ const ROWSPAN: &str = "rowspan";
 const HEIGHT: &str = "height";
 const GRID_CONTAINER: &str = "grid-container";
 const FREEZEBAR_CELL: &str = "freezebar-cell";
+const BACKGROUND_COLOR: &str = "background-color";
+const DEFAULT_CELL_COLOR: &str = "#ffffff";
+const ZERO: &str = "0";
+
 
 
 #[derive(thiserror::Error, Debug)]
@@ -88,20 +92,28 @@ impl Parser {
         })
     }
 
-    pub async fn parse(&self) -> Result<(), ParsingError> {
+    pub async fn parse(&self) -> Result<Vec<Vec<table::Cell>>, ParsingError> {
         let Some(tbody) = self.main_tbody().map(|tb| tb.element()).flatten() else {
             return Err(ParsingError::NoTbody)
         };
-
-        if self.string_dom.contains("3 ПОТОК") && self.string_dom.contains("2-КДД-33") {
-            println!();
-        }
 
         let mut x_jumping_conds: Vec<table::XJump> = vec![];
         let mut schema: Vec<Vec<table::Cell>> = vec![];
         let mut y = 0;
 
-        for node_row in tbody.children.iter() {
+        let styles_text;
+        let mut styles_input;
+        let mut styles_parser;
+        let mut styles = None;
+
+        if let Some(styles_node) = self.style() {
+            styles_text = parse::node::text::nested_as_string(styles_node, " ");
+            styles_input = cssparser::ParserInput::new(&styles_text);
+            styles_parser = cssparser::Parser::new(&mut styles_input);
+            styles = Some(parse::css::Sheet::selectors(&mut styles_parser));
+        }
+
+        'row: for node_row in tbody.children.iter() {
             let Some(elm_row) = node_row.element() else { continue };
 
             let is_not_tr = elm_row.name != TR;
@@ -120,15 +132,20 @@ impl Parser {
                 .get(STYLE)
                 .map(|opt| opt.clone())
                 .flatten();
-
+            
             if let Some(style_string) = style_string {
-                let mut parser = parse::css::Properties::from_str(&style_string);
-                let props = parser.hashmap();
-                match props.get(HEIGHT) {
-                    Some(data::css::Value::Dimension(dim)) => {
-                        if dim.value < 3.0 { continue; }
-                    },
-                    _ => ()
+                let mut input = cssparser::ParserInput::new(&style_string);
+                let mut parser = cssparser::Parser::new(&mut input);
+                let props = parse::css::Properties::hashmap(&mut parser);
+                if let Some(values) = props.get(HEIGHT) {
+                    for value in values {
+                        match value {
+                            data::css::Value::Dimension(dim) => {
+                                if dim.value < 3.0 { continue 'row; }
+                            },
+                            _ => ()
+                        }
+                    }
                 }
             }
 
@@ -174,7 +191,7 @@ impl Parser {
                     .get(COLSPAN)
                     .map(|opt| opt.clone())
                     .flatten()
-                    .unwrap_or("0".to_string());
+                    .unwrap_or(ZERO.to_string());
                 let colspan = colspan_string
                     .parse::<usize>()
                     .unwrap_or(0);
@@ -187,14 +204,28 @@ impl Parser {
                     .get(ROWSPAN)
                     .map(|opt| opt.clone())
                     .flatten()
-                    .unwrap_or("0".to_string());
+                    .unwrap_or(ZERO.to_string());
                 let rowspan = rowspan_string
                     .parse::<usize>()
                     .unwrap_or(0);
 
                 let text = parse::node::text::nested_as_string(node_cell, " ");
 
-                let color = "#ffffff".to_string();
+                let color = {
+                    if let Some(styles) = styles.as_ref() {
+                        parse::css::get_key_from_classes(
+                            BACKGROUND_COLOR,
+                            &elm_cell.classes,
+                            styles
+                        )
+                            .map(|value| parse::css::get_any_hash_in_value(value))
+                            .flatten()
+                            .map(|color| format!("#{}", color))
+                            .unwrap_or(DEFAULT_CELL_COLOR.to_string())
+                    } else {
+                        DEFAULT_CELL_COLOR.to_string()
+                    }
+                };
 
                 let cell = table::Cell {
                     x,
@@ -231,6 +262,6 @@ impl Parser {
             y += 1;
         }
 
-        Ok(())
+        Ok(schema)
     }
 }

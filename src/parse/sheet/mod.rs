@@ -18,8 +18,23 @@ use crate::lifetime;
 #[error("parsing error")]
 pub enum ParsingError {
     Html(html::ParsingError),
-    Table,
-    Mapping
+    Table(table::ParsingError),
+    Mappings(mappings::ParsingError)
+}
+impl From<html::ParsingError> for ParsingError {
+    fn from(value: html::ParsingError) -> Self {
+        Self::Html(value)
+    }
+}
+impl From<table::ParsingError> for ParsingError {
+    fn from(value: table::ParsingError) -> Self {
+        Self::Table(value)
+    }
+}
+impl From<mappings::ParsingError> for ParsingError {
+    fn from(value: mappings::ParsingError) -> Self {
+        Self::Mappings(value)
+    }
 }
 
 
@@ -27,8 +42,10 @@ pub async fn from_path(
     path: &PathBuf,
     kind: Kind,
 ) -> Result<(), ParsingError> {
-    let mut html_processor = html::Parser::from_path(path).await.unwrap();
-    let tables = html_processor.parse().await;
+    let mut html_processor = html::Parser::from_path(path).await?;
+    let table = html_processor.parse().await?;
+    let mut table_processor = table::Parser::from_schema(table);
+    let mappings = table_processor.parse().await?;
     debug!("{:?} parsed", path);
     Ok(())
 }

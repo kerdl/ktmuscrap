@@ -22,6 +22,8 @@ pub struct UnitNumber<'a> {
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
+    Ident(cssparser::CowRcStr<'a>),
+    Hash(cssparser::CowRcStr<'a>),
     IDHash(cssparser::CowRcStr<'a>),
     QuotedString(cssparser::CowRcStr<'a>),
     UnquotedUrl(cssparser::CowRcStr<'a>),
