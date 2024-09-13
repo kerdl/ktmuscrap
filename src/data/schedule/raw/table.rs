@@ -1,6 +1,31 @@
 use std::ops::Range;
+use chrono::NaiveDate;
 use crate::data::schedule::attender;
 
+
+pub trait XCord {
+    fn x(&self) -> usize;
+}
+
+pub trait YCord {
+    fn y(&self) -> usize;
+}
+
+pub trait Width {
+    fn width(&self) -> usize;
+}
+
+pub trait Height {
+    fn height(&self) -> usize;
+}
+
+pub trait XRange {
+    fn x_range(&self) -> Range<usize>;
+}
+
+pub trait YRange {
+    fn y_range(&self) -> Range<usize>;
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
@@ -13,17 +38,39 @@ pub struct Cell {
     pub text: String,
     pub color: String
 }
-impl Cell {
-    pub fn width(&self) -> usize {
+impl XCord for Cell {
+    fn x(&self) -> usize {
+        self.x
+    }
+}
+impl YCord for Cell {
+    fn y(&self) -> usize {
+        self.y
+    }
+}
+impl Width for Cell {
+    fn width(&self) -> usize {
         if self.colspan < 1 { 1 }
         else { self.colspan }
     }
-
-    pub fn height(&self) -> usize {
+}
+impl Height for Cell {
+    fn height(&self) -> usize {
         if self.rowspan < 1 { 1 }
         else { self.rowspan }
     }
-
+}
+impl XRange for Cell {
+    fn x_range(&self) -> Range<usize> {
+        self.x()..(self.x() + self.width() - 1)
+    }
+}
+impl YRange for Cell {
+    fn y_range(&self) -> Range<usize> {
+        self.y()..(self.y() + self.height() - 1)
+    }
+}
+impl Cell {
     /// # If this cell spreads to next rows
     ///
     /// ```notrust
@@ -99,6 +146,41 @@ pub struct RangeHit {
 impl RangeHit {
     pub fn done(&mut self) {
         self.is_done = true;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OptDate<'a> {
+    pub raw: &'a str,
+    pub parsed: Option<Range<NaiveDate>>,
+    pub range: Range<usize>
+}
+impl<'a> OptDate<'a> {
+    pub fn to_date(self) -> Option<Date<'a>> {
+        let Some(parsed) = self.parsed else { return None };
+        let date = Date {
+            raw: self.raw,
+            parsed,
+            range: self.range,
+        };
+        Some(date)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Date<'a> {
+    pub raw: &'a str,
+    pub parsed: Range<NaiveDate>,
+    pub range: Range<usize>
+}
+impl<'a> XCord for Date<'a> {
+    fn x(&self) -> usize {
+        self.range.start
+    }
+}
+impl<'a> XRange for Date<'a> {
+    fn x_range(&self) -> Range<usize> {
+        self.range.clone()
     }
 }
 

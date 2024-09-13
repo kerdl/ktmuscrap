@@ -32,6 +32,7 @@ pub struct Container {
     /// - 4рд 3
     /// - 4 РД 3
     /// - 4 рд 3
+    /// - ...
     pub group: Arc<Regex>,
     /// Same as `group` but asserts the start of the string
     pub start_group: Arc<Regex>,
@@ -39,9 +40,11 @@ pub struct Container {
     /// - `пн`
     /// - `вТ`0
     /// - -0`СР`
+    /// - ...
     /// ## Doesn't match
     /// - Пнф
     /// - свт
+    /// - ...
     pub whole_short_weekday: Arc<Regex>,
     /// ## Match examples
     /// - 01.01
@@ -50,6 +53,7 @@ pub struct Container {
     /// - 01/01/22
     /// - 01.01.2022
     /// - 01/01/2022
+    /// - ...
     /// 
     /// (*day*.*month*)
     /// (*day*.*month*.*year*)
@@ -82,7 +86,7 @@ impl Default for Container {
     fn default() -> Container {
         let group = r"([0-9])([-]*|\s*)([а-яёА-ЯЁ]{2,3})([-]*|\s*)([0-9]{1,2})";
         let start_group = format!(r"^{}", group);
-        let whole_short_weekday = r"(?<![а-яёА-ЯЁ])([пП][нН]|[вВ][тТ]|[сС][рР]|[чЧ][тТ]|[пП][тТ]|[сС][бБ]|[вВ][сС])(?![а-яёА-ЯЁ])";
+        let whole_short_weekday = r"\b([пП][нН]|[вВ][тТ]|[сС][рР]|[чЧ][тТ]|[пП][тТ]|[сС][бБ]|[вВ][сС])\b";
         let date = r"(\d{1,2})\W(\d{1,2})(\W(\d{4}|\d{2}))*";
         let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]?)?";
         let teacher_full = r"([A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+)";
