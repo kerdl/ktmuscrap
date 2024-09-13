@@ -1,3 +1,7 @@
+use std::ops::Range;
+use crate::data::schedule::attender;
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cell {
     pub x: usize,
@@ -96,4 +100,12 @@ impl RangeHit {
     pub fn done(&mut self) {
         self.is_done = true;
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Formation {
+    pub kind: attender::Kind,
+    pub raw: String,
+    pub valid: String,
+    pub range: Range<usize>
 }

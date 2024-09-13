@@ -106,7 +106,7 @@ async fn updates(
     };
 
     let resp = ws::start(updates_ws, &req, stream);
-    debug!("schedule updates subscriber connected: {:?}", resp);
+    debug!("responding to schedule updates subscriber: {:?}", resp);
 
     resp
 }
