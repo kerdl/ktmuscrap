@@ -1,7 +1,7 @@
 //! # Three-step sheet parsing
 //! - `html`: converting HTML to a table
 //! - `table`: mapping the table: connecting subjects
-//! to groups/teachers and dates
+//!   to groups/teachers and dates
 //! - `mappings`: creating final `Page` objects from mappings
 
 pub mod html;

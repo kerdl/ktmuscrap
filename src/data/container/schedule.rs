@@ -85,7 +85,7 @@ impl Schedule {
             let group_paths = paths.iter()
                 .filter(|holder| holder.kind == raw::Kind::Groups)
                 .map(|holder| holder.paths.as_slice())
-                .flat_map(|paths| paths)
+                .flatten()
                 .cloned()
                 .collect::<Vec<PathBuf>>();
             let teacher_paths = paths.iter()

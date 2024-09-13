@@ -75,8 +75,8 @@ impl Parser {
     }
 
     fn main_table(&self) -> Option<&html_parser::Node> {
-        let Some(node) = self.main_div() else { return None };
-        let Some(elm) = node.element() else { return None };
+        let node = self.main_div()?;
+        let elm = node.element()?;
         elm.children.iter().find(|node| {
             let Some(elm) = node.element() else { return false };
             elm.name == TABLE
@@ -84,8 +84,8 @@ impl Parser {
     }
 
     fn main_tbody(&self) -> Option<&html_parser::Node> {
-        let Some(node) = self.main_table() else { return None };
-        let Some(elm) = node.element() else { return None };
+        let node = self.main_table()?;
+        let elm = node.element()?;
         elm.children.iter().find(|node| {
             let Some(elm) = node.element() else { return false };
             elm.name == TBODY

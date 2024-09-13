@@ -69,7 +69,7 @@ impl json::ToMiddle<MiddleIndex> for Index {
         MiddleIndex {
             path: self.path.clone(),
             fetch: self.fetch,
-            updated: self.updated.read().await.clone(),
+            updated: *self.updated.read().await,
             period: self.period.clone().to_std().unwrap(),
             types
         }
@@ -126,7 +126,7 @@ impl Index {
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
             fetch: middle.fetch,
-            updated: Arc::new(RwLock::new(middle.updated.clone())),
+            updated: Arc::new(RwLock::new(middle.updated)),
             period: Duration::from_std(middle.period).unwrap(),
             types
         };
@@ -183,7 +183,7 @@ impl Index {
     }
 
     pub fn update_period(&self) -> Duration {
-        self.period.clone()
+        self.period
     }
 
     pub async fn next_update(&self) -> NaiveDateTime {
@@ -259,7 +259,7 @@ impl Index {
                     PathHolder {
                         paths,
                         name: schedule.name.clone(),
-                        kind: schedule.kind.clone()
+                        kind: schedule.kind
                     }
                 });
                 handles.push(handle);
@@ -314,7 +314,9 @@ impl Index {
     }
 
     pub async fn abort_update_forever(self: Arc<Self>) {
-        self.update_forever_handle.read().await.as_ref().map(|handle| handle.abort());
+        if let Some(handle) = self.update_forever_handle.read().await.as_ref() {
+            handle.abort()
+        };
         debug!("aborted update forever");
     }
 }
@@ -353,16 +355,14 @@ pub struct Schedule {
 
 impl json::ToMiddle<MiddleSchedule> for Schedule {
     async fn to_middle(&self) -> MiddleSchedule {
-        let mid = MiddleSchedule {
+        MiddleSchedule {
             root: self.root.clone(),
-            kind: self.kind.clone(),
+            kind: self.kind,
             name: self.name.clone(),
             url: self.url.clone(),
-            fetch_timeout: self.fetch_timeout.clone(),
-            retry_period: self.retry_period.clone(),
-        };
-
-        mid
+            fetch_timeout: self.fetch_timeout,
+            retry_period: self.retry_period,
+        }
     }
 }
 impl Schedule {
@@ -378,7 +378,7 @@ impl Schedule {
         let this = Schedule {
             root,
             reqwest,
-            kind: middle.kind.clone(),
+            kind: middle.kind,
             name: middle.name.clone(),
             url: middle.url.clone(),
             fetch_timeout: middle.fetch_timeout,
@@ -394,8 +394,7 @@ impl Schedule {
 
     pub async fn fetch(&self) -> Result<Bytes, reqwest::Error> {
         let resp = self.reqwest.get(&self.url).send().await?;
-        let bytes = resp.bytes().await;
-        bytes
+        resp.bytes().await
     }
 
     pub async fn fetch_after(&self, after: Duration) -> Result<Bytes, reqwest::Error> {

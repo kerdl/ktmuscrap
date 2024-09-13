@@ -84,6 +84,6 @@ api_err!(
     fields:  (pub kind: schedule::raw::Kind),
     error:   |this| format!(
         "no {} schedule, make sure raw schedules are still available and are valid",
-        this.kind.to_string(),
+        this.kind,
     )
 );

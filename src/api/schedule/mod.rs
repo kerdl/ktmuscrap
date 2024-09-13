@@ -89,9 +89,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for UpdatesWs {
         msg: Result<ws::Message, ws::ProtocolError>,
         ctx: &mut Self::Context
     ) {
-        match msg {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            _ => (),
+        if let Ok(ws::Message::Ping(msg)) = msg {
+            ctx.pong(&msg)
         }
     }
 }
@@ -121,6 +120,6 @@ async fn updates_period() -> impl Responder {
 #[get("/schedule/updates/last")]
 async fn updates_last() -> impl Responder {
     Response::from_updates_last(
-        options().schedule.index.updated.read().await.clone()
+        *options().schedule.index.updated.read().await
     ).to_json()
 }
