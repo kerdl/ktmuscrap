@@ -14,5 +14,6 @@ use serde_derive::{Serialize, Deserialize};
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     Teacher,
-    Group
+    Group,
+    Vacancy
 }

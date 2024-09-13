@@ -6,6 +6,7 @@ pub use index::Index;
 
 use serde_derive::{Serialize, Deserialize};
 use strum_macros::{EnumString, Display};
+use crate::data::schedule::attender;
 
 
 /// # Kind of schedule
@@ -27,6 +28,14 @@ pub enum Kind {
     Groups,
     Teachers
 }
+impl Kind {
+    pub fn as_attender(&self) -> attender::Kind {
+        match self {
+            Self::Groups => attender::Kind::Group,
+            Self::Teachers => attender::Kind::Teacher
+        }
+    }
+}
 
 /// # Format of a lesson
 #[derive(
@@ -42,5 +51,6 @@ pub enum Kind {
 #[serde(rename_all = "snake_case")]
 pub enum Format {
     Fulltime,
-    Remote
+    Remote,
+    Unknown
 }

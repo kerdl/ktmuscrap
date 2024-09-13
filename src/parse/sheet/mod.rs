@@ -44,7 +44,7 @@ pub async fn from_path(
 ) -> Result<(), ParsingError> {
     let mut html_processor = html::Parser::from_path(path).await?;
     let table = html_processor.parse().await?;
-    let mut table_processor = table::Parser::from_schema(table);
+    let mut table_processor = table::Parser::from_schema(table, kind);
     let mappings = table_processor.parse().await?;
     debug!("{:?} parsed", path);
     Ok(())

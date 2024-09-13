@@ -31,9 +31,7 @@ pub trait YRange {
 pub struct Cell {
     pub x: usize,
     pub y: usize,
-    /// # How wide the cell is
     pub colspan: usize,
-    /// # How tall the cell is
     pub rowspan: usize,
     pub text: String,
     pub color: String
@@ -104,6 +102,54 @@ impl Cell {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct OptDate<'a> {
+    pub raw: &'a str,
+    pub parsed: Option<Range<NaiveDate>>,
+    pub range: Range<usize>
+}
+impl<'a> OptDate<'a> {
+    pub fn to_date(self) -> Option<Date<'a>> {
+        let Some(parsed) = self.parsed else { return None };
+        let date = Date {
+            raw: self.raw,
+            parsed,
+            range: self.range,
+        };
+        Some(date)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Date<'a> {
+    pub raw: &'a str,
+    pub parsed: Range<NaiveDate>,
+    pub range: Range<usize>
+}
+impl<'a> XCord for Date<'a> {
+    fn x(&self) -> usize {
+        self.range.start
+    }
+}
+impl<'a> XRange for Date<'a> {
+    fn x_range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Formation<'a> {
+    pub kind: attender::Kind,
+    pub raw: &'a str,
+    pub valid: String,
+    pub range: Range<usize>
+}
+impl<'a> YRange for Formation<'a> {
+    fn y_range(&self) -> Range<usize> {
+        self.range.clone()
+    }
+}
+
 /// # `X` axis jumping conditions
 #[derive(Debug, Clone)]
 pub struct XJump {
@@ -147,47 +193,4 @@ impl RangeHit {
     pub fn done(&mut self) {
         self.is_done = true;
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct OptDate<'a> {
-    pub raw: &'a str,
-    pub parsed: Option<Range<NaiveDate>>,
-    pub range: Range<usize>
-}
-impl<'a> OptDate<'a> {
-    pub fn to_date(self) -> Option<Date<'a>> {
-        let Some(parsed) = self.parsed else { return None };
-        let date = Date {
-            raw: self.raw,
-            parsed,
-            range: self.range,
-        };
-        Some(date)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Date<'a> {
-    pub raw: &'a str,
-    pub parsed: Range<NaiveDate>,
-    pub range: Range<usize>
-}
-impl<'a> XCord for Date<'a> {
-    fn x(&self) -> usize {
-        self.range.start
-    }
-}
-impl<'a> XRange for Date<'a> {
-    fn x_range(&self) -> Range<usize> {
-        self.range.clone()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Formation {
-    pub kind: attender::Kind,
-    pub raw: String,
-    pub valid: String,
-    pub range: Range<usize>
 }

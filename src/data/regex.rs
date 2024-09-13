@@ -62,23 +62,10 @@ pub struct Container {
     /// - Ебанько Х.
     /// - Ебанько Х.Й
     /// - Ебанько Х.Й.
+    /// - Ебанько.Х.Й.
     /// - ...
     pub teacher: Arc<Regex>,
-    /// ## Matches
-    /// - Ебанько Хуй Йебанько
-    /// - ...
-    pub teacher_full: Arc<Regex>,
-    /// ## Same as `teacher` but matches from the end
-    pub end_teacher: Arc<Regex>,
-    /// ## Matches teacher's initial from the end
-    /// - Ебанько Х.`Й.`
-    pub initial: Arc<Regex>,
-    /// ## Matches
-    /// - ауд.29
-    /// - ауд.56,54
-    /// - ауд.сп.з,23в
-    /// - ...
-    pub cabinet: Arc<Regex>,
+    pub vacancy: Arc<Regex>,
     pub nonword: Arc<Regex>,
     pub digit: Arc<Regex>,
 }
@@ -88,12 +75,9 @@ impl Default for Container {
         let start_group = format!(r"^{}", group);
         let whole_short_weekday = r"\b([пП][нН]|[вВ][тТ]|[сС][рР]|[чЧ][тТ]|[пП][тТ]|[сС][бБ]|[вВ][сС])\b";
         let date = r"(\d{1,2})\W(\d{1,2})(\W(\d{4}|\d{2}))*";
-        let teacher = r"([А-ЯЁ][а-яё]{1,})(\s)([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]?)?";
-        let teacher_full = r"([A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+\s[A-ZА-ЯЁ][a-za-яё]+)";
-        let end_teacher = format!(r"({})$", teacher);
-        let initial = r"([А-ЯЁ][.])$";
-        let cabinet = r"([аa][уy]д)[.].+";
-        let nonword = r"\W";
+        let teacher = r"([А-ЯЁ][а-яё]{1,})([^а-яёА-ЯЁa-zA-Z0-9_])([А-ЯЁ]{1}[.])([А-ЯЁ]{1}[.]?)?";
+        let vacancy = r"([А-ЯЁ][а-яё]{5,9})([^а-яёА-ЯЁa-zA-Z0-9_])(\d{1,3})([^а-яёА-ЯЁa-zA-Z0-9_]+\d+(?!=[^а-яёА-ЯЁa-zA-Z0-9_]))?";
+        let nonword = r"[^а-яёА-ЯЁa-zA-Z0-9_]";
         let digit = r"\d";
 
         Container {
@@ -102,10 +86,7 @@ impl Default for Container {
             whole_short_weekday: Arc::new(Regex::new(whole_short_weekday).unwrap()), 
             date: Arc::new(Regex::new(date).unwrap()), 
             teacher: Arc::new(Regex::new(teacher).unwrap()),
-            teacher_full: Arc::new(Regex::new(teacher_full).unwrap()),
-            end_teacher: Arc::new(Regex::new(&end_teacher).unwrap()), 
-            initial: Arc::new(Regex::new(initial).unwrap()), 
-            cabinet: Arc::new(Regex::new(cabinet).unwrap()),
+            vacancy: Arc::new(Regex::new(vacancy).unwrap()),
             nonword: Arc::new(Regex::new(nonword).unwrap()),
             digit: Arc::new(Regex::new(digit).unwrap()),
         }

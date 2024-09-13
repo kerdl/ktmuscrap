@@ -82,9 +82,7 @@ pub struct Subject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num: Option<Primitive<u32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub attenders: Option<DetailedChanges<regular::Attender, Attender>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub vacancy: Option<Primitive<String>>
+    pub attenders: Option<DetailedChanges<regular::Attender, Attender>>
 }
 impl DetailedCmp<regular::Subject, Subject> for Subject {
     async fn compare(
@@ -106,10 +104,6 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
             old.as_ref().map(|old| old.attenders.clone()),
             new.as_ref().map(|new| new.attenders.clone()),
         ).await;
-        let vacancy = Primitive::new(
-            old.as_ref().map(|old| old.vacancy.as_ref().map(|vac| vac.clone())).flatten(),
-            new.as_ref().map(|new| new.vacancy.as_ref().map(|vac| vac.clone())).flatten(),
-        );
 
         Self {
             name,
@@ -120,11 +114,6 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
             },
             attenders: if attenders.has_changes() {
                 Some(attenders)
-            } else {
-                None
-            },
-            vacancy: if vacancy.is_different_hash() {
-                Some(vacancy)
             } else {
                 None
             }
@@ -163,10 +152,10 @@ pub struct Mapping {
     pub name: Option<String>,
     pub days: DetailedChanges<regular::Day, Day>
 }
-impl DetailedCmp<regular::Mapping, Mapping> for Mapping {
+impl DetailedCmp<regular::Formation, Mapping> for Mapping {
     async fn compare(
-        old: Option<regular::Mapping>,
-        new: Option<regular::Mapping>
+        old: Option<regular::Formation>,
+        new: Option<regular::Formation>
     ) -> Self {
         let name = if let Some(new) = &new {
             Some(new.name.clone())
@@ -187,7 +176,7 @@ impl DetailedCmp<regular::Mapping, Mapping> for Mapping {
 #[derive(Debug, Clone, Serialize)]
 pub struct Page {
     pub date: Primitive<RangeInclusive<NaiveDate>>,
-    pub mappings: DetailedChanges<regular::Mapping, Mapping>
+    pub mappings: DetailedChanges<regular::Formation, Mapping>
 }
 impl DetailedCmp<regular::Page, Page> for Page {
     async fn compare(
@@ -199,8 +188,8 @@ impl DetailedCmp<regular::Page, Page> for Page {
             new.as_ref().map(|new| new.date.clone()),
         );
         let mappings = DetailedChanges::compare(
-            old.as_ref().map(|old| old.mappings.clone()),
-            new.as_ref().map(|new| new.mappings.clone()),
+            old.as_ref().map(|old| old.formations.clone()),
+            new.as_ref().map(|new| new.formations.clone()),
         ).await;
 
         Self { date, mappings }

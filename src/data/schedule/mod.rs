@@ -93,8 +93,7 @@ pub struct Subject {
     pub name: String,
     pub num: u32,
     pub format: raw::Format,
-    pub attenders: Vec<Attender>,
-    pub vacancy: Option<String>
+    pub attenders: Vec<Attender>
 }
 impl FindingCmp for Subject {
     fn is_partially_same_with(&self, other: &Self) -> bool {
@@ -142,13 +141,13 @@ impl FindingCmp for Day {
     Debug,
     Clone
 )]
-pub struct Mapping {
+pub struct Formation {
     #[derivative(Hash="ignore")]
     pub raw: String,
     pub name: String,
     pub days: Vec<Day>,
 }
-impl FindingCmp for Mapping {
+impl FindingCmp for Formation {
     fn is_partially_same_with(&self, other: &Self) -> bool {
         self.name == other.name
     }
@@ -159,14 +158,14 @@ impl FindingCmp for Mapping {
 pub struct Page {
     pub kind: raw::Kind,
     pub date: RangeInclusive<NaiveDate>,
-    pub mappings: Vec<Mapping>,
+    pub formations: Vec<Formation>,
 }
 impl Page {
     pub fn remove_except(&mut self, name: &str) {
-        while let Some(index) = self.mappings.iter().position(
+        while let Some(index) = self.formations.iter().position(
             |map| map.name != name
         ) {
-            self.mappings.remove(index);
+            self.formations.remove(index);
         }
     }
 }

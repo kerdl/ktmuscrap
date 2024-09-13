@@ -46,12 +46,12 @@ pub async fn complement<'a>(
         return Err(MergeError::NonOverlappingDates(overlap_error))
     }
 
-    for group in groups.mappings.iter_mut() {
+    for group in groups.formations.iter_mut() {
         for group_day in group.days.iter_mut() {
             for group_subject in group_day.subjects.iter_mut() {
                 for group_attender in group_subject.attenders.iter_mut() {
                     // find teacher mapping
-                    let Some(teacher) = teachers.mappings
+                    let Some(teacher) = teachers.formations
                         .iter_mut()
                         .find(|tchr| tchr.name == group_attender.name)
                         else { continue };
@@ -123,11 +123,11 @@ pub async fn combine(
     let mut new_page = Page {
         kind,
         date,
-        mappings: vec![]
+        formations: vec![]
     };
 
     for mut page in pages {
-        new_page.mappings.append(&mut page.mappings);
+        new_page.formations.append(&mut page.formations);
     }
 
     new_page

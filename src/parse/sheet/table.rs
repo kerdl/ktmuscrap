@@ -1,5 +1,18 @@
 use chrono::{Datelike, NaiveDate};
-use crate::data::{schedule::raw::table::{self, XCord, YCord, Width, XRange}, Weekday};
+use crate::data::{schedule::{
+    self,
+    raw::{
+        self,
+        table::{
+            self,
+            Width,
+            XCord,
+            XRange,
+            YCord,
+            YRange
+        }
+    }
+}, Weekday};
 use crate::{parse, regexes};
 
 
@@ -11,11 +24,12 @@ pub enum ParsingError {
 
 
 pub struct Parser {
-    pub schema: Vec<Vec<table::Cell>>
+    pub schema: Vec<Vec<table::Cell>>,
+    pub kind: raw::Kind
 }
 impl Parser {
-    pub fn from_schema(schema: Vec<Vec<table::Cell>>) -> Self {
-        Self { schema }
+    pub fn from_schema(schema: Vec<Vec<table::Cell>>, kind: raw::Kind) -> Self {
+        Self { schema, kind }
     }
 
     pub fn date_row(&self) -> Option<&Vec<table::Cell>> {
@@ -72,15 +86,6 @@ impl Parser {
                 };
 
                 opt_ranges.push(opt_date);
-            }
-        }
-
-        'row: for row in self.schema.iter() {
-            for cell in row.iter() {
-                if cell.text.contains("3 ПОТОК") {
-                    println!();
-                    break 'row;
-                }
             }
         }
 
@@ -153,15 +158,93 @@ impl Parser {
             return Err(ParsingError::NoDatesRow)
         };
 
+        let mut formations: Vec<schedule::Formation> = vec![];
+
+        // either a group or a teacher
         let mut current_formation: Option<table::Formation> = None;
+        // subject number
+        let mut num_counter = 0;
+        // list of cells that expand onto the next rows
+        let mut y_hits: Vec<table::RangeHit> = vec![];
 
         for row in self.schema.iter() {
-            break;
             let y = row.get(0).unwrap().y;
+            num_counter += 1;
+
+            let mut is_in_formation_range = current_formation
+                .as_ref()
+                .map_or(false, |form| form.y_range().contains(&y));
+
+            if !is_in_formation_range {
+                // first cell is a formation identifier
+                // ("1-кДД-43" for example)
+                let Some(first_cell) = row
+                    .iter()
+                    .find(|cell| cell.x == 0) else { continue };
+
+                let Some(valid_formation) = (match self.kind {
+                    raw::Kind::Groups => parse::group::validate(&first_cell.text),
+                    raw::Kind::Teachers => parse::teacher::validate(&first_cell.text),
+                }) else { continue };
+
+                current_formation = Some(table::Formation {
+                    kind: self.kind.as_attender(),
+                    raw: &first_cell.text,
+                    valid: valid_formation,
+                    range: first_cell.y_range()
+                });
+                is_in_formation_range = true;
+                // switch to a new formation resets
+                // the subject number counter
+                num_counter = 1;
+            }
 
             let mut x = -1;
             loop {
                 x += 1;
+
+                let mut cell = None;
+                let x = x as usize;
+
+                let mut hits_for_this_pos = vec![];
+
+                if let Some(c) = Self::cell_for_x(x, &row) {
+                    cell = Some(c);
+                } else {
+                    hits_for_this_pos = y_hits.iter().filter(
+                        |hit| hit.x_rng.contains(&x) && hit.y_rng.contains(&y)
+                    ).collect::<Vec<&table::RangeHit>>();
+                }
+
+                if cell.is_none() && hits_for_this_pos.is_empty() {
+                    break;
+                }
+
+                let Some(current_date) = Self::cell_for_x(x, &dates) else {
+                    continue
+                };
+
+                if let Some(cell) = cell {
+                    let is_just_a_single_number = {
+                        cell.text.len() == 1 &&
+                        regexes().digit.is_match(&cell.text)
+                    };
+
+                    if cell.text.is_empty() || is_just_a_single_number {
+                        continue;
+                    }
+
+                    let subject = match self.kind {
+                        raw::Kind::Groups => parse::subject::groups(
+                            &cell.text,
+                            num_counter,
+                            &cell.color
+                        ),
+                        raw::Kind::Teachers => todo!()
+                    };
+                } else if !hits_for_this_pos.is_empty() {
+
+                }
             }
         }
 
