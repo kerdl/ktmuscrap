@@ -9,7 +9,7 @@ no further updates in case of changing schedule formats
 - L + Ratio
 
 ## Overview
-This is a regular HTTP REST API server with a schedule parser under the hood.
+This is a HTTP REST API server with a schedule parser under the hood.
 
 - Every 10 minutes (configurable) ZIP archives
 from specified URLs to Google Sheets are downloaded
@@ -27,7 +27,7 @@ Schemas and examples later.
 ### Getting groups schedule
 `GET http://localhost:8080/schedule/groups`
 
-A schedule for all the groups presented.
+A schedule for all the groups present.
 
 ### Getting schedule for specific group
 `GET http://localhost:8080/schedule/groups?name=<EXACT GROUP NAME>`
@@ -37,7 +37,7 @@ A schedule containing only the specified group.
 ### Getting teachers schedule
 `GET http://localhost:8080/schedule/teachers`
 
-A schedule for all the teachers presented.
+A schedule for all the teachers present.
 
 ### Getting schedule for specific teacher
 `GET http://localhost:8080/schedule/teachers?name=<EXACT TEACHER NAME>`
@@ -49,7 +49,7 @@ A schedule containing only the specified teacher.
 
 An update channel with diffs.
 
-Every time after schedule update,
+Every time the schedule updates,
 ktmuscrap generates a diff and sends it
 to everyone connected.
 This diff is always sent, no matter
