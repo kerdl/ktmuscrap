@@ -15,38 +15,46 @@ pub fn validate(string: &str) -> Option<String> {
     Some(capitalized)
 }
 
-pub fn multi(mut string: &str) -> Option<(Range<usize>, Vec<String>)> {
+pub fn multi(mut string: &str) -> Option<Vec<(Range<usize>, String)>> {
     let mut output = vec![];
-
-    let start: usize = 0;
-    let mut end: usize = 0;
+    let mut consumed: usize = 0;
 
     loop {
         if let Some(group_match) = regexes().start_group.find(&string) {
-            end += group_match.end();
             let valid = validate(group_match.as_str()).unwrap();
-            output.push(valid);
+            output.push((
+                (consumed + group_match.start())..(consumed + group_match.end()),
+                valid
+            ));
+            consumed += group_match.end();
             string = &string[group_match.end()..];
         } else if let Some(sep_match) = regexes().start_attender_sep.find(&string) {
             if output.is_empty() { return None }
-            end += sep_match.end();
+            consumed += sep_match.end();
             string = &string[sep_match.end()..];
         } else if let Some(num_match) = regexes().start_digits.find(&string) {
             if output.is_empty() { return None }
-            end += num_match.end();
-            let last_group = output.last().unwrap();
+            let last_group = &output.last().unwrap().1;
             let mut last_with_current_num = regexes()
                 .end_digits
                 .replace(&last_group, "")
                 .parse::<String>()
                 .unwrap();
             last_with_current_num.push_str(num_match.as_str());
-            output.push(last_with_current_num);
+            output.push((
+                (consumed + num_match.start())..(consumed + num_match.end()),
+                last_with_current_num
+            ));
+            consumed += num_match.end();
             string = &string[num_match.end()..];
         } else {
             break;
         }
     }
 
-    Some((start..end, output))
+    if !output.is_empty() {
+        Some(output)
+    } else {
+        None
+    }
 }

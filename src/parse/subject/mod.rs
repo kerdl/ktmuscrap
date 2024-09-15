@@ -65,17 +65,16 @@ pub fn teachers(string: &str, num: u32, color: &str) -> schedule::Subject {
     let attenders;
     let cabinet;
 
-    if let Some((range, parsed)) = parse::group::multi(string) {
-        let att_raw = (&string[range.start..range.end]).to_string();
+    if let Some(parsed) = parse::group::multi(string) {
         let att_kind = schedule::attender::Kind::Group;
         let att_cabinet = schedule::Cabinet::default();
-        name = (&string[..range.start]).to_string();
+        name = (&string[parsed.last().unwrap().0.end..]).trim().to_string();
         attenders = parsed
             .into_iter()
-            .map(|att_name| schedule::Attender {
-                raw: att_raw.clone(),
+            .map(|att| schedule::Attender {
+                raw: (&string[att.0.start..att.0.end]).to_string(),
                 kind: att_kind.clone(),
-                name: att_name,
+                name: att.1,
                 cabinet: att_cabinet.clone()
             })
             .collect::<Vec<schedule::Attender>>();
@@ -89,7 +88,7 @@ pub fn teachers(string: &str, num: u32, color: &str) -> schedule::Subject {
             primary: Some(cabinet_match.as_str().to_string()),
             opposite: None
         };
-        name = (&string[..cabinet_match.start()]).to_string();
+        name = (&name[..cabinet_match.start()]).trim().to_string();
     } else {
         cabinet = schedule::Cabinet::default();
     }

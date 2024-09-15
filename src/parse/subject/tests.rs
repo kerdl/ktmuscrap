@@ -343,7 +343,251 @@ async fn test_groups_8() {
     assert_eq!(groups(string, num, color), result);
 }
 
-#[test]
-fn test_teachers() {
+#[tokio::test]
+async fn test_teachers_1() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
 
+    let string = "3дд48 жив каб 17а";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "3дд48 жив каб 17а".to_string(),
+        name: "жив".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "3дд48".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "3КДД48".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: Some("каб 17а".to_string()),
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
+}
+
+#[tokio::test]
+async fn test_teachers_2() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
+
+    let string = "3рд33/4рд34/36 осн фил";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "3рд33/4рд34/36 осн фил".to_string(),
+        name: "осн фил".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "3рд33".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "3КРД33".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            },
+            schedule::Attender {
+                raw: "4рд34".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "4КРД34".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            },
+            schedule::Attender {
+                raw: "36".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "4КРД36".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: None,
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
+}
+
+#[tokio::test]
+async fn test_teachers_3() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
+
+    let string = "1 мп2\\4 лит-ра";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "1 мп2\\4 лит-ра".to_string(),
+        name: "лит-ра".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "1 мп2".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "1КМП2".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            },
+            schedule::Attender {
+                raw: "4".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "1КМП4".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: None,
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
+}
+
+#[tokio::test]
+async fn test_teachers_4() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
+
+    let string = "1ктд4   ОБЗР каб.40";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "1ктд4   ОБЗР каб.40".to_string(),
+        name: "ОБЗР".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "1ктд4".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "1КТД4".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: Some("каб.40".to_string()),
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
+}
+
+#[tokio::test]
+async fn test_teachers_5() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
+
+    let string = "2рд36 культ каб ?";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "2рд36 культ каб ?".to_string(),
+        name: "культ".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "2рд36".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "2КРД36".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: Some("каб ?".to_string()),
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
+}
+
+#[tokio::test]
+async fn test_teachers_6() {
+    let data_path = [".", "data"].iter().collect();
+    let regex_own = data::regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+    unsafe {
+        crate::REGEX = &regex_own;
+        crate::DATA = &data_own;
+    }
+
+    let string = "1дд20 ПС актовый за";
+    let num = 2;
+    let color = "#c6d9f0";
+    let result = schedule::Subject {
+        raw: "1дд20 ПС актовый за".to_string(),
+        name: "ПС".to_string(),
+        num: 2,
+        format: schedule::raw::Format::Remote,
+        attenders: vec![
+            schedule::Attender {
+                raw: "1дд20".to_string(),
+                kind: schedule::attender::Kind::Group,
+                name: "1КДД20".to_string(),
+                cabinet: schedule::Cabinet {
+                    primary: None,
+                    opposite: None
+                }
+            }
+        ],
+        cabinet: schedule::Cabinet {
+            primary: Some("актовый за".to_string()),
+            opposite: None
+        }
+    };
+    assert_eq!(teachers(string, num, color), result);
 }

@@ -23,24 +23,24 @@ fn test_multi() {
 
     assert_eq!(
         multi("3дд48 жив каб 17а"),
-        Some((0 as usize..7 as usize, vec![
-            "3КДД48".to_string()
-        ]))
+        Some(vec![
+            (0 as usize..7 as usize, "3КДД48".to_string())
+        ])
     );
     assert_eq!(
         multi("1крд2/4/6 истор"),
-        Some((0 as usize..12 as usize, vec![
-            "1КРД2".to_string(),
-            "1КРД4".to_string(),
-            "1КРД6".to_string()
-        ]))
+        Some(vec![
+            (0 as usize..8 as usize, "1КРД2".to_string()),
+            (9 as usize..10 as usize, "1КРД4".to_string()),
+            (11 as usize..12 as usize, "1КРД6".to_string())
+        ])
     );
     assert_eq!(
         multi("3рд33/4рд34/36 осн фил"),
-        Some((0 as usize..18 as usize, vec![
-            "3КРД33".to_string(),
-            "4КРД34".to_string(),
-            "4КРД36".to_string()
-        ]))
+        Some(vec![
+            (0 as usize..7 as usize, "3КРД33".to_string()),
+            (8 as usize..15 as usize, "4КРД34".to_string()),
+            (16 as usize..18 as usize, "4КРД36".to_string())
+        ])
     );
 }
