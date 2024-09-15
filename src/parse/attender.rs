@@ -1,22 +1,16 @@
 use itertools::Itertools;
-use crate::{regexes, options};
+use std::ops::Range;
+use crate::regexes;
 use crate::data::schedule;
+use crate::parse;
 
 
 const VACANCY: &str = "Вакансия";
 
 
-pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
-    let raw = string.to_string();
-    let format = match color {
-        c if c == &options().settings.parsing.fulltime_color => {
-            schedule::raw::Format::Fulltime
-        },
-        c if c == &options().settings.parsing.remote_color => {
-            schedule::raw::Format::Remote
-        },
-        _ => schedule::raw::Format::Unknown
-    };
+pub fn teachers(string: &str) -> Option<(Range<usize>, Vec<schedule::Attender>)> {
+    let start;
+    let end;
 
     let teacher_matches = regexes()
         .teacher
@@ -40,12 +34,11 @@ pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
         .get(0)
         .map(|(_kind, m)| m.start());
 
-    let name;
     let mut attenders = vec![];
 
     if let Some(start_pos) = attenders_start_pos {
-        name = (&string[..start_pos]).to_string();
-        let attenders_string = &string[start_pos..];
+        start = start_pos;
+        end = string.len();
 
         for (idx, (kind, attender_match)) in consecutive_attender_matches
             .iter()
@@ -54,52 +47,57 @@ pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
             let next = consecutive_attender_matches.get(idx + 1);
             let related_until = next
                 .map(|(_kind, m)| m.start())
-                .unwrap_or(attenders_string.len());
-            let related_text = &attenders_string
+                .unwrap_or(string.len());
+            let related_text = &string
                 [attender_match.end()..related_until];
+            let valid_attender = match kind {
+                schedule::attender::Kind::Teacher => {
+                    parse::teacher::validate(attender_match.as_str()).unwrap()
+                },
+                schedule::attender::Kind::Vacancy => {
+                    attender_match.as_str().to_string()
+                },
+                _ => unreachable!()
+            };
 
             let mut raw = attender_match.as_str().to_string();
             raw.push_str(related_text);
 
-            let primary_cabinet = related_text.trim().to_string();
+            let trimmed_related_text = related_text.trim();
+            let trimmed_related_text = regexes()
+                .start_attender_sep
+                .replace(trimmed_related_text, "")
+                .parse::<String>()
+                .unwrap();
+            let trimmed_related_text = regexes()
+                .end_attender_sep
+                .replace(&trimmed_related_text, "")
+                .parse::<String>()
+                .unwrap();
+
+            let primary_cabinet = if trimmed_related_text.is_empty() {
+                None
+            } else {
+                Some(trimmed_related_text)
+            };
 
             let cabinet = schedule::Cabinet {
-                primary: if !primary_cabinet.is_empty() {
-                    Some(primary_cabinet)
-                } else {
-                    None
-                },
+                primary: primary_cabinet,
                 opposite: None
             };
 
             let attender = schedule::Attender {
                 raw,
                 kind: kind.clone(),
-                name: attender_match.as_str().to_string(),
+                name: valid_attender,
                 cabinet
             };
 
             attenders.push(attender);
         }
     } else {
-        // whole string is just a subject name
-        name = raw.to_string();
+        return None;
     }
 
-    schedule::Subject {
-        raw,
-        name,
-        num,
-        format,
-        attenders
-    }
-}
-
-pub fn teachers(
-    string: &str,
-    num: u32,
-    known_cabinets: Vec<String>,
-    color: &str
-) -> Option<schedule::Subject> {
-    None
+    Some((start..end, attenders))
 }

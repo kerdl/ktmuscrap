@@ -7,7 +7,6 @@ pub mod fs;
 pub mod string;
 pub mod lifetime;
 pub mod logger;
-pub mod debug;
 
 pub use log::{info, error, debug};
 pub use std::time::Instant;

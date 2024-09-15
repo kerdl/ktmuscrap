@@ -4,9 +4,8 @@ pub mod node;
 pub mod date;
 pub mod group;
 pub mod teacher;
-pub mod vacancy;
+pub mod attender;
 pub mod subject;
-pub mod num;
 pub mod cabinet;
 pub mod error;
 
@@ -15,11 +14,15 @@ use crate::data::schedule::{raw::Kind, Last};
 use crate::lifetime;
 
 
-pub async fn dom_from_string(string: &String) -> Result<html_parser::Dom, html_parser::Error> {
+pub async fn dom_from_string(string: &String)
+    -> Result<html_parser::Dom, html_parser::Error>
+{
     let wrapped_dom = unsafe {
         lifetime::extend(lifetime::Wrap(string))
     };
-    let dom = tokio::task::spawn_blocking(move || -> Result<html_parser::Dom, html_parser::Error> {
+    let dom = tokio::task::spawn_blocking(
+        move || -> Result<html_parser::Dom, html_parser::Error>
+    {
         html_parser::Dom::parse(&wrapped_dom.0)
     }).await.unwrap()?;
 

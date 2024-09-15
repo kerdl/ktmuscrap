@@ -51,7 +51,7 @@ pub enum WholeError {
     YearError(YearError)
 }
 impl From<Option<NaiveDate>> for WholeError {
-    fn from(value: Option<NaiveDate>) -> Self {
+    fn from(_value: Option<NaiveDate>) -> Self {
         Self::DoesNotExist
     }
 }

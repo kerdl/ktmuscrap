@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::regexes;
 
 
@@ -10,6 +13,7 @@ pub fn validate(string: &str) -> Option<String> {
     let tokens = regexes()
         .nonword
         .split(matched)
+        .filter(|tok| !tok.is_empty())
         .collect::<Vec<&str>>();
 
     if tokens.len() == 2 {
@@ -22,7 +26,6 @@ pub fn validate(string: &str) -> Option<String> {
         output.push_str(" ");
         output.push_str(tokens.get(1).unwrap());
         output.push_str(".");
-        output.push_str(" ");
         output.push_str(tokens.get(2).unwrap());
         output.push_str(".");
     } else {

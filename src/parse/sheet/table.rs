@@ -225,18 +225,19 @@ impl Parser {
                 };
 
                 if let Some(cell) = cell {
+                    let text = cell.text.replace("\n", " ");
                     let is_just_a_single_number = {
-                        cell.text.len() == 1 &&
-                        regexes().digit.is_match(&cell.text)
+                        text.len() == 1 &&
+                        regexes().digit.is_match(&text)
                     };
 
-                    if cell.text.is_empty() || is_just_a_single_number {
+                    if text.is_empty() || is_just_a_single_number {
                         continue;
                     }
 
                     let subject = match self.kind {
                         raw::Kind::Groups => parse::subject::groups(
-                            &cell.text,
+                            &text,
                             num_counter,
                             &cell.color
                         ),

@@ -82,7 +82,9 @@ pub struct Subject {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num: Option<Primitive<u32>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub attenders: Option<DetailedChanges<regular::Attender, Attender>>
+    pub attenders: Option<DetailedChanges<regular::Attender, Attender>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cabinet: Option<Primitive<regular::Cabinet>>
 }
 impl DetailedCmp<regular::Subject, Subject> for Subject {
     async fn compare(
@@ -104,6 +106,10 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
             old.as_ref().map(|old| old.attenders.clone()),
             new.as_ref().map(|new| new.attenders.clone()),
         ).await;
+        let cabinet = Primitive::new(
+            old.as_ref().map(|old| old.cabinet.clone()),
+            new.as_ref().map(|new| new.cabinet.clone())
+        );
 
         Self {
             name,
@@ -114,6 +120,11 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
             },
             attenders: if attenders.has_changes() {
                 Some(attenders)
+            } else {
+                None
+            },
+            cabinet: if cabinet.is_different_hash() {
+                Some(cabinet)
             } else {
                 None
             }

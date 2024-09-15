@@ -23,7 +23,8 @@ use std::ops::RangeInclusive;
     Serialize, 
     Deserialize, 
     Debug, 
-    Clone
+    Clone,
+    PartialEq
 )]
 pub struct Cabinet {
     /// # A value taken from the original schedule
@@ -45,6 +46,14 @@ impl FindingCmp for Cabinet {
         self.primary == other.primary
     }
 }
+impl Default for Cabinet {
+    fn default() -> Self {
+        Self {
+            primary: None,
+            opposite: None
+        }
+    }
+}
 impl Cabinet {
     pub fn do_versions_match(&self) -> bool {
         self.primary == self.opposite
@@ -62,7 +71,8 @@ impl Cabinet {
     Serialize, 
     Deserialize, 
     Debug, 
-    Clone
+    Clone,
+    PartialEq
 )]
 pub struct Attender {
     #[derivative(Hash="ignore")]
@@ -85,7 +95,8 @@ impl FindingCmp for Attender {
     Serialize, 
     Deserialize, 
     Debug, 
-    Clone
+    Clone,
+    PartialEq
 )]
 pub struct Subject {
     #[derivative(Hash="ignore")]
@@ -93,7 +104,8 @@ pub struct Subject {
     pub name: String,
     pub num: u32,
     pub format: raw::Format,
-    pub attenders: Vec<Attender>
+    pub attenders: Vec<Attender>,
+    pub cabinet: Cabinet
 }
 impl FindingCmp for Subject {
     fn is_partially_same_with(&self, other: &Self) -> bool {
