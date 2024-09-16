@@ -1,6 +1,6 @@
 use std::ops::Range;
 use chrono::NaiveDate;
-use crate::data::schedule::attender;
+use crate::data::schedule::{self, attender};
 
 
 pub trait XCord {
@@ -138,13 +138,11 @@ impl<'a> XRange for Date<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Formation<'a> {
-    pub kind: attender::Kind,
-    pub raw: &'a str,
-    pub valid: String,
-    pub range: Range<usize>
+pub struct Formation {
+    pub range: Range<usize>,
+    pub object: schedule::Formation
 }
-impl<'a> YRange for Formation<'a> {
+impl YRange for Formation {
     fn y_range(&self) -> Range<usize> {
         self.range.clone()
     }

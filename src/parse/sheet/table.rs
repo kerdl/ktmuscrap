@@ -1,4 +1,5 @@
-use chrono::{Datelike, NaiveDate};
+use chrono::{NaiveDate, Datelike};
+use std::ops::Range;
 use crate::data::{schedule::{
     self,
     raw::{
@@ -53,7 +54,7 @@ impl Parser {
         let mut opt_ranges: Vec<table::OptDate> = vec![];
         let mut ranges: Vec<table::Date> = vec![];
 
-        for (idx, cell) in row.iter().enumerate() {
+        for cell in row.iter() {
             let weekday_matches = regexes()
                 .whole_short_weekday
                 .find_iter(&cell.text)
@@ -153,6 +154,29 @@ impl Parser {
         Some(ranges)
     }
 
+    fn days_from_subject<'a>(
+        subject: &schedule::Subject,
+        dates: &table::Date<'a>
+    ) -> Vec<schedule::Day> {
+        let mut days = vec![];
+
+        if dates.parsed.start > dates.parsed.end {
+            return days;
+        }
+
+        let num_days = (dates.parsed.end - dates.parsed.start).num_days() as usize;
+        for date in dates.parsed.start.iter_days().take(num_days) {
+            let day = schedule::Day {
+                raw: dates.raw.to_string(),
+                date,
+                subjects: vec![subject.clone()]
+            };
+            days.push(day);
+        }
+
+        days
+    }
+
     pub async fn parse(&self) -> Result<(), ParsingError> {
         let Some(dates) = self.date_ranges() else {
             return Err(ParsingError::NoDatesRow)
@@ -171,11 +195,15 @@ impl Parser {
             let y = row.get(0).unwrap().y;
             num_counter += 1;
 
-            let mut is_in_formation_range = current_formation
+            let is_in_formation_range = current_formation
                 .as_ref()
                 .map_or(false, |form| form.y_range().contains(&y));
 
             if !is_in_formation_range {
+                if let Some(last_formation) = std::mem::take(&mut current_formation) {
+                    formations.push(last_formation.object);
+                }
+
                 // first cell is a formation identifier
                 // ("1-кДД-43" for example)
                 let Some(first_cell) = row
@@ -188,12 +216,13 @@ impl Parser {
                 }) else { continue };
 
                 current_formation = Some(table::Formation {
-                    kind: self.kind.as_attender(),
-                    raw: &first_cell.text,
-                    valid: valid_formation,
-                    range: first_cell.y_range()
+                    range: first_cell.y_range(),
+                    object: schedule::Formation {
+                        raw: first_cell.text.clone(),
+                        name: valid_formation,
+                        days: vec![]
+                    }
                 });
-                is_in_formation_range = true;
                 // switch to a new formation resets
                 // the subject number counter
                 num_counter = 1;
@@ -241,10 +270,82 @@ impl Parser {
                             num_counter,
                             &cell.color
                         ),
-                        raw::Kind::Teachers => todo!()
+                        raw::Kind::Teachers => parse::subject::teachers(
+                            &text,
+                            num_counter,
+                            &cell.color
+                        )
                     };
-                } else if !hits_for_this_pos.is_empty() {
 
+                    let existing_days = current_formation
+                        .as_mut()
+                        .unwrap()
+                        .object
+                        .days
+                        .iter_mut()
+                        .filter(|day| current_date.parsed.contains(&day.date))
+                        .collect::<Vec<&mut schedule::Day>>();
+
+                    if !existing_days.is_empty() {
+                        for day in existing_days {
+                            day.subjects.push(subject.clone());
+                        }
+                    } else {
+                        let mut days = Self::days_from_subject(
+                            &subject,
+                            &current_date
+                        );
+                        current_formation
+                            .as_mut()
+                            .unwrap()
+                            .object
+                            .days
+                            .append(&mut days);
+                    }
+                } else if !hits_for_this_pos.is_empty() {
+                    for hit in hits_for_this_pos {
+                        let cell = &hit.by;
+                        let text = cell.text.replace("\n", " ");
+
+                        let subject = match self.kind {
+                            raw::Kind::Groups => parse::subject::groups(
+                                &text,
+                                num_counter,
+                                &cell.color
+                            ),
+                            raw::Kind::Teachers => parse::subject::teachers(
+                                &text,
+                                num_counter,
+                                &cell.color
+                            )
+                        };
+
+                        let existing_days = current_formation
+                            .as_mut()
+                            .unwrap()
+                            .object
+                            .days
+                            .iter_mut()
+                            .filter(|day| current_date.parsed.contains(&day.date))
+                            .collect::<Vec<&mut schedule::Day>>();
+
+                        if !existing_days.is_empty() {
+                            for day in existing_days {
+                                day.subjects.push(subject.clone());
+                            }
+                        } else {
+                            let mut days = Self::days_from_subject(
+                                &subject,
+                                &current_date
+                            );
+                            current_formation
+                                .as_mut()
+                                .unwrap()
+                                .object
+                                .days
+                                .append(&mut days);
+                        }
+                    }
                 }
             }
         }
