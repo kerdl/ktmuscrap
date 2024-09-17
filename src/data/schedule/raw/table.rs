@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 use chrono::NaiveDate;
 use crate::data::schedule::{self, attender};
 
@@ -60,12 +60,12 @@ impl Height for Cell {
 }
 impl XRange for Cell {
     fn x_range(&self) -> Range<usize> {
-        self.x()..(self.x() + self.width() - 1)
+        self.x()..(self.x() + self.width())
     }
 }
 impl YRange for Cell {
     fn y_range(&self) -> Range<usize> {
-        self.y()..(self.y() + self.height() - 1)
+        self.y()..(self.y() + self.height())
     }
 }
 impl Cell {
@@ -105,7 +105,7 @@ impl Cell {
 #[derive(Debug, Clone)]
 pub struct OptDate<'a> {
     pub raw: &'a str,
-    pub parsed: Option<Range<NaiveDate>>,
+    pub parsed: Option<RangeInclusive<NaiveDate>>,
     pub range: Range<usize>
 }
 impl<'a> OptDate<'a> {
@@ -123,7 +123,7 @@ impl<'a> OptDate<'a> {
 #[derive(Debug, Clone)]
 pub struct Date<'a> {
     pub raw: &'a str,
-    pub parsed: Range<NaiveDate>,
+    pub parsed: RangeInclusive<NaiveDate>,
     pub range: Range<usize>
 }
 impl<'a> XCord for Date<'a> {
@@ -181,13 +181,11 @@ impl Hit {
 }
 
 #[derive(Debug, Clone)]
-pub struct RangeHit {
-    pub by: Cell,
-    pub x_rng: std::ops::Range<usize>,
-    pub y_rng: std::ops::Range<usize>,
+pub struct RangeHit<'a> {
+    pub by: &'a Cell,
     pub is_done: bool,
 }
-impl RangeHit {
+impl<'a> RangeHit<'a> {
     pub fn done(&mut self) {
         self.is_done = true;
     }

@@ -35,16 +35,8 @@ pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
         attenders = parsed;
         cabinet = schedule::Cabinet::default();
     } else {
-        if let Some(cabinet_match) = parse::cabinet::from_end(string) {
-            cabinet = schedule::Cabinet {
-                primary: Some(cabinet_match.as_str().to_string()),
-                opposite: None
-            };
-            name = (&string[..cabinet_match.start()]).trim().to_string();
-        } else {
-            cabinet = schedule::Cabinet::default();
-            name = string.trim().to_string();
-        }
+        cabinet = schedule::Cabinet::default();
+        name = string.trim().to_string();
         attenders = vec![];
     }
 

@@ -1,4 +1,5 @@
-use chrono::{NaiveDate, Datelike};
+use chrono::{Datelike, NaiveDate, TimeDelta};
+use itertools::Itertools;
 use std::ops::Range;
 use crate::data::{schedule::{
     self,
@@ -74,7 +75,7 @@ impl Parser {
 
                 let opt_date = table::OptDate {
                     raw: &cell.text,
-                    parsed: Some(start..end),
+                    parsed: Some(start..=end),
                     range: (cell.x())..(cell.x() + cell.width() - 1)
                 };
 
@@ -128,10 +129,10 @@ impl Parser {
             let date = nearest_some.1;
 
             let filled_date = if !is_reversed {
-                date.parsed.as_ref().unwrap().start
+                date.parsed.as_ref().unwrap().start()
                     .checked_sub_days(chrono::Days::new(days_shift as u64))
             } else {
-                date.parsed.as_ref().unwrap().end
+                date.parsed.as_ref().unwrap().end()
                     .checked_add_days(chrono::Days::new(days_shift as u64))
             };
             
@@ -141,7 +142,7 @@ impl Parser {
         for fill in to_be_filled {
             let idx = fill.0;
             let date = fill.1;
-            opt_ranges.get_mut(idx).unwrap().parsed = date.map(|date| date..date);
+            opt_ranges.get_mut(idx).unwrap().parsed = date.map(|date| date..=date);
         }
 
         for opt_range in opt_ranges.into_iter() {
@@ -160,12 +161,14 @@ impl Parser {
     ) -> Vec<schedule::Day> {
         let mut days = vec![];
 
-        if dates.parsed.start > dates.parsed.end {
+        if dates.parsed.start() > dates.parsed.end() {
             return days;
         }
 
-        let num_days = (dates.parsed.end - dates.parsed.start).num_days() as usize;
-        for date in dates.parsed.start.iter_days().take(num_days) {
+        let num_days = (
+            (*dates.parsed.end() + TimeDelta::days(1)) - *dates.parsed.start()
+        ).num_days() as usize;
+        for date in dates.parsed.start().iter_days().take(num_days) {
             let day = schedule::Day {
                 raw: dates.raw.to_string(),
                 date,
@@ -177,7 +180,7 @@ impl Parser {
         days
     }
 
-    pub async fn parse(&self) -> Result<(), ParsingError> {
+    pub async fn parse<'a>(&'a self) -> Result<(), ParsingError> {
         let Some(dates) = self.date_ranges() else {
             return Err(ParsingError::NoDatesRow)
         };
@@ -189,7 +192,19 @@ impl Parser {
         // subject number
         let mut num_counter = 0;
         // list of cells that expand onto the next rows
-        let mut y_hits: Vec<table::RangeHit> = vec![];
+        let mut y_hits: Vec<table::RangeHit<'a>> = vec![];
+
+        for row in self.schema.iter() {
+            for cell in row {
+                if cell.does_hit_next_rows() {
+                    let hit = table::RangeHit {
+                        by: cell,
+                        is_done: false
+                    };
+                    y_hits.push(hit);
+                }
+            }
+        }
 
         for row in self.schema.iter() {
             let y = row.get(0).unwrap().y;
@@ -228,7 +243,7 @@ impl Parser {
                 num_counter = 1;
             }
 
-            let mut x = -1;
+            let mut x: isize = -1;
             loop {
                 x += 1;
 
@@ -241,7 +256,8 @@ impl Parser {
                     cell = Some(c);
                 } else {
                     hits_for_this_pos = y_hits.iter().filter(
-                        |hit| hit.x_rng.contains(&x) && hit.y_rng.contains(&y)
+                        |hit| hit.by.x_range().contains(&x) &&
+                              hit.by.y_range().contains(&y)
                     ).collect::<Vec<&table::RangeHit>>();
                 }
 
@@ -348,6 +364,14 @@ impl Parser {
                     }
                 }
             }
+        }
+
+        if let Some(last_formation) = std::mem::take(&mut current_formation) {
+            formations.push(last_formation.object);
+        }
+
+        for formation in formations.iter_mut() {
+            formation.days.sort_by(|a, b| a.date.cmp(&b.date));
         }
 
         Ok(())

@@ -48,6 +48,7 @@ pub struct Index {
     pub fetch: bool,
     pub updated: Arc<RwLock<NaiveDateTime>>,
     pub period: Duration,
+    pub ignored: Vec<String>,
     pub types: Vec<Arc<Schedule>>
 }
 impl json::Path for Index {
@@ -69,6 +70,7 @@ impl json::ToMiddle<MiddleIndex> for Index {
         MiddleIndex {
             path: self.path.clone(),
             fetch: self.fetch,
+            ignored: self.ignored.clone(),
             updated: *self.updated.read().await,
             period: self.period.clone().to_std().unwrap(),
             types
@@ -89,6 +91,7 @@ impl Index {
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
             fetch: true,
+            ignored: vec![],
             updated: Arc::new(RwLock::new(
                 DateTime::from_timestamp(0, 0).unwrap().naive_utc()
             )),
@@ -126,6 +129,7 @@ impl Index {
             update_forever_handle: Arc::new(RwLock::new(None)),
             update_lock: Arc::new(Mutex::new(())),
             fetch: middle.fetch,
+            ignored: middle.ignored.clone(),
             updated: Arc::new(RwLock::new(middle.updated)),
             period: Duration::from_std(middle.period).unwrap(),
             types
@@ -234,6 +238,10 @@ impl Index {
 
         if self.fetch {
             for schedule in self.types.iter() {
+                if self.ignored.contains(&schedule.name) {
+                    continue;
+                }
+
                 let schedule = schedule.clone();
     
                 let handle = tokio::spawn(async move {
@@ -330,6 +338,7 @@ pub struct MiddleIndex {
     pub fetch: bool,
     pub updated: NaiveDateTime,
     pub period: std::time::Duration,
+    pub ignored: Vec<String>,
     pub types: Vec<MiddleSchedule>
 }
 impl json::Path for MiddleIndex {
