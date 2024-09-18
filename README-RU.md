@@ -2,72 +2,78 @@
 
 # Парсер расписания с [ktmu-sutd.ru](https://ktmu-sutd.ru)
 
-#### Funny little note
-- I acknowledge the shittiness of this code
-- Couldn't fucking care less
-- No one pays me for that
-- This is the last version,
-no further updates in case of changing schedule formats
+#### Небольшая заметочка
+- Я в курсе что это говнокод
+- Абсолютно поебать
+- Никто мне за это не платит
+- Это последняя версия, больше обновлений после изменения формата расписания не будет
 - L + Ratio
 
-## Overview
-This is a HTTP REST API server with a schedule parser under the hood.
-
-- Every 10 minutes (configurable) ZIP archives
-from specified URLs to Google Sheets are downloaded
-- ZIPs are extracted and HTMLs are parsed
-- Parsed data is being saved onto the disk,
-including the time of last update
-- Schedule diffs are generated and sent
-to the connected WebSocket clients
-- Client uses server APIs to view freshly parsed schedules
+## Вкратце 
+Это HTTP REST API сервер с парсером расписания на борту.
+- Каждые 10 минут (настраивается) ZIP-архивы
+скачиваются с указанных ссылок на Google Таблицы
+- Архивы распаковываются и HTML парсятся
+- Весь парс сохраняется на диск,
+включая время последнего обновления
+- Генерируются различия (diff) расписаний,
+которые затем отсылаются клиентам
+по WebSocket
+- Клиент использует API сервера
+чтобы посмотреть только что
+конвертированные расписания
 
 ## API
-All responses are in JSONs.
-Schemas and examples later.
+Все ответы в JSON.
+Схемы и примеры позже.
 
-### Getting groups schedule
+### Получение расписания групп
 `GET http://localhost:8080/schedule/groups`
 
-A schedule for all the groups present.
+Расписание для всех представленных групп.
 
-### Getting schedule for specific group
-`GET http://localhost:8080/schedule/groups?name=<EXACT GROUP NAME>`
+### Получение расписания для определённой группы
+`GET http://localhost:8080/schedule/groups?name=<ТОЧНОЕ ИМЯ ГРУППЫ>`
 
-A schedule containing only the specified group.
+Расписание только для указанной группы.
 
-### Getting teachers schedule
+### Получение расписания преподавателей
 `GET http://localhost:8080/schedule/teachers`
 
-A schedule for all the teachers present.
+Расписание для всех представленных преподавателей.
 
-### Getting schedule for specific teacher
-`GET http://localhost:8080/schedule/teachers?name=<EXACT TEACHER NAME>`
+### Получение расписания для определённого преподавателя
+`GET http://localhost:8080/schedule/teachers?name=<ТОЧНОЕ ИМЯ ПРЕПОДА>`
 
-A schedule containing only the specified teacher.
+Расписание только для указанного преподавателя.
 
-### Websocket connection with updates
+### Подключение WebSocket с обновлениями
 `WS ws://localhost:8080/schedule/updates`
 
-An update channel with diffs.
+Канал обновлений с изменениями в расписании.
 
-Every time the schedule updates,
-ktmuscrap generates a diff and sends it
-to everyone connected.
-This diff is always sent, no matter
-the changes - if there any or not.
+Каждый раз после обновления расписаний,
+ktmuscrap ищет изменения и рассылает
+их каждому подключившемуся.
+Разница (diff) присылается
+всегда, независимо от того,
+есть ли изменения или нет.
 
-### Getting update period
+### Получение периода обновления
 `GET http://localhost:8080/schedule/updates/period`
 
-How often updates are performed. This value is set in the config.
+Как часто производятся обновления.
+Это значение устанавливается в конфиге.
 
-### Getting last update time
+### Получение времени последнего обновления
 `GET http://localhost:8080/schedule/updates/period`
 
-When was the last update performed.
+Когда было произведено последнее обновление.
 
-## Where is it used
-[**ktmuslave**](https://github.com/kerdl/ktmuslave) is a schedule bot built on top of this server. Working both in VK and Telegram.
+## Где это используется
+[**ktmuslave**](https://github.com/kerdl/ktmuslave)
+– это бот, работающий в дуэте с
+этим сервером.
+Работает как в ВК, так и в Telegram.
 
-Pointless for anything else 🤔
+Бесполезно для чего-либо ещё 🤔
