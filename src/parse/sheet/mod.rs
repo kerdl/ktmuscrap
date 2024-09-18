@@ -1,12 +1,10 @@
-//! # Three-step sheet parsing
+//! # Two-step sheet parsing
 //! - `html`: converting HTML to a table
 //! - `table`: mapping the table: connecting subjects
-//!   to groups/teachers and dates
-//! - `mappings`: creating final `Page` objects from mappings
+//!   to groups/teachers and dates, constructing a `Page`
 
 pub mod html;
 pub mod table;
-pub mod mappings;
 
 use log::debug;
 use std::path::PathBuf;
@@ -19,7 +17,6 @@ use crate::lifetime;
 pub enum ParsingError {
     Html(html::ParsingError),
     Table(table::ParsingError),
-    Mappings(mappings::ParsingError)
 }
 impl From<html::ParsingError> for ParsingError {
     fn from(value: html::ParsingError) -> Self {
@@ -31,20 +28,15 @@ impl From<table::ParsingError> for ParsingError {
         Self::Table(value)
     }
 }
-impl From<mappings::ParsingError> for ParsingError {
-    fn from(value: mappings::ParsingError) -> Self {
-        Self::Mappings(value)
-    }
-}
 
 
 pub async fn from_path(
     path: &PathBuf,
     kind: Kind,
 ) -> Result<(), ParsingError> {
-    let mut html_processor = html::Parser::from_path(path).await?;
+    let html_processor = html::Parser::from_path(path).await?;
     let table = html_processor.parse().await?;
-    let mut table_processor = table::Parser::from_schema(table, kind);
+    let table_processor = table::Parser::from_schema(table, kind);
     let mappings = table_processor.parse().await?;
     debug!("{:?} parsed", path);
     Ok(())

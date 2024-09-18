@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use std::collections::HashMap;
 use crate::data;
 
@@ -93,7 +96,18 @@ impl<'i: 't, 't> Properties {
                 },
                 cssparser::Token::Function(func) => {
                     if stage != Lookup::Value { stage = Lookup::Key; continue; }
-                    values.push(data::css::Value::Function(func.clone()));
+                    let func_string = func.to_string();
+                    let line = parser.current_line();
+                    let opening_pos = parser.position().byte_index();
+                    let closing_pos = line.chars().position(|c| c == ')');
+
+                    if let Some(closing_pos) = closing_pos {
+                        let args = &line[opening_pos..closing_pos];
+                        let whole = format!("{}({})", func_string, args);
+                        values.push(data::css::Value::Function(whole));
+                    } else {
+                        values.push(data::css::Value::Function(func_string));
+                    }
                 },
                 cssparser::Token::Semicolon | cssparser::Token::CloseCurlyBracket => {
                     hm.insert(std::mem::take(&mut key), std::mem::take(&mut values));
@@ -195,16 +209,22 @@ pub fn get_key_from_classes<'a>(
     None
 }
 
-pub fn get_any_hash_in_value<'a>(
+pub fn values_to_strings<'a>(
     values: &'a Vec<data::css::Value<'a>>
-) -> Option<&'a cssparser::CowRcStr<'a>> {
+) -> Vec<String> {
+    let mut output = vec![];
+
     for value in values {
         match value {
-            data::css::Value::Hash(hash) => return Some(hash),
-            data::css::Value::IDHash(hash) => return Some(hash),
+            data::css::Value::Ident(ident) => output.push(ident.parse().unwrap()),
+            data::css::Value::Hash(hash) => output.push(hash.parse().unwrap()),
+            data::css::Value::IDHash(hash) => output.push(hash.parse().unwrap()),
+            data::css::Value::QuotedString(qs) => output.push(qs.parse().unwrap()),
+            data::css::Value::UnquotedUrl(uqs) => output.push(uqs.parse().unwrap()),
+            data::css::Value::Function(func) => output.push(func.to_string()),
             _ => ()
         }
     }
 
-    None
+    output
 }

@@ -1,6 +1,8 @@
-use super::*;
+use colors_transform::Color;
 use crate::data;
 use crate::data::schedule;
+use super::*;
+
 
 #[tokio::test]
 async fn test_groups_1() {
@@ -14,7 +16,14 @@ async fn test_groups_1() {
 
     let string = "Учет страховых договоров Иванова А.А.";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Учет страховых договоров Иванова А.А.".to_string(),
         name: "Учет страховых договоров".to_string(),
@@ -51,7 +60,14 @@ async fn test_groups_2() {
 
     let string = "Ин. язык Костина С.В. / Хачатрян Н.В.";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Ин. язык Костина С.В. / Хачатрян Н.В.".to_string(),
         name: "Ин. язык".to_string(),
@@ -97,7 +113,14 @@ async fn test_groups_3() {
 
     let string = "Деловой англ. /Хачатрян Н.В.";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Деловой англ. /Хачатрян Н.В.".to_string(),
         name: "Деловой англ.".to_string(),
@@ -134,7 +157,14 @@ async fn test_groups_4() {
 
     let string = "Деловой англ. Коняева А.С.37а/Хачатрян Н.В.";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Деловой англ. Коняева А.С.37а/Хачатрян Н.В.".to_string(),
         name: "Деловой англ.".to_string(),
@@ -180,7 +210,14 @@ async fn test_groups_5() {
 
     let string = "Деловой англ. Коняева А.С. /Хачатрян Н.В. каб 2";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Деловой англ. Коняева А.С. /Хачатрян Н.В. каб 2".to_string(),
         name: "Деловой англ.".to_string(),
@@ -226,7 +263,14 @@ async fn test_groups_6() {
 
     let string = "Деловой англ. Коняева А.С. 37а/Хачатрян Н.В. каб 2";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Деловой англ. Коняева А.С. 37а/Хачатрян Н.В. каб 2".to_string(),
         name: "Деловой англ.".to_string(),
@@ -272,7 +316,14 @@ async fn test_groups_7() {
 
     let string = "Экономика организации Вакансия 05";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Экономика организации Вакансия 05".to_string(),
         name: "Экономика организации".to_string(),
@@ -309,7 +360,14 @@ async fn test_groups_8() {
 
     let string = "Выполнение дизайнерских проектов в материале Вакансия 02.3/Натус Н.И. каб. 4";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "Выполнение дизайнерских проектов в материале Вакансия 02.3/Натус Н.И. каб. 4".to_string(),
         name: "Выполнение дизайнерских проектов в материале".to_string(),
@@ -355,7 +413,14 @@ async fn test_teachers_1() {
 
     let string = "3дд48 жив каб 17а";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "3дд48 жив каб 17а".to_string(),
         name: "жив".to_string(),
@@ -392,7 +457,14 @@ async fn test_teachers_2() {
 
     let string = "3рд33/4рд34/36 осн фил";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "3рд33/4рд34/36 осн фил".to_string(),
         name: "осн фил".to_string(),
@@ -447,7 +519,14 @@ async fn test_teachers_3() {
 
     let string = "1 мп2\\4 лит-ра";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "1 мп2\\4 лит-ра".to_string(),
         name: "лит-ра".to_string(),
@@ -493,7 +572,14 @@ async fn test_teachers_4() {
 
     let string = "1ктд4   ОБЗР каб.40";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "1ктд4   ОБЗР каб.40".to_string(),
         name: "ОБЗР".to_string(),
@@ -530,7 +616,14 @@ async fn test_teachers_5() {
 
     let string = "2рд36 культ каб ?";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "2рд36 культ каб ?".to_string(),
         name: "культ".to_string(),
@@ -567,7 +660,14 @@ async fn test_teachers_6() {
 
     let string = "1дд20 ПС актовый за";
     let num = 2;
-    let color = "#c6d9f0";
+    let color = "#c6d9f0"
+        .parse::<colors_transform::Rgb>()
+        .map(|color| palette::Srgb::new(
+            color.get_red(),
+            color.get_green(),
+            color.get_blue()
+        ))
+        .unwrap();
     let result = schedule::Subject {
         raw: "1дд20 ПС актовый за".to_string(),
         name: "ПС".to_string(),

@@ -1,3 +1,4 @@
+use colors_transform::Color;
 use std::path::PathBuf;
 use crate::data::{self, schedule::raw::table};
 use crate::parse;
@@ -15,9 +16,10 @@ const HEIGHT: &str = "height";
 const GRID_CONTAINER: &str = "grid-container";
 const FREEZEBAR_CELL: &str = "freezebar-cell";
 const BACKGROUND_COLOR: &str = "background-color";
-const DEFAULT_CELL_COLOR: &str = "#ffffff";
+const DEFAULT_CELL_COLOR: palette::Srgb = {
+    palette::Srgb::new(255.0, 255.0, 255.0)
+};
 const ZERO: &str = "0";
-
 
 
 #[derive(thiserror::Error, Debug)]
@@ -90,6 +92,44 @@ impl Parser {
             let Some(elm) = node.element() else { return false };
             elm.name == TBODY
         })
+    }
+
+    fn cell_color_or_default(
+        styles: Option<&data::css::SelectorVec>,
+        classes: &Vec<String>
+    ) -> palette::Srgb {
+        let Some(styles) = styles else { return DEFAULT_CELL_COLOR };
+        let Some(values) = parse::css::get_key_from_classes(
+            BACKGROUND_COLOR,
+            classes,
+            styles
+        ) else { return DEFAULT_CELL_COLOR };
+        let Some(first) = parse::css::values_to_strings(values)
+            .first()
+            .map(|s| s.clone())
+        else {
+            return DEFAULT_CELL_COLOR
+        };
+
+        let ct_rgb;
+
+        if first.contains('(') && first.contains(')') {
+            let Some(rgb) = first.parse::<colors_transform::Rgb>().ok() else {
+                return DEFAULT_CELL_COLOR
+            };
+            ct_rgb = rgb;
+        } else {
+            let Some(rgb) = colors_transform::Rgb::from_hex_str(&first).ok() else {
+                return DEFAULT_CELL_COLOR
+            };
+            ct_rgb = rgb;
+        }
+
+        palette::Srgb::new(
+            ct_rgb.get_red(),
+            ct_rgb.get_green(),
+            ct_rgb.get_blue()
+        )
     }
 
     pub async fn parse(&self) -> Result<Vec<Vec<table::Cell>>, ParsingError> {
@@ -211,21 +251,10 @@ impl Parser {
 
                 let text = parse::node::text::nested_as_string(node_cell, " ");
 
-                let color = {
-                    if let Some(styles) = styles.as_ref() {
-                        parse::css::get_key_from_classes(
-                            BACKGROUND_COLOR,
-                            &elm_cell.classes,
-                            styles
-                        )
-                            .map(|value| parse::css::get_any_hash_in_value(value))
-                            .flatten()
-                            .map(|color| format!("#{}", color))
-                            .unwrap_or(DEFAULT_CELL_COLOR.to_string())
-                    } else {
-                        DEFAULT_CELL_COLOR.to_string()
-                    }
-                };
+                let color = Self::cell_color_or_default(
+                    styles.as_ref(),
+                    &elm_cell.classes
+                );
 
                 let cell = table::Cell {
                     x,

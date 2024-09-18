@@ -1,6 +1,6 @@
 use std::ops::{Range, RangeInclusive};
 use chrono::NaiveDate;
-use crate::data::schedule::{self, attender};
+use crate::data::schedule;
 
 
 pub trait XCord {
@@ -27,14 +27,14 @@ pub trait YRange {
     fn y_range(&self) -> Range<usize>;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Cell {
     pub x: usize,
     pub y: usize,
     pub colspan: usize,
     pub rowspan: usize,
     pub text: String,
-    pub color: String
+    pub color: palette::Srgb
 }
 impl XCord for Cell {
     fn x(&self) -> usize {

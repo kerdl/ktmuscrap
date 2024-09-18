@@ -16,7 +16,7 @@ actix-web = "4"
 actix-web-actors = "4.1"
 reqwest = "0.12"
 
-# logging, coloring
+# logging
 log = "0.4"
 colored = "2"
 
@@ -54,4 +54,5 @@ async_zip = { version = "0.0.17", features = ["full"] }
 rand = "0.8"
 sanitize-filename = "0.5.0"
 bytes = "1"
-
+palette = "0.7.6"
+colors-transform = "0.2.11"

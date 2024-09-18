@@ -1,24 +1,44 @@
 #[cfg(test)]
 mod tests;
 
+use palette::IntoColor;
+use palette::color_difference::Ciede2000;
 use crate::{regexes, options};
 use crate::data::schedule;
 use crate::parse;
 
 
-pub fn format_from_color(color: &str) -> schedule::raw::Format {
-    match color {
-        c if c == &options().settings.parsing.fulltime_color => {
-            schedule::raw::Format::Fulltime
-        },
-        c if c == &options().settings.parsing.remote_color => {
-            schedule::raw::Format::Remote
-        },
-        _ => schedule::raw::Format::Unknown
+pub fn format_from_color(color: palette::Srgb) -> schedule::raw::Format {
+    if color.red == 255.0 && color.green == 255.0 && color.blue == 255.0 {
+        return schedule::raw::Format::Unknown;
+    }
+
+    let lab: palette::Lab = color.into_color();
+    let fulltime_diff = lab.difference(
+        options().settings.parsing.fulltime_lab
+    );
+    let remote_diff = lab.difference(
+        options().settings.parsing.remote_lab
+    );
+
+    if fulltime_diff > 45.0 && remote_diff > 45.0 {
+        return schedule::raw::Format::Unknown;
+    }
+
+    if fulltime_diff < remote_diff {
+        // if the cell is #fce5cd (exact match)
+        // fulltime_diff == 33.8717690
+        // remote_diff == 45.0357895
+        schedule::raw::Format::Fulltime
+    } else {
+        // if the cell is #c6d9f0 (exact match)
+        // fulltime_diff == 44.7135468
+        // remote_diff == 20.7941818
+        schedule::raw::Format::Remote
     }
 }
 
-pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
+pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject {
     let raw = string.to_string();
     let format = format_from_color(color);
     let name;
@@ -50,7 +70,7 @@ pub fn groups(string: &str, num: u32, color: &str) -> schedule::Subject {
     }
 }
 
-pub fn teachers(string: &str, num: u32, color: &str) -> schedule::Subject {
+pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject {
     let raw = string.to_string();
     let format = format_from_color(color);
     let mut name;

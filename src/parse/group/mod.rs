@@ -5,14 +5,28 @@ use std::ops::Range;
 use crate::regexes;
 
 
-pub fn validate(string: &str) -> Option<String> {
-    let matched = regexes().group.find(string)?.as_str();
-    let without_punctiation = regexes().nonword.replace_all(matched, "").to_string();
+pub fn validate_unchecked(string: &str) -> String {
+    let without_punctiation = regexes().nonword.replace_all(string, "").to_string();
     let mut capitalized = without_punctiation.to_uppercase();
     if capitalized.chars().nth(1).unwrap() != 'К' {
         capitalized.insert(1, 'К');
     }
-    Some(capitalized)
+    capitalized
+}
+
+pub fn validate(string: &str) -> Option<String> {
+    let matched = regexes().group.find(string)?.as_str();
+    Some(validate_unchecked(matched))
+}
+
+pub fn validate_all(string: &str) -> Vec<String> {
+    let mut output = vec![];
+    let matched = regexes().group.find_iter(string);
+    for m in matched {
+        let valid = validate_unchecked(m.as_str());
+        output.push(valid);
+    }
+    output
 }
 
 pub fn multi(mut string: &str) -> Option<Vec<(Range<usize>, String)>> {

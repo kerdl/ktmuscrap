@@ -1,18 +1,18 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Number {
     pub has_sign: bool,
     pub value: f32,
     pub int_value: Option<i32>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Percentage {
     pub has_sign: bool,
     pub unit_value: f32,
     pub int_value: Option<i32>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UnitNumber<'a> {
     pub has_sign: bool,
     pub value: f32,
@@ -20,7 +20,7 @@ pub struct UnitNumber<'a> {
     pub unit: cssparser::CowRcStr<'a>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value<'a> {
     Ident(cssparser::CowRcStr<'a>),
     Hash(cssparser::CowRcStr<'a>),
@@ -30,5 +30,5 @@ pub enum Value<'a> {
     Number(Number),
     Percentage(Percentage),
     Dimension(UnitNumber<'a>),
-    Function(cssparser::CowRcStr<'a>),
+    Function(String),
 }

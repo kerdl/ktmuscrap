@@ -13,7 +13,6 @@ use std::{
     path::PathBuf,
     sync::Arc
 };
-
 use crate::{
     SyncResult,
     data::{
@@ -56,28 +55,6 @@ impl json::Path for Index {
         self.path.clone()
     }
 }
-
-impl json::ToMiddle<MiddleIndex> for Index {
-    async fn to_middle(&self) -> MiddleIndex {
-        let types = {
-            let mut types = vec![];
-            for sc in self.types.iter() {
-                types.push(Schedule::to_middle(sc).await)
-            }
-            types
-        };
-
-        MiddleIndex {
-            path: self.path.clone(),
-            fetch: self.fetch,
-            ignored: self.ignored.clone(),
-            updated: *self.updated.read().await,
-            period: self.period.clone().to_std().unwrap(),
-            types
-        }
-    }
-}
-impl json::Saving<MiddleIndex> for Index {}
 impl Index {
     fn default(
         path: PathBuf,
@@ -328,6 +305,27 @@ impl Index {
         debug!("aborted update forever");
     }
 }
+impl json::ToMiddle<MiddleIndex> for Index {
+    async fn to_middle(&self) -> MiddleIndex {
+        let types = {
+            let mut types = vec![];
+            for sc in self.types.iter() {
+                types.push(Schedule::to_middle(sc).await)
+            }
+            types
+        };
+
+        MiddleIndex {
+            path: self.path.clone(),
+            fetch: self.fetch,
+            ignored: self.ignored.clone(),
+            updated: *self.updated.read().await,
+            period: self.period.clone().to_std().unwrap(),
+            types
+        }
+    }
+}
+impl json::Saving<MiddleIndex> for Index {}
 
 
 #[derive(Serialize, Deserialize)]
