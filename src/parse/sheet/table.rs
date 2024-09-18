@@ -194,7 +194,7 @@ impl Parser {
         output
     }
 
-    pub async fn parse<'a>(&'a self) -> Result<(), ParsingError> {
+    pub async fn parse<'a>(&'a self) -> Result<schedule::Page, ParsingError> {
         let Some(dates) = self.date_ranges() else {
             return Err(ParsingError::NoDatesRow)
         };
@@ -408,7 +408,17 @@ impl Parser {
             formation.days.sort_by(|a, b| a.date.cmp(&b.date));
         }
 
-        Ok(())
+        let page = schedule::Page {
+            kind: self.kind,
+            date: {
+                dates.first().unwrap().parsed.start().clone()
+                ..=
+                dates.last().unwrap().parsed.end().clone()
+            },
+            formations
+        };
+
+        Ok(page)
     }
 
     pub fn row_for_y<Cell: YCord>(y: usize, schema: &Vec<Vec<Cell>>) -> Option<&Vec<Cell>> {

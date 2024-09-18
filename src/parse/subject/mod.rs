@@ -43,7 +43,6 @@ pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject
     let format = format_from_color(color);
     let name;
     let attenders;
-    let cabinet;
 
     if let Some((range, parsed)) = parse::attender::teachers(string) {
         let trimmed_name = (&string[..range.start]).trim();
@@ -53,9 +52,7 @@ pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject
             .parse::<String>()
             .unwrap();
         attenders = parsed;
-        cabinet = schedule::Cabinet::default();
     } else {
-        cabinet = schedule::Cabinet::default();
         name = string.trim().to_string();
         attenders = vec![];
     }
@@ -65,8 +62,7 @@ pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject
         name,
         num,
         format,
-        attenders,
-        cabinet
+        attenders
     }
 }
 
@@ -74,8 +70,7 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
     let raw = string.to_string();
     let format = format_from_color(color);
     let mut name;
-    let attenders;
-    let cabinet;
+    let mut attenders;
 
     if let Some(parsed) = parse::group::multi(string) {
         let att_kind = schedule::attender::Kind::Group;
@@ -96,13 +91,14 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
     }
 
     if let Some(cabinet_match) = parse::cabinet::from_end(&name) {
-        cabinet = schedule::Cabinet {
+        let cab = schedule::Cabinet {
             primary: Some(cabinet_match.as_str().to_string()),
             opposite: None
         };
+        for att in attenders.iter_mut() {
+            att.cabinet = cab.clone();
+        }
         name = (&name[..cabinet_match.start()]).trim().to_string();
-    } else {
-        cabinet = schedule::Cabinet::default();
     }
 
     schedule::Subject {
@@ -110,7 +106,6 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
         name,
         num,
         format,
-        attenders,
-        cabinet
+        attenders
     }
 }

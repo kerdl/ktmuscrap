@@ -62,6 +62,11 @@ impl Cabinet {
     pub fn swap(&mut self) {
         std::mem::swap(&mut self.primary, &mut self.opposite);
     }
+
+    pub fn swapped(mut self) -> Self {
+        std::mem::swap(&mut self.primary, &mut self.opposite);
+        self
+    }
 }
 
 /// # Single attender (teacher/group) in a `Subject`
@@ -104,8 +109,7 @@ pub struct Subject {
     pub name: String,
     pub num: u32,
     pub format: raw::Format,
-    pub attenders: Vec<Attender>,
-    pub cabinet: Cabinet
+    pub attenders: Vec<Attender>
 }
 impl FindingCmp for Subject {
     fn is_partially_same_with(&self, other: &Self) -> bool {

@@ -6,8 +6,11 @@ use std::ops::RangeInclusive;
 use crate::data::schedule::{
     raw,
     attender,
+    Page,
+    Day,
+    Subject,
     Attender,
-    Page
+    Cabinet
 };
 
 
@@ -22,7 +25,7 @@ use crate::data::schedule::{
 /// from `teachers`
 /// - `teachers` take subject names
 /// from `groups`
-pub async fn complement<'a>(
+pub fn complement<'a>(
     groups: &'a mut Page, 
     teachers: &'a mut Page,
 ) -> Result<(), MergeError<'a>> {
@@ -85,11 +88,7 @@ pub async fn complement<'a>(
                             raw: group.raw.clone(),
                             kind: attender::Kind::Group,
                             name: group.name.clone(),
-                            cabinet: {
-                                let mut cab = group_attender.cabinet.clone();
-                                cab.swap();
-                                cab
-                            }
+                            cabinet: group_attender.cabinet.clone().swapped()
                         };
                         teacher_subject.attenders.push(group_as_attender);
                     } else {
@@ -114,8 +113,77 @@ pub async fn complement<'a>(
     Ok(())
 }
 
+fn combine_cabinets(dst: &mut Cabinet, src: Cabinet) {
+    if let (Some(dst_primary), Some(src_primary)) = (&mut dst.primary, src.primary) {
+        if *dst_primary != src_primary {
+            dst_primary.push_str(", ");
+            dst_primary.push_str(&src_primary);
+        }
+    }
+    if let (Some(dst_opposite), Some(src_opposite)) = (&mut dst.opposite, src.opposite) {
+        if *dst_opposite != src_opposite {
+            dst_opposite.push_str(", ");
+            dst_opposite.push_str(&src_opposite);
+        }
+    }
+}
+
+fn combine_attenders(dst: &mut Vec<Attender>, src: Vec<Attender>) {
+    for src_att in src {
+        if let Some(existing_att) = dst
+            .iter_mut()
+            .find(|dst_att|
+                dst_att.kind == src_att.kind &&
+                dst_att.name == src_att.name 
+            )
+        {
+            combine_cabinets(
+                &mut existing_att.cabinet,
+                src_att.cabinet
+            )
+        } else {
+            dst.push(src_att)
+        }
+    }
+}
+
+fn combine_subjects(dst: &mut Vec<Subject>, src: Vec<Subject>) {
+    for src_subject in src {
+        if let Some(existing_subject) = dst
+            .iter_mut()
+            .find(|dst_subject|
+                dst_subject.num == src_subject.num &&
+                dst_subject.format == src_subject.format
+            )
+        {
+            combine_attenders(
+                &mut existing_subject.attenders,
+                src_subject.attenders
+            )
+        } else {
+            dst.push(src_subject)
+        }
+    }
+}
+
+fn combine_days(dst: &mut Vec<Day>, src: Vec<Day>) {
+    for src_day in src {
+        if let Some(existing_day) = dst
+            .iter_mut()
+            .find(|dst_day| dst_day.date == src_day.date)
+        {
+            combine_subjects(
+                &mut existing_day.subjects,
+                src_day.subjects
+            )
+        } else {
+            dst.push(src_day)
+        }
+    }
+}
+
 /// # Combine multiple pages
-pub async fn combine(
+pub fn combine(
     pages: Vec<Page>,
     date: RangeInclusive<NaiveDate>,
     kind: raw::Kind
@@ -126,8 +194,20 @@ pub async fn combine(
         formations: vec![]
     };
 
-    for mut page in pages {
-        new_page.formations.append(&mut page.formations);
+    for page in pages {
+        for formation in page.formations {
+            if let Some(existing_formation) = new_page.formations
+                .iter_mut()
+                .find(|existing| existing.name == formation.name)
+            {
+                combine_days(
+                    &mut existing_formation.days,
+                    formation.days
+                );
+            } else {
+                new_page.formations.push(formation);
+            }
+        }
     }
 
     new_page

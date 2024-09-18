@@ -6,8 +6,9 @@
 pub mod html;
 pub mod table;
 
-use log::debug;
+use log::{error, debug};
 use std::path::PathBuf;
+use crate::data::schedule;
 use crate::data::schedule::raw::Kind;
 use crate::lifetime;
 
@@ -33,20 +34,36 @@ impl From<table::ParsingError> for ParsingError {
 pub async fn from_path(
     path: &PathBuf,
     kind: Kind,
-) -> Result<(), ParsingError> {
-    let html_processor = html::Parser::from_path(path).await?;
-    let table = html_processor.parse().await?;
+) -> Result<schedule::Page, ParsingError> {
+    let html_processor = html::Parser::from_path(path).await;
+    if let Err(err) = html_processor {
+        error!("error parsing {:?}: {:?}", path, err);
+        return Err(err.into());
+    }
+    let html_processor = html_processor.unwrap();
+    let table = html_processor.parse().await;
+    if let Err(err) = table {
+        error!("error parsing {:?}: {:?}", path, err);
+        return Err(err.into());
+    }
+    let table = table.unwrap();
     let table_processor = table::Parser::from_schema(table, kind);
-    let mappings = table_processor.parse().await?;
+    let mappings = table_processor.parse().await;
+    if let Err(err) = mappings {
+        error!("error parsing {:?}: {:?}", path, err);
+        return Err(err.into());
+    }
+    let mappings = mappings.unwrap();
     debug!("{:?} parsed", path);
-    Ok(())
+    Ok(mappings)
 }
 
 pub async fn from_paths(
     paths: &[PathBuf],
     kind: Kind,
-) -> std::io::Result<()> {
+) -> Vec<Result<schedule::Page, ParsingError>> {
     let mut handles = vec![];
+    let mut page_results = vec![];
 
     for path in paths {
         let wrapped_path = unsafe {
@@ -59,8 +76,8 @@ pub async fn from_paths(
     }
 
     for handle in handles {
-        let _ = handle.await.unwrap();
+        page_results.push(handle.await.unwrap());
     }
 
-    Ok(())
+    page_results
 }

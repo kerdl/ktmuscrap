@@ -39,11 +39,7 @@ async fn test_groups_1() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -92,11 +88,7 @@ async fn test_groups_2() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -136,11 +128,7 @@ async fn test_groups_3() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -189,11 +177,7 @@ async fn test_groups_4() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -242,11 +226,7 @@ async fn test_groups_5() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -295,11 +275,7 @@ async fn test_groups_6() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -339,11 +315,7 @@ async fn test_groups_7() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -392,11 +364,7 @@ async fn test_groups_8() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(groups(string, num, color), result);
 }
@@ -432,15 +400,11 @@ async fn test_teachers_1() {
                 kind: schedule::attender::Kind::Group,
                 name: "3КДД48".to_string(),
                 cabinet: schedule::Cabinet {
-                    primary: None,
+                    primary: Some("каб 17а".to_string()),
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: Some("каб 17а".to_string()),
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }
@@ -498,11 +462,7 @@ async fn test_teachers_2() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }
@@ -551,11 +511,7 @@ async fn test_teachers_3() {
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: None,
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }
@@ -591,15 +547,11 @@ async fn test_teachers_4() {
                 kind: schedule::attender::Kind::Group,
                 name: "1КТД4".to_string(),
                 cabinet: schedule::Cabinet {
-                    primary: None,
+                    primary: Some("каб.40".to_string()),
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: Some("каб.40".to_string()),
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }
@@ -635,15 +587,11 @@ async fn test_teachers_5() {
                 kind: schedule::attender::Kind::Group,
                 name: "2КРД36".to_string(),
                 cabinet: schedule::Cabinet {
-                    primary: None,
+                    primary: Some("каб ?".to_string()),
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: Some("каб ?".to_string()),
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }
@@ -679,15 +627,11 @@ async fn test_teachers_6() {
                 kind: schedule::attender::Kind::Group,
                 name: "1КДД20".to_string(),
                 cabinet: schedule::Cabinet {
-                    primary: None,
+                    primary: Some("актовый за".to_string()),
                     opposite: None
                 }
             }
-        ],
-        cabinet: schedule::Cabinet {
-            primary: Some("актовый за".to_string()),
-            opposite: None
-        }
+        ]
     };
     assert_eq!(teachers(string, num, color), result);
 }

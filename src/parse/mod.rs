@@ -9,8 +9,9 @@ pub mod subject;
 pub mod cabinet;
 pub mod error;
 
-use std::{path::PathBuf, sync::Arc};
-use crate::data::schedule::{raw::Kind, Last};
+use std::path::PathBuf;
+use crate::data::schedule;
+use crate::data::schedule::raw::Kind;
 use crate::lifetime;
 
 
@@ -29,24 +30,20 @@ pub async fn dom_from_string(string: &String)
     return Ok(dom)
 }
 
-async fn generic(
-    paths: &[PathBuf],
-    last: Arc<Last>,
-    kind: Kind,
-) -> std::io::Result<()> {
+async fn generic(paths: &[PathBuf], kind: Kind)
+    -> Vec<Result<schedule::Page, sheet::ParsingError>>
+{
     sheet::from_paths(paths, kind).await
 }
 
-pub async fn groups(
-    paths: &[PathBuf],
-    last: Arc<Last>
-) -> std::io::Result<()> {
-    generic(paths, last, Kind::Groups).await
+pub async fn groups(paths: &[PathBuf])
+    -> Vec<Result<schedule::Page, sheet::ParsingError>>
+{
+    generic(paths, Kind::Groups).await
 }
 
-pub async fn teachers(
-    paths: &[PathBuf],
-    last: Arc<Last>
-) -> std::io::Result<()> {
-    generic(paths, last, Kind::Teachers).await
+pub async fn teachers(paths: &[PathBuf])
+    -> Vec<Result<schedule::Page, sheet::ParsingError>>
+{
+    generic(paths, Kind::Teachers).await
 }
