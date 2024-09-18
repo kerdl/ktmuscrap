@@ -2,7 +2,7 @@
 
 # Парсер расписания с [ktmu-sutd.ru](https://ktmu-sutd.ru)
 
-#### Небольшая заметочка
+Небольшая заметочка:
 - Я в курсе, что это говнокод
 - Мне абсолютно поебать
 - Никто мне за это не платит
@@ -25,31 +25,35 @@
 
 ## API
 Все ответы в JSON.
-Схемы и примеры позже.
 
-### Получение расписания групп
-`GET http://localhost:8080/schedule/groups`
-
+### Получение расписания групп → [Page](/doc/ru/response/page.md)
+```
+GET http://localhost:8080/schedule/groups
+```
 Расписание для всех представленных групп.
 
-### Получение расписания для определённой группы
-`GET http://localhost:8080/schedule/groups?name=<ТОЧНОЕ ИМЯ ГРУППЫ>`
-
+### Получение расписания для определённой группы → [Page](/doc/ru/response/page.md)
+```
+GET http://localhost:8080/schedule/groups?name=<точное имя группы>
+```
 Расписание только для указанной группы.
 
-### Получение расписания преподавателей
-`GET http://localhost:8080/schedule/teachers`
-
+### Получение расписания преподавателей → [Page](/doc/ru/response/page.md)
+```
+GET http://localhost:8080/schedule/teachers
+```
 Расписание для всех представленных преподавателей.
 
-### Получение расписания для определённого преподавателя
-`GET http://localhost:8080/schedule/teachers?name=<ТОЧНОЕ ИМЯ ПРЕПОДА>`
-
+### Получение расписания для определённого преподавателя → [Page](/doc/ru/response/page.md)
+```
+GET http://localhost:8080/schedule/teachers?name=<точное имя препода>
+```
 Расписание только для указанного преподавателя.
 
-### Подключение WebSocket с обновлениями
-`WS ws://localhost:8080/schedule/updates`
-
+### Подключение WebSocket с обновлениями → [Notify](/doc/ru/object/notify.md)
+```
+WS ws://localhost:8080/schedule/updates
+```
 Канал обновлений с изменениями в расписании.
 
 Каждый раз после обновления расписаний,
@@ -59,20 +63,23 @@ ktmuscrap ищет изменения и рассылает
 всегда, независимо от того,
 есть ли изменения или нет.
 
-### Получение периода обновления
-`GET http://localhost:8080/schedule/updates/period`
+### Получение периода обновления → [Updates](/doc/ru/object/updates.md)
+```
+GET http://localhost:8080/schedule/updates/period
+```
 
 Как часто производятся обновления.
 Это значение устанавливается в конфиге.
 
-### Получение времени последнего обновления
-`GET http://localhost:8080/schedule/updates/period`
-
+### Получение времени последнего обновления → [Updates](/doc/ru/object/updates.md)
+```
+GET http://localhost:8080/schedule/updates/last
+```
 Когда было произведено последнее обновление.
 
 ## Где это используется
 [**ktmuslave**](https://github.com/kerdl/ktmuslave)
-– это бот, работающий в дуэте с
+– бот, работающий в дуэте с
 этим сервером.
 Работает как в ВК, так и в Telegram.
 

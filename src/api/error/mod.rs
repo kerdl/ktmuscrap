@@ -82,8 +82,7 @@ api_err!(
     as_enum: ErrorNum::NoLastSchedule,
     kind:    Kind::InternalFailure,
     fields:  (pub kind: schedule::raw::Kind),
-    error:   |this| format!(
-        "no {} schedule, make sure raw schedules are still available and are valid",
-        this.kind,
+    error:   |_this| format!(
+        "no schedule found, make sure tables are still available and are valid"
     )
 );

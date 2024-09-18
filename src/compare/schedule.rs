@@ -23,8 +23,8 @@ impl DetailedCmp<regular::Cabinet, Cabinet> for Cabinet {
             new.as_ref().map(|new| new.primary.as_ref().map(|val| val.clone())).flatten()
         );
         let opposite = Primitive::new(
-            old.as_ref().map(|old| old.primary.as_ref().map(|val| val.clone())).flatten(),
-            new.as_ref().map(|new| new.primary.as_ref().map(|val| val.clone())).flatten()
+            old.as_ref().map(|old| old.opposite.as_ref().map(|val| val.clone())).flatten(),
+            new.as_ref().map(|new| new.opposite.as_ref().map(|val| val.clone())).flatten()
         );
 
         Self {
@@ -45,8 +45,7 @@ impl DetailedCmp<regular::Cabinet, Cabinet> for Cabinet {
 #[derive(Debug, Clone, Serialize)]
 pub struct Attender {
     pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cabinet: Option<Primitive<regular::Cabinet>>
+    pub cabinet: Cabinet
 }
 impl DetailedCmp<regular::Attender, Attender> for Attender {
     async fn compare(
@@ -60,18 +59,14 @@ impl DetailedCmp<regular::Attender, Attender> for Attender {
         } else {
             None
         };
-        let cabinet = Primitive::new(
-            old.as_ref().map(|old| old.cabinet.clone()),
-            new.as_ref().map(|new| new.cabinet.clone())
-        );
+        let cabinet = Cabinet::compare(
+            old.map(|old| old.cabinet),
+            new.map(|new| new.cabinet)
+        ).await;
 
         Self {
             name,
-            cabinet: if cabinet.is_different_hash() {
-                Some(cabinet)
-            } else {
-                None
-            }
+            cabinet
         }
     }
 }
