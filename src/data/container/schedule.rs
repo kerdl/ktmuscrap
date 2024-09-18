@@ -1,8 +1,6 @@
-use actix_web::web::Bytes;
-use chrono::Duration;
 use log::{info, warn, debug};
 use tokio::sync::{RwLock, mpsc, watch};
-use std::{path::PathBuf, sync::Arc, collections::HashSet};
+use std::{path::PathBuf, sync::Arc};
 use crate::{
     compare::{self, DetailedCmp},
     data::{
@@ -13,6 +11,7 @@ use crate::{
 };
 
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Schedule {
     dir: PathBuf,
