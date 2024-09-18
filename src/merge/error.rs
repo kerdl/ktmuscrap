@@ -1,15 +1,16 @@
 use thiserror::Error;
-use crate::data::schedule::raw;
+use crate::data::schedule::Page;
 
 
 #[derive(Error, Debug)]
-#[error("r_weekly's date range don't have ft_daily's date")]
-pub struct FtDateIsNotInRWeeklyRange {
-    pub latest: raw::Type,
+#[error("merge error")]
+pub enum MergeError<'a> {
+    InvalidKind(&'a Page),
+    NonOverlappingDates(NonOverlappingDates<'a>)
 }
 
 #[derive(Error, Debug)]
-#[error("ft_weekly and r_weekly have different weeks and cannot be merged")]
-pub struct DifferentWeeks {
-    pub latest: raw::Type,
+#[error("pages have non-overlapping date ranges")]
+pub struct NonOverlappingDates<'a> {
+    pub latest: &'a Page
 }

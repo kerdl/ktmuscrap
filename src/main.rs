@@ -5,75 +5,78 @@ pub mod merge;
 pub mod compare;
 pub mod fs;
 pub mod string;
+pub mod lifetime;
 pub mod logger;
-pub mod debug;
 
-pub use log::{info, debug};
+pub use log::{info, error, debug};
 pub use std::time::Instant;
 pub use derive_new;
 
-use actix_web::{web, App, HttpServer};
-use lazy_static::lazy_static;
-use once_cell::sync::OnceCell;
-use std::{path::PathBuf, sync::Arc, str::FromStr, net::SocketAddr, time::Duration};
-
+use actix_web::{App, HttpServer};
 use logger::Logger;
-use data::{schedule, regex};
+use data::regex;
 
-
-lazy_static! {
-    static ref REGEX: Arc<regex::Container> = {
-        Arc::new(regex::Container::default())
-    };
-}
 
 static LOGGER: Logger = Logger;
-static DATA: OnceCell<data::Container> = OnceCell::new();
-
-static FETCH: bool = true;
-
+static mut REGEX: *const regex::Container = std::ptr::null();
+static mut DATA: *const data::Container = std::ptr::null();
 
 pub type DynResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type SyncResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 
+pub fn regexes() -> &'static regex::Container {
+    unsafe { &*(REGEX) }
+}
+
+pub fn options() -> &'static data::Container {
+    unsafe { &*(DATA) }
+}
+
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> std::io::Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-
     Logger::init().unwrap();
 
-    let data = data::Container::default_from_dir(
-        [".", "data"].iter().collect()
-    ).await.unwrap();
-    DATA.set(data).unwrap();
+    let data_path = [".", "data"].iter().collect();
 
+    let regex_own = regex::Container::default();
+    let data_own = data::Container::default_from_dir(data_path).await.unwrap();
+   
+    unsafe {
+        REGEX = &regex_own;
+        DATA = &data_own;
+    }
 
-    DATA.get().unwrap().schedule.index.clone().update_forever().await;
+    if options().schedule.index.types.len() < 1 {
+        let example = crate::data::schedule::raw::index::MiddleSchedule::example();
+        let json_example = serde_json::to_string_pretty(&example).unwrap();
 
+        error!(
+            "before running, see ./data/schedule/index.json \
+            and fill in the schedule types manually"
+        );
+        info!(
+            "example:\n {}", json_example
+        );
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "no schedule types"
+        ));
+    }
 
+    options().schedule.index.clone().update_forever().await;
+
+    let addr = options().settings.server.address.clone();
     info!("http server will be ran on {}", addr);
-
     // start http server
     HttpServer::new(|| {
         App::new()
-            .service(api::schedule::raw::ft_daily::friendly_url)
-            .service(api::schedule::raw::ft_weekly::friendly_url)
-            .service(api::schedule::raw::r_weekly::friendly_url)
-            .service(api::schedule::raw::tchr_ft_daily::friendly_url)
-            .service(api::schedule::raw::tchr_ft_weekly::friendly_url)
-            .service(api::schedule::raw::tchr_r_weekly::friendly_url)
-            .service(api::schedule::interact)
-            .service(api::schedule::interact_keep_alive)
-            .service(api::schedule::key_is_valid)
+            .service(api::schedule::groups::get)
+            .service(api::schedule::teachers::get)
             .service(api::schedule::updates)
-            .service(api::schedule::update)
-            .service(api::schedule::update_period)
-            .service(api::schedule::update_last)
-            .service(api::schedule::daily::get)
-            .service(api::schedule::weekly::get)
-            .service(api::schedule::tchr_daily::get)
-            .service(api::schedule::tchr_weekly::get)
+            .service(api::schedule::updates_period)
+            .service(api::schedule::updates_last)
     })
         .bind(addr)?
         .run()

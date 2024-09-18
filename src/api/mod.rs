@@ -1,64 +1,96 @@
 pub mod error;
 pub mod schedule;
 
-use chrono::{Duration, NaiveDateTime};
-use derive_new::new;
-use actix_web::{web, http::StatusCode, HttpResponse, HttpResponseBuilder};
+use chrono::NaiveDateTime;
+use actix_web::{http::StatusCode, HttpResponse, HttpResponseBuilder};
 use serde_derive::Serialize;
 use std::sync::Arc;
 
-use crate::{data::schedule::{self as sc, Interactor, Notify}, compare::schedule as cmp};
-use error::base::{ApiError, Kind};
+use crate::data::schedule::{self as sc, Notify};
+use error::base::ApiError;
 
 
-#[derive(new, Serialize)]
+#[derive(Serialize)]
+pub struct Updates {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<std::time::Duration>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last: Option<NaiveDateTime>
+}
+impl Default for Updates {
+    fn default() -> Self {
+        Self {
+            period: None,
+            last: None
+        }
+    }
+}
+impl Updates {
+    pub fn from_period(period: std::time::Duration) -> Self {
+        Self {
+            period: Some(period),
+            ..Default::default()
+        }
+    }
+
+    pub fn from_last(last: NaiveDateTime) -> Self {
+        Self {
+            last: Some(last),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub struct Data {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Arc<sc::Page>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tchr_page: Option<Arc<sc::TchrPage>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub interactor: Option<Arc<Interactor>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub notify: Option<Arc<Notify>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub period: Option<std::time::Duration>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_update: Option<NaiveDateTime>
+    pub updates: Option<Updates>
+}
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            page: None,
+            notify: None,
+            updates: None
+        }
+    }
 }
 impl Data {
-    pub fn from_page(schedule: Arc<sc::Page>) -> Data {
-        Data::new(Some(schedule), None, None, None, None, None, None)
+    pub fn from_page(page: Arc<sc::Page>) -> Self {
+        Self {
+            page: Some(page),
+            ..Default::default()
+        }
     }
 
-    pub fn from_tchr_page(schedule: Arc<sc::TchrPage>) -> Data {
-        Data::new(None, Some(schedule), None, None, None, None, None)
+    pub fn from_notify(notify: Arc<Notify>) -> Self {
+        Self {
+            notify: Some(notify),
+            ..Default::default()
+        }
     }
 
-    pub fn from_interactor(interactor: Arc<Interactor>) -> Data {
-        Data::new(None, None, Some(interactor), None, None, None, None)
+    pub fn from_updates(updates: Updates) -> Self {
+        Self {
+            updates: Some(updates),
+            ..Default::default()
+        }
     }
 
-    pub fn from_notify(notify: Arc<Notify>) -> Data {
-        Data::new(None, None, None, Some(notify), None, None, None)
+    pub fn from_updates_period(period: std::time::Duration) -> Self {
+        Self::from_updates(Updates::from_period(period))
     }
 
-    pub fn from_url(url: String) -> Data {
-        Data::new(None, None, None, None, Some(url), None, None)
-    }
-
-    pub fn from_period(period: std::time::Duration) -> Data {
-        Data::new(None, None, None, None, None, Some(period), None)
-    }
-
-    pub fn from_last_update(last_update: NaiveDateTime) -> Data {
-        Data::new(None, None, None, None, None, None, Some(last_update))
+    pub fn from_updates_last(last: NaiveDateTime) -> Self {
+        Self::from_updates(Updates::from_last(last))
     }
 }
 
-#[derive(new, Serialize)]
+#[derive(Serialize)]
 pub struct Response {
     is_ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,44 +98,53 @@ pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<ApiError>,
 }
+impl Default for Response {
+    fn default() -> Self {
+        Self {
+            is_ok: true,
+            data: None,
+            error: None
+        }
+    }
+}
 impl Response {
-    pub fn ok() -> Response {
-        Response::new(true, None, None)
+    pub fn ok() -> Self {
+        Self::default()
     }
 
-    pub fn from_page(schedule: Arc<sc::Page>) -> Response {
-        let data = Data::from_page(schedule);
-        Response::new(true, Some(data), None)
+    pub fn from_page(schedule: Arc<sc::Page>) -> Self {
+        Self {
+            data: Some(Data::from_page(schedule)),
+            ..Default::default()
+        }
     }
 
-    pub fn from_tchr_page(schedule: Arc<sc::TchrPage>) -> Response {
-        let data = Data::from_tchr_page(schedule);
-        Response::new(true, Some(data), None)
+    pub fn from_notify(notify: Arc<Notify>) -> Self {
+        Self {
+            data: Some(Data::from_notify(notify)),
+            ..Default::default()
+        }
     }
 
-    pub fn from_interactor(interactor: Arc<Interactor>) -> Response {
-        let data = Data::from_interactor(interactor);
-        Response::new(true, Some(data), None)
+    pub fn from_updates(updates: Updates) -> Self {
+        Self {
+            data: Some(Data::from_updates(updates)),
+            ..Default::default()
+        }
     }
 
-    pub fn from_notify(notify: Arc<Notify>) -> Response {
-        let data = Data::from_notify(notify);
-        Response::new(true, Some(data), None)
+    pub fn from_updates_period(period: std::time::Duration) -> Self {
+        Self {
+            data: Some(Data::from_updates(Updates::from_period(period))),
+            ..Default::default()
+        }
     }
 
-    pub fn from_url(url: String) -> Response {
-        let data = Data::from_url(url);
-        Response::new(true, Some(data), None)
-    }
-
-    pub fn from_period(period: std::time::Duration) -> Response {
-        let data = Data::from_period(period);
-        Response::new(true, Some(data), None)
-    }
-
-    pub fn from_last_update(last_update: NaiveDateTime) -> Response {
-        let data = Data::from_last_update(last_update);
-        Response::new(true, Some(data), None)
+    pub fn from_updates_last(last: NaiveDateTime) -> Self {
+        Self {
+            data: Some(Data::from_updates(Updates::from_last(last))),
+            ..Default::default()
+        }
     }
 
     pub fn to_json(self) -> HttpResponse {

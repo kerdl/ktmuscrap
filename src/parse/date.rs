@@ -1,80 +1,155 @@
-use chrono::{NaiveDate, Datelike};
-use std::ops::Range;
-
-use super::error;
-use crate::{REGEX, DynResult};
+use chrono::{Datelike, NaiveDate};
+use crate::regexes;
 
 
-/// # "SmArT" year parse
-/// 
-/// Actually it just
-/// overwrites numbers at the end
-/// of current year with the
-/// input
+#[derive(thiserror::Error, Debug)]
+#[error("year parsing error")]
+pub enum YearError {
+    InvalidLength(usize),
+    InvalidValue(std::num::ParseIntError)
+}
+impl From<std::num::ParseIntError> for YearError {
+    fn from(value: std::num::ParseIntError) -> Self {
+        Self::InvalidValue(value)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("month parsing error")]
+pub enum MonthError {
+    InvalidLength(usize),
+    InvalidValue(std::num::ParseIntError),
+    TooLarge
+}
+impl From<std::num::ParseIntError> for MonthError {
+    fn from(value: std::num::ParseIntError) -> Self {
+        Self::InvalidValue(value)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("day parsing error")]
+pub enum DayError {
+    InvalidLength(usize),
+    InvalidValue(std::num::ParseIntError),
+    TooLarge
+}
+impl From<std::num::ParseIntError> for DayError {
+    fn from(value: std::num::ParseIntError) -> Self {
+        Self::InvalidValue(value)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("date parsing error")]
+pub enum WholeError {
+    NotEnoughData,
+    TooMuchData,
+    DoesNotExist,
+    DayError(DayError),
+    MonthError(MonthError),
+    YearError(YearError)
+}
+impl From<Option<NaiveDate>> for WholeError {
+    fn from(_value: Option<NaiveDate>) -> Self {
+        Self::DoesNotExist
+    }
+}
+impl From<DayError> for WholeError {
+    fn from(value: DayError) -> Self {
+        Self::DayError(value)
+    }
+}
+impl From<MonthError> for WholeError {
+    fn from(value: MonthError) -> Self {
+        Self::MonthError(value)
+    }
+}
+impl From<YearError> for WholeError {
+    fn from(value: YearError) -> Self {
+        Self::YearError(value)
+    }
+}
+
+
+/// # Smart year parse
 /// 
 /// ## Input/output examples
-/// - `"2022"` -> `2022`
-/// - `"022"` -> 2`022`
-/// - `"22"` -> 20`22`
-/// - `"2"` -> 202`2`
-fn parse_year(year: &str) -> DynResult<i32> {
-
-    if year.len() == 4 {
-        return Ok(year.parse::<i32>()?)
+/// - `"2024"` -> `2024`
+/// - `"024"` -> 2`024`
+/// - `"24"` -> 20`24`
+/// - `"4"` -> 202`4`
+pub fn year(string: &str) -> Result<i32, YearError> {
+    // e.g. assume year == "24"
+    if string.len() == 4 {
+        return Ok(string.parse::<i32>()?);
     }
-
-    if year.len() > 4 {
-        return Err(error::YearTooLarge.into());
+    if string.len() > 4 {
+        return Err(YearError::InvalidLength(string.len()));
     }
-
-    // i.e. assume `year: &str` == "22"
-
     let now = chrono::Utc::now();
-
-    // "2022"
+    // "2024"
     let mut now_year_str = format!("{}", now.year());
-
-    //       0..2 (is the len of "22")
-    for _ in 0..year.len() {
+    //       0..2 (is the length of "24")
+    for _ in 0..string.len() {
         // remove last char
         now_year_str.pop();
     }
-
-    // "20"      += "22"
-    now_year_str += year;
-
-    // "2022"
+    // "20"      += "24"
+    now_year_str += string;
+    // "2024"
     Ok(now_year_str.parse::<i32>().unwrap())
 }
 
-/// # Parse `"11.09.02"`, `"11/09/02"`, etc.
-pub fn parse_dmy(string: &str) -> Option<NaiveDate> {
-    // find something like "11.09.02"
-    let matched = REGEX.date.find(string)?.as_str();
-    let matched_sep = REGEX.nonword.replace_all(
-        matched, "_"
-    ).to_string();
-
-    // `d`ay, `m`onth, `y`ear
-    let dmy: Vec<&str> = matched_sep.split("_").collect();
-
-    let year = parse_year(dmy.get(2)?).ok()?;
-    let month = dmy.get(1)?.parse::<u32>().ok()?;
-    let day = dmy.get(0)?.parse::<u32>().ok()?;
-
-    NaiveDate::from_ymd_opt(year, month, day)
+pub fn month(string: &str) -> Result<u32, MonthError> {
+    if string.len() != 2 {
+        return Err(MonthError::InvalidLength(string.len()));
+    }
+    let num = string.parse::<u32>()?;
+    if num > 12 {
+        return Err(MonthError::TooLarge)
+    }
+    Ok(num)
 }
 
-pub fn parse_dmy_range(string: &str) -> Option<Range<NaiveDate>> {
-    let raw_start_date = REGEX.date.find(string)?;
-    let raw_end_date = REGEX.date.find_at(string, raw_start_date.end())?;
-
-    let start = parse_dmy(raw_start_date.as_str())?;
-    let end = parse_dmy(raw_end_date.as_str())?;
-
-    Some(start..end)
+pub fn day(string: &str) -> Result<u32, DayError> {
+    if string.len() != 2 {
+        return Err(DayError::InvalidLength(string.len()));
+    }
+    let num = string.parse::<u32>()?;
+    if num > 32 {
+        return Err(DayError::TooLarge)
+    }
+    Ok(num)
 }
 
-pub fn remove(string: &str) -> String {
-    REGEX.date.replace_all(string, "").trim().to_string()
+pub fn whole(date: &str) -> Result<NaiveDate, WholeError> {
+    let parts = regexes().nonword.split(date).collect::<Vec<&str>>();
+    if parts.len() < 2 {
+        return Err(WholeError::NotEnoughData)
+    } else if parts.len() > 3 {
+        return Err(WholeError::TooMuchData)
+    }
+
+    if parts.len() == 2 {
+        let d = parts.get(0).unwrap();
+        let m = parts.get(1).unwrap();
+        let y = chrono::Utc::now().year();
+
+        return Ok(
+            NaiveDate::from_ymd_opt(y, month(m)?, day(d)?)
+            .ok_or(WholeError::DoesNotExist)?
+        )
+    } else if parts.len() == 3 {
+        let d = parts.get(0).unwrap();
+        let m = parts.get(1).unwrap();
+        let y = parts.get(2).unwrap();
+
+        return Ok(
+            NaiveDate::from_ymd_opt(year(y)?, month(m)?, day(d)?)
+            .ok_or(WholeError::DoesNotExist)?
+        )
+    }
+
+    unreachable!();
 }

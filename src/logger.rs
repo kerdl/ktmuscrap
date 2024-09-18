@@ -29,7 +29,6 @@ impl Color {
 }
 
 pub struct Logger;
-
 impl Logger {
     pub fn init() -> Result<(), SetLoggerError>  {
         #[cfg(windows)] {

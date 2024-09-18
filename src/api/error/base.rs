@@ -1,30 +1,31 @@
 use derive_new::new;
 use serde_derive::Serialize;
-use actix_web::{http::StatusCode, HttpResponseBuilder};
+use actix_web::http::StatusCode;
 
 use crate::api::{Response, ToResponse};
 use super::ErrorNum;
 
 
+/// # Kind of error
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     /// ## Indicates user's failure
-    /// - i.e. some parameters were not loaded
+    /// - e.g. some parameters were not loaded
     UserFailure,
-    /// ## Indicates that this server is fucked up
-    /// - i.e. reading from disk failed
+    /// ## Indicates that this server had fucked up
+    /// - e.g. reading from disk failed
     InternalFailure,
     /// ## Indicates 3rd party failure
-    /// - i.e. schedule is formatted incorrectly
+    /// - e.g. schedule is formatted incorrectly
     DataFailure
 }
 impl Kind {
     pub fn status(&self) -> StatusCode {
         match self {
-            Kind::UserFailure =>     StatusCode::BAD_REQUEST,
+            Kind::UserFailure => StatusCode::BAD_REQUEST,
             Kind::InternalFailure => StatusCode::INTERNAL_SERVER_ERROR,
-            Kind::DataFailure =>     StatusCode::NOT_IMPLEMENTED
+            Kind::DataFailure => StatusCode::NOT_IMPLEMENTED
         }
     }
 }
@@ -41,7 +42,11 @@ impl ToResponse for ApiError {
         let data = None;
         let error = Some(self);
 
-        Response::new(is_ok, data, error)
+        Response {
+            is_ok,
+            data,
+            error
+        }
     }
 }
 
