@@ -1,6 +1,6 @@
 [🇷🇺 Русский](/README-RU.md)
 
-# Schedule parser from https://ktmu-sutd.ru
+# Schedule parser from [ktmu-sutd.ru](https://ktmu-sutd.ru)
 
 #### Funny little note
 - I acknowledge the shittiness of this code
