@@ -1,3 +1,5 @@
+[🇬🇧 English](/README.md)
+
 # Schedule parser from https://ktmu-sutd.ru
 
 #### Funny little note
