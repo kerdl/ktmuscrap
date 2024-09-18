@@ -46,7 +46,7 @@ A schedule for all the teachers present.
 
 A schedule containing only the specified teacher.
 
-### Websocket connection with updates
+### WebSocket connection with updates
 `WS ws://localhost:8080/schedule/updates`
 
 An update channel with diffs.
