@@ -9,6 +9,7 @@
 - Это последняя версия, больше обновлений после изменения формата расписания не будет
 - L + Ratio
 
+
 ## Вкратце 
 Это HTTP REST API сервер с парсером расписания на борту.
 - Каждые 10 минут (настраивается) ZIP-архивы
@@ -23,8 +24,10 @@
 чтобы посмотреть только что
 конвертированные расписания
 
+
 ## API
 Все ответы в JSON.
+
 
 ### Получение расписания групп → [Page](/doc/ru/response/page.md)
 ```
@@ -32,11 +35,13 @@ GET http://localhost:8080/schedule/groups
 ```
 Расписание для всех представленных групп.
 
+
 ### Получение расписания для определённой группы → [Page](/doc/ru/response/page.md)
 ```
 GET http://localhost:8080/schedule/groups?name=<точное имя группы>
 ```
 Расписание только для указанной группы.
+
 
 ### Получение расписания преподавателей → [Page](/doc/ru/response/page.md)
 ```
@@ -44,11 +49,13 @@ GET http://localhost:8080/schedule/teachers
 ```
 Расписание для всех представленных преподавателей.
 
+
 ### Получение расписания для определённого преподавателя → [Page](/doc/ru/response/page.md)
 ```
 GET http://localhost:8080/schedule/teachers?name=<точное имя препода>
 ```
 Расписание только для указанного преподавателя.
+
 
 ### Подключение WebSocket с обновлениями → [Notify](/doc/ru/object/notify.md)
 ```
@@ -63,6 +70,14 @@ ktmuscrap ищет изменения и рассылает
 всегда, независимо от того,
 есть ли изменения или нет.
 
+
+### Получение времени последнего обновления → [Updates](/doc/ru/response/updates.md)
+```
+GET http://localhost:8080/schedule/updates/last
+```
+Когда было произведено последнее обновление.
+
+
 ### Получение периода обновления → [Updates](/doc/ru/response/updates.md)
 ```
 GET http://localhost:8080/schedule/updates/period
@@ -71,11 +86,6 @@ GET http://localhost:8080/schedule/updates/period
 Как часто производятся обновления.
 Это значение устанавливается в конфиге.
 
-### Получение времени последнего обновления → [Updates](/doc/ru/response/updates.md)
-```
-GET http://localhost:8080/schedule/updates/last
-```
-Когда было произведено последнее обновление.
 
 ## Где это используется
 [**ktmuslave**](https://github.com/kerdl/ktmuslave)
