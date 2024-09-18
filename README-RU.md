@@ -63,7 +63,7 @@ ktmuscrap ищет изменения и рассылает
 всегда, независимо от того,
 есть ли изменения или нет.
 
-### Получение периода обновления → [Updates](/doc/ru/object/updates.md)
+### Получение периода обновления → [Updates](/doc/ru/response/updates.md)
 ```
 GET http://localhost:8080/schedule/updates/period
 ```
@@ -71,7 +71,7 @@ GET http://localhost:8080/schedule/updates/period
 Как часто производятся обновления.
 Это значение устанавливается в конфиге.
 
-### Получение времени последнего обновления → [Updates](/doc/ru/object/updates.md)
+### Получение времени последнего обновления → [Updates](/doc/ru/response/updates.md)
 ```
 GET http://localhost:8080/schedule/updates/last
 ```
