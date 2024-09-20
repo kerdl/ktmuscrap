@@ -64,7 +64,7 @@ impl Cabinet {
     }
 
     pub fn swapped(mut self) -> Self {
-        std::mem::swap(&mut self.primary, &mut self.opposite);
+        self.swap();
         self
     }
 }
