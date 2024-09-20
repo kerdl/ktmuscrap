@@ -8,10 +8,10 @@ Others are not present.
 
 ```json
 {
-    "is_ok": true,
-    "data": {
-        "updates": Updates::last
-    }
+  "is_ok": true,
+  "data": {
+    "updates": Updates::last
+  }
 }
 ```
 
@@ -26,9 +26,9 @@ Others are not present.
 
 ```json
 {
-    "is_ok": true,
-    "data": {
-        "updates": Updates::period
-    }
+  "is_ok": true,
+  "data": {
+    "updates": Updates::period
+  }
 }
 ```
