@@ -6,7 +6,7 @@ use actix_web::{http::StatusCode, HttpResponse, HttpResponseBuilder};
 use serde_derive::Serialize;
 use std::sync::Arc;
 
-use crate::data::schedule::{self as sc, Notify};
+use crate::data::schedule as sc;
 use error::base::ApiError;
 
 
@@ -46,15 +46,12 @@ pub struct Data {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<Arc<sc::Page>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub notify: Option<Arc<Notify>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub updates: Option<Updates>
 }
 impl Default for Data {
     fn default() -> Self {
         Self {
             page: None,
-            notify: None,
             updates: None
         }
     }
@@ -63,13 +60,6 @@ impl Data {
     pub fn from_page(page: Arc<sc::Page>) -> Self {
         Self {
             page: Some(page),
-            ..Default::default()
-        }
-    }
-
-    pub fn from_notify(notify: Arc<Notify>) -> Self {
-        Self {
-            notify: Some(notify),
             ..Default::default()
         }
     }
@@ -115,13 +105,6 @@ impl Response {
     pub fn from_page(schedule: Arc<sc::Page>) -> Self {
         Self {
             data: Some(Data::from_page(schedule)),
-            ..Default::default()
-        }
-    }
-
-    pub fn from_notify(notify: Arc<Notify>) -> Self {
-        Self {
-            data: Some(Data::from_notify(notify)),
             ..Default::default()
         }
     }
