@@ -7,10 +7,10 @@ References:
 
 ```json
 {
-    "is_ok": true,
-    "data": {
-        "page": Page
-    }
+  "is_ok": true,
+  "data": {
+    "page": Page
+  }
 }
 ```
 
