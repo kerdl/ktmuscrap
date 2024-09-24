@@ -74,7 +74,7 @@ pub fn complement<'a>(
                     // find the group as a teacher attender
                     let teacher_attender = teacher_subject.attenders
                         .iter_mut()
-                        .find(|tchr_attender| tchr_attender.name == group_attender.name);
+                        .find(|tchr_attender| tchr_attender.name == group.name);
 
                     // group schedules have better subject naming,
                     // clone it to the teachers
