@@ -97,14 +97,19 @@ impl Parser {
             let is_last = idx == opt_ranges.len() - 1;
             if opt_range.parsed.is_some() { continue; }
 
+            let are_next_unparsed = opt_ranges
+                .iter()
+                .skip(idx + 1)
+                .all(|opd| opd.parsed.is_none());
+
             let is_reversed;
-            let nearest_some = if !is_last {
+            let nearest_some = if !is_last && !are_next_unparsed {
                 is_reversed = false;
-                let iter = opt_ranges.iter().enumerate();
+                let iter = opt_ranges.iter().enumerate().skip(idx);
                 let mut value = None;
                 for (nearest_idx, nearest_opt_range) in iter {
                     if nearest_opt_range.parsed.is_some() {
-                        value = Some((nearest_idx, nearest_opt_range));
+                        value = Some((nearest_idx - idx, nearest_opt_range));
                         break;
                     }
                 }
