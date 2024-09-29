@@ -7,10 +7,11 @@ use crate::data::schedule::{
     raw,
     attender,
     Page,
+    Formation,
     Day,
     Subject,
     Attender,
-    Cabinet
+    Cabinet,
 };
 
 
@@ -25,6 +26,9 @@ use crate::data::schedule::{
 /// from `teachers`
 /// - `teachers` take subject names
 /// from `groups`
+/// 
+/// (I AM SO PROUD OF THIS CODE,
+/// SMELLS AS SWEET AS INDIA)
 pub fn complement<'a>(
     groups: &'a mut Page, 
     teachers: &'a mut Page,
@@ -53,53 +57,196 @@ pub fn complement<'a>(
         for group_day in group.days.iter_mut() {
             for group_subject in group_day.subjects.iter_mut() {
                 for group_attender in group_subject.attenders.iter_mut() {
+                    if group_attender.kind == attender::Kind::Vacancy {
+                        continue
+                    }
+
                     // find teacher mapping
-                    let Some(teacher) = teachers.formations
+                    let mut teacher = teachers.formations
                         .iter_mut()
-                        .find(|tchr| tchr.name == group_attender.name)
-                        else { continue };
+                        .find(|tchr| tchr.name == group_attender.name);
+                    
+                    if teacher.is_none() {
+                        let form = Formation {
+                            raw: group_attender.raw.clone(),
+                            recovered: true,
+                            name: group_attender.name.clone(),
+                            days: vec![]
+                        };
+                        teachers.formations.push(form);
+                        teacher = teachers.formations.last_mut();
+                    }
+
+                    let teacher = teacher.unwrap();
 
                     // find the same day within the teacher mapping
-                    let Some(teacher_day) = teacher.days
+                    let mut teacher_day = teacher.days
                         .iter_mut()
-                        .find(|tchr_day| tchr_day.date == group_day.date)
-                        else { continue };
+                        .find(|tchr_day| tchr_day.date == group_day.date);
+
+                    if teacher_day.is_none() {
+                        let day = Day {
+                            raw: group_day.raw.clone(),
+                            recovered: true,
+                            date: group_day.date,
+                            subjects: vec![]
+                        };
+                        teacher.days.push(day);
+                        teacher_day = teacher.days.last_mut();
+                    }
+    
+                    let teacher_day = teacher_day.unwrap();
 
                     // find the same subject within the teacher day
-                    let Some(teacher_subject) = teacher_day.subjects
+                    let mut teacher_subject = teacher_day.subjects
                         .iter_mut()
-                        .find(|tchr_subj| tchr_subj.num == group_subject.num)
-                        else { continue };
+                        .find(|tchr_subj| tchr_subj.num == group_subject.num);
+
+                    if teacher_subject.is_none() {
+                        let subject = Subject {
+                            raw: group_subject.raw.clone(),
+                            recovered: true,
+                            name: group_subject.name.clone(),
+                            num: group_subject.num,
+                            format: group_subject.format,
+                            attenders: vec![]
+                        };
+                        teacher_day.subjects.push(subject);
+                        teacher_subject = teacher_day.subjects.last_mut();
+                    }
+
+                    let teacher_subject = teacher_subject.unwrap();
 
                     // find the group as a teacher attender
-                    let teacher_attender = teacher_subject.attenders
+                    let mut teacher_attender = teacher_subject.attenders
                         .iter_mut()
                         .find(|tchr_attender| tchr_attender.name == group.name);
+
+                    if teacher_attender.is_none() {
+                        let attender = Attender {
+                            raw: group.raw.clone(),
+                            recovered: true,
+                            kind: attender::Kind::Group,
+                            name: group.name.clone(),
+                            cabinet: group_attender.cabinet.clone().swapped()
+                        };
+                        teacher_subject.attenders.push(attender);
+                        teacher_attender = teacher_subject.attenders.last_mut();
+                    }
+    
+                    let teacher_attender = teacher_attender.unwrap();
 
                     // group schedules have better subject naming,
                     // clone it to the teachers
                     teacher_subject.name = group_subject.name.clone();
 
-                    // if the teacher doesn't have this group as an attender
-                    // (probably won't happen),
-                    // add it manually 
-                    if teacher_attender.is_none() {
-                        let group_as_attender = Attender {
-                            raw: group.raw.clone(),
-                            kind: attender::Kind::Group,
-                            name: group.name.clone(),
-                            cabinet: group_attender.cabinet.clone().swapped()
-                        };
-                        teacher_subject.attenders.push(group_as_attender);
-                    } else {
-                        let teacher_attender = teacher_attender.unwrap();
+                    teacher_attender.cabinet.opposite = group_attender
+                        .cabinet
+                        .primary
+                        .as_ref()
+                        .map(|cab| cab.clone());
+                    group_attender.cabinet.opposite = teacher_attender
+                        .cabinet
+                        .primary
+                        .as_ref()
+                        .map(|cab| cab.clone());
+                }
+            }
+        }
+    }
 
-                        teacher_attender.cabinet.opposite = group_attender
+    for teacher in teachers.formations.iter_mut() {
+        for teacher_day in teacher.days.iter_mut() {
+            for teacher_subject in teacher_day.subjects.iter_mut() {
+                for teacher_attender in teacher_subject.attenders.iter_mut() {
+                    if teacher_attender.kind == attender::Kind::Vacancy {
+                        continue
+                    }
+
+                    // find group mapping
+                    let mut group = groups.formations
+                        .iter_mut()
+                        .find(|group| group.name == teacher_attender.name);
+                    
+                    if group.is_none() {
+                        let form = Formation {
+                            raw: teacher_attender.raw.clone(),
+                            recovered: true,
+                            name: teacher_attender.name.clone(),
+                            days: vec![]
+                        };
+                        groups.formations.push(form);
+                        group = groups.formations.last_mut();
+                    }
+
+                    let group = group.unwrap();
+
+                    // find the same day within the group mapping
+                    let mut group_day = group.days
+                        .iter_mut()
+                        .find(|group_day| group_day.date == teacher_day.date);
+
+                    if group_day.is_none() {
+                        let day = Day {
+                            raw: teacher_day.raw.clone(),
+                            recovered: true,
+                            date: teacher_day.date,
+                            subjects: vec![]
+                        };
+                        group.days.push(day);
+                        group_day = group.days.last_mut();
+                    }
+    
+                    let group_day = group_day.unwrap();
+
+                    // find the same subject within the group day
+                    let mut group_subject = group_day.subjects
+                        .iter_mut()
+                        .find(|group_subj| group_subj.num == teacher_subject.num);
+
+                    if group_subject.is_none() {
+                        let subject = Subject {
+                            raw: teacher_subject.raw.clone(),
+                            recovered: true,
+                            name: teacher_subject.name.clone(),
+                            num: teacher_subject.num,
+                            format: teacher_subject.format,
+                            attenders: vec![]
+                        };
+                        group_day.subjects.push(subject);
+                        group_subject = group_day.subjects.last_mut();
+                    }
+
+                    let group_subject = group_subject.unwrap();
+
+                    // find the teacher as a group attender
+                    let mut group_attender = group_subject.attenders
+                        .iter_mut()
+                        .find(|group_attender| group_attender.name == teacher.name);
+
+                    if group_attender.is_none() {
+                        let attender = Attender {
+                            raw: teacher.raw.clone(),
+                            recovered: true,
+                            kind: attender::Kind::Teacher,
+                            name: teacher.name.clone(),
+                            cabinet: teacher_attender.cabinet.clone().swapped()
+                        };
+                        group_subject.attenders.push(attender);
+                        group_attender = group_subject.attenders.last_mut();
+                    }
+    
+                    let group_attender = group_attender.unwrap();
+
+                    if group_attender.cabinet.opposite.is_none() {
+                        group_attender.cabinet.opposite = teacher_attender
                             .cabinet
                             .primary
                             .as_ref()
                             .map(|cab| cab.clone());
-                        group_attender.cabinet.opposite = teacher_attender
+                    }
+                    if teacher_attender.cabinet.opposite.is_none() {
+                        teacher_attender.cabinet.opposite = group_attender
                             .cabinet
                             .primary
                             .as_ref()
@@ -109,6 +256,20 @@ pub fn complement<'a>(
             }
         }
     }
+
+    groups.formations.iter_mut().for_each(|form| {
+        form.days.sort_by(|a, b| a.date.cmp(&b.date));
+        form.days.iter_mut().for_each(|day| {
+            day.subjects.sort_by(|a, b| a.num.cmp(&b.num));
+        })
+    });
+
+    teachers.formations.iter_mut().for_each(|form| {
+        form.days.sort_by(|a, b| a.date.cmp(&b.date));
+        form.days.iter_mut().for_each(|day| {
+            day.subjects.sort_by(|a, b| a.num.cmp(&b.num));
+        })
+    });
 
     Ok(())
 }

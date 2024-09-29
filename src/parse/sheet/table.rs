@@ -53,11 +53,9 @@ impl Parser {
         let mut opt_ranges: Vec<table::OptDate> = vec![];
         let mut ranges: Vec<table::Date> = vec![];
 
-        for cell in row.iter() {
-            let weekday_matches = regexes()
-                .whole_short_weekday
-                .find_iter(&cell.text)
-                .collect::<Vec<regex::Match>>();
+        // skip(1) because first cell is a formation identifier
+        // that could be considered a subject if not skipped
+        for cell in row.iter().skip(1) {
             let date_matches = regexes()
                 .date
                 .find_iter(&cell.text)
@@ -78,7 +76,7 @@ impl Parser {
                 };
 
                 opt_ranges.push(opt_date);
-            } else if !weekday_matches.is_empty() {
+            } else {
                 let opt_date = table::OptDate {
                     raw: &cell.text,
                     parsed: None,
@@ -97,14 +95,19 @@ impl Parser {
             let is_last = idx == opt_ranges.len() - 1;
             if opt_range.parsed.is_some() { continue; }
 
+            let are_next_unparsed = opt_ranges
+                .iter()
+                .skip(idx + 1)
+                .all(|opd| opd.parsed.is_none());
+
             let is_reversed;
-            let nearest_some = if !is_last {
+            let nearest_some = if !is_last && !are_next_unparsed {
                 is_reversed = false;
-                let iter = opt_ranges.iter().enumerate();
+                let iter = opt_ranges.iter().enumerate().skip(idx);
                 let mut value = None;
                 for (nearest_idx, nearest_opt_range) in iter {
                     if nearest_opt_range.parsed.is_some() {
-                        value = Some((nearest_idx, nearest_opt_range));
+                        value = Some((nearest_idx - idx, nearest_opt_range));
                         break;
                     }
                 }
@@ -169,6 +172,7 @@ impl Parser {
         for date in dates.parsed.start().iter_days().take(num_days) {
             let day = schedule::Day {
                 raw: dates.raw.to_string(),
+                recovered: false,
                 date,
                 subjects: vec![subject.clone()]
             };
@@ -176,22 +180,6 @@ impl Parser {
         }
 
         days
-    }
-
-    fn clone_formation(
-        formation: &schedule::Formation,
-        identifiers: &mut Vec<String>
-    ) -> Vec<schedule::Formation> {
-        let mut output = vec![];
-        let identifiers_own = std::mem::take(identifiers);
-
-        for identifier in identifiers_own.into_iter() {
-            let mut cloned = formation.clone();
-            cloned.name = identifier;
-            output.push(cloned);
-        }
-
-        output
     }
 
     pub async fn parse<'a>(&'a self) -> Result<schedule::Page, ParsingError> {
@@ -203,7 +191,6 @@ impl Parser {
 
         // either a group or a teacher
         let mut current_formation: Option<table::Formation> = None;
-        let mut extra_identifiers: Vec<String> = vec![];
         // subject number
         let mut num_counter = 0;
         // list of cells that expand onto the next rows
@@ -230,13 +217,8 @@ impl Parser {
                 .map_or(false, |forms| forms.y_range().contains(&y));
 
             if !is_in_formation_range {
-                if let Some(last_formation) = std::mem::take(&mut current_formation) {
-                    let mut extras = Self::clone_formation(
-                        &last_formation.object,
-                        &mut extra_identifiers
-                    );
-                    formations.push(last_formation.object);
-                    formations.append(&mut extras);
+                if let Some(form) = std::mem::take(&mut current_formation) {
+                    formations.push(form.object);
                 }
 
                 // first cell is a formation identifier
@@ -245,27 +227,22 @@ impl Parser {
                     .iter()
                     .find(|cell| cell.x == 0) else { continue };
 
-                let mut valid_formations = match self.kind {
-                    raw::Kind::Groups => parse::group::validate_all(&first_cell.text),
-                    raw::Kind::Teachers => parse::teacher::validate_all(&first_cell.text),
+                let Some(valid_formation) = (match self.kind {
+                    raw::Kind::Groups => parse::group::validate(&first_cell.text),
+                    raw::Kind::Teachers => parse::teacher::validate(&first_cell.text),
+                }) else {
+                    continue
                 };
-
-                if valid_formations.is_empty() {
-                    continue;
-                }
-
-                let main_formation = valid_formations.remove(0);
 
                 current_formation = Some(table::Formation {
                     range: first_cell.y_range(),
                     object: schedule::Formation {
                         raw: first_cell.text.clone(),
-                        name: main_formation,
+                        recovered: false,
+                        name: valid_formation,
                         days: vec![]
                     }
                 });
-
-                extra_identifiers.append(&mut valid_formations);
 
                 // switch to a new formation resets
                 // the subject number counter
@@ -395,17 +372,8 @@ impl Parser {
             }
         }
 
-        if let Some(last_formation) = std::mem::take(&mut current_formation) {
-            let mut extras = Self::clone_formation(
-                &last_formation.object,
-                &mut extra_identifiers
-            );
-            formations.push(last_formation.object);
-            formations.append(&mut extras);
-        }
-
-        for formation in formations.iter_mut() {
-            formation.days.sort_by(|a, b| a.date.cmp(&b.date));
+        if let Some(form) = std::mem::take(&mut current_formation) {
+            formations.push(form.object);
         }
 
         let page = schedule::Page {

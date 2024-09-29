@@ -1,6 +1,6 @@
 # On success
 
-Definition: [`crate::api::Response`](/src/api/mod.rs?blame=1#L94)
+Definition: [`crate::api::Response`](/src/api/mod.rs?blame=1#L84)
 
 References:
 - [`Page`](/doc/en/object/page.md)
@@ -17,7 +17,7 @@ References:
 
 # On error `NoLastSchedule`
 
-Definition: [`crate::api::Response`](/src/api/mod.rs?blame=1#L94)
+Definition: [`crate::api::Response`](/src/api/mod.rs?blame=1#L84)
 
 ```json
 {

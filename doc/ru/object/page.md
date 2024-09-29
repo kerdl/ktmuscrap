@@ -1,6 +1,6 @@
 # Page
 
-Определение: [`crate::data::schedule::Page`](/src/data/schedule/mod.rs?blame=1#L174)
+Определение: [`crate::data::schedule::Page`](/src/data/schedule/mod.rs?blame=1#L181)
 
 Ссылки:
 - [`Formation`](/doc/ru/object/formation.md)

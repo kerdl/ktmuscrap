@@ -1,6 +1,6 @@
 # Attedner
 
-Определение: [`crate::data::schedule::Attender`](/src/data/schedule/mod.rs?blame=1#L82)
+Определение: [`crate::data::schedule::Attender`](/src/data/schedule/mod.rs?blame=1#L85)
 
 ```json
 {

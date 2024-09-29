@@ -1,6 +1,6 @@
 # При успехе
 
-Определение: [`crate::api::Response`](/src/api/mod.rs?blame=1#L94)
+Определение: [`crate::api::Response`](/src/api/mod.rs?blame=1#L84)
 
 Ссылки:
 - [`Page`](/doc/ru/object/page.md)
@@ -17,7 +17,7 @@
 
 # При ошибке `NoLastSchedule`
 
-Определение: [`crate::api::Response`](/src/api/mod.rs?blame=1#L94)
+Определение: [`crate::api::Response`](/src/api/mod.rs?blame=1#L84)
 
 ```json
 {

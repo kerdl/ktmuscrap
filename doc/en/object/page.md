@@ -1,6 +1,6 @@
 # Page
 
-Definition: [`crate::data::schedule::Page`](/src/data/schedule/mod.rs?blame=1#L174)
+Definition: [`crate::data::schedule::Page`](/src/data/schedule/mod.rs?blame=1#L181)
 
 References:
 - [`Formation`](/doc/en/object/formation.md)
