@@ -57,6 +57,10 @@ pub fn complement<'a>(
         for group_day in group.days.iter_mut() {
             for group_subject in group_day.subjects.iter_mut() {
                 for group_attender in group_subject.attenders.iter_mut() {
+                    if group_attender.kind == attender::Kind::Vacancy {
+                        continue
+                    }
+
                     // find teacher mapping
                     let mut teacher = teachers.formations
                         .iter_mut()
@@ -155,6 +159,10 @@ pub fn complement<'a>(
         for teacher_day in teacher.days.iter_mut() {
             for teacher_subject in teacher_day.subjects.iter_mut() {
                 for teacher_attender in teacher_subject.attenders.iter_mut() {
+                    if teacher_attender.kind == attender::Kind::Vacancy {
+                        continue
+                    }
+
                     // find group mapping
                     let mut group = groups.formations
                         .iter_mut()
