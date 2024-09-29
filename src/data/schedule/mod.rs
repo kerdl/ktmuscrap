@@ -27,6 +27,8 @@ use std::ops::RangeInclusive;
     PartialEq
 )]
 pub struct Cabinet {
+    /// # Was it created during complementation
+    pub recovered: bool,
     /// # A value taken from the original schedule
     pub primary: Option<String>,
     /// # A value taken from the opposite schedule
@@ -49,6 +51,7 @@ impl FindingCmp for Cabinet {
 impl Default for Cabinet {
     fn default() -> Self {
         Self {
+            recovered: false,
             primary: None,
             opposite: None
         }
@@ -82,6 +85,7 @@ impl Cabinet {
 pub struct Attender {
     #[derivative(Hash="ignore")]
     pub raw: String,
+    pub recovered: bool,
     pub kind: attender::Kind,
     pub name: String,
     pub cabinet: Cabinet
@@ -106,6 +110,7 @@ impl FindingCmp for Attender {
 pub struct Subject {
     #[derivative(Hash="ignore")]
     pub raw: String,
+    pub recovered: bool,
     pub name: String,
     pub num: u32,
     pub format: raw::Format,
@@ -114,7 +119,7 @@ pub struct Subject {
 impl FindingCmp for Subject {
     fn is_partially_same_with(&self, other: &Self) -> bool {
         self.name == other.name &&
-        self.num == other.num &&
+        //self.num == other.num &&
         self.format == other.format
     }
 }
@@ -139,6 +144,7 @@ impl Subject {
 pub struct Day {
     #[derivative(Hash="ignore")]
     pub raw: String,
+    pub recovered: bool,
     pub date: NaiveDate,
     pub subjects: Vec<Subject>,
 }
@@ -160,6 +166,7 @@ impl FindingCmp for Day {
 pub struct Formation {
     #[derivative(Hash="ignore")]
     pub raw: String,
+    pub recovered: bool,
     pub name: String,
     pub days: Vec<Day>,
 }

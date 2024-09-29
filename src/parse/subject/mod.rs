@@ -40,6 +40,7 @@ pub fn format_from_color(color: palette::Srgb) -> schedule::raw::Format {
 
 pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject {
     let raw = string.to_string();
+    let recovered = false;
     let format = format_from_color(color);
     let name;
     let attenders;
@@ -59,6 +60,7 @@ pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject
 
     schedule::Subject {
         raw,
+        recovered,
         name,
         num,
         format,
@@ -68,6 +70,7 @@ pub fn groups(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject
 
 pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subject {
     let raw = string.to_string();
+    let recovered = false;
     let format = format_from_color(color);
     let mut name;
     let mut attenders;
@@ -80,6 +83,7 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
             .into_iter()
             .map(|att| schedule::Attender {
                 raw: (&string[att.0.start..att.0.end]).to_string(),
+                recovered: false,
                 kind: att_kind.clone(),
                 name: att.1,
                 cabinet: att_cabinet.clone()
@@ -92,6 +96,7 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
 
     if let Some(cabinet_match) = parse::cabinet::from_end(&name) {
         let cab = schedule::Cabinet {
+            recovered: false,
             primary: Some(cabinet_match.as_str().to_string()),
             opposite: None
         };
@@ -103,6 +108,7 @@ pub fn teachers(string: &str, num: u32, color: palette::Srgb) -> schedule::Subje
 
     schedule::Subject {
         raw,
+        recovered,
         name,
         num,
         format,

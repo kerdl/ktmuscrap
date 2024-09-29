@@ -1,6 +1,6 @@
 # Subject
 
-Определение: [`crate::data::schedule::Subject`](/src/data/schedule/mod.rs?blame=1#L106)
+Определение: [`crate::data::schedule::Subject`](/src/data/schedule/mod.rs?blame=1#L110)
 
 Ссылки:
 - [`Attender`](/doc/ru/object/attender.md)

@@ -82,12 +82,14 @@ pub fn teachers(string: &str) -> Option<(Range<usize>, Vec<schedule::Attender>)>
             };
 
             let cabinet = schedule::Cabinet {
+                recovered: false,
                 primary: primary_cabinet,
                 opposite: None
             };
 
             let attender = schedule::Attender {
                 raw,
+                recovered: false,
                 kind: kind.clone(),
                 name: valid_attender,
                 cabinet

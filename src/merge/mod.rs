@@ -65,16 +65,12 @@ pub fn complement<'a>(
                     if teacher.is_none() {
                         let form = Formation {
                             raw: group_attender.raw.clone(),
+                            recovered: true,
                             name: group_attender.name.clone(),
                             days: vec![]
                         };
                         teachers.formations.push(form);
                         teacher = teachers.formations.last_mut();
-                        //println!(
-                        //    "{} gets {} added to teacher formations",
-                        //    group.name,
-                        //    group_attender.name
-                        //);
                     }
 
                     let teacher = teacher.unwrap();
@@ -87,17 +83,12 @@ pub fn complement<'a>(
                     if teacher_day.is_none() {
                         let day = Day {
                             raw: group_day.raw.clone(),
+                            recovered: true,
                             date: group_day.date,
                             subjects: vec![]
                         };
                         teacher.days.push(day);
                         teacher_day = teacher.days.last_mut();
-                        //println!(
-                        //    "{} gets {:?} added to {} days",
-                        //    group.name,
-                        //    group_day.date,
-                        //    teacher.name
-                        //);
                     }
     
                     let teacher_day = teacher_day.unwrap();
@@ -110,6 +101,7 @@ pub fn complement<'a>(
                     if teacher_subject.is_none() {
                         let subject = Subject {
                             raw: group_subject.raw.clone(),
+                            recovered: true,
                             name: group_subject.name.clone(),
                             num: group_subject.num,
                             format: group_subject.format,
@@ -117,13 +109,6 @@ pub fn complement<'a>(
                         };
                         teacher_day.subjects.push(subject);
                         teacher_subject = teacher_day.subjects.last_mut();
-                        //println!(
-                        //    "{} gets {} added to {} subjects @ {}",
-                        //    group.name,
-                        //    group_subject.name,
-                        //    teacher.name,
-                        //    teacher_day.date
-                        //);
                     }
 
                     let teacher_subject = teacher_subject.unwrap();
@@ -136,19 +121,13 @@ pub fn complement<'a>(
                     if teacher_attender.is_none() {
                         let attender = Attender {
                             raw: group.raw.clone(),
+                            recovered: true,
                             kind: attender::Kind::Group,
                             name: group.name.clone(),
                             cabinet: group_attender.cabinet.clone().swapped()
                         };
                         teacher_subject.attenders.push(attender);
                         teacher_attender = teacher_subject.attenders.last_mut();
-                        //println!(
-                        //    "{} gets {} added to {} attenders @ {}",
-                        //    group.name,
-                        //    group.name,
-                        //    teacher_subject.name,
-                        //    teacher_day.date
-                        //);
                     }
     
                     let teacher_attender = teacher_attender.unwrap();
@@ -184,16 +163,12 @@ pub fn complement<'a>(
                     if group.is_none() {
                         let form = Formation {
                             raw: teacher_attender.raw.clone(),
+                            recovered: true,
                             name: teacher_attender.name.clone(),
                             days: vec![]
                         };
                         groups.formations.push(form);
                         group = groups.formations.last_mut();
-                        //println!(
-                        //    "{} gets {} added to group formations",
-                        //    teacher.name,
-                        //    teacher_attender.name
-                        //);
                     }
 
                     let group = group.unwrap();
@@ -206,17 +181,12 @@ pub fn complement<'a>(
                     if group_day.is_none() {
                         let day = Day {
                             raw: teacher_day.raw.clone(),
+                            recovered: true,
                             date: teacher_day.date,
                             subjects: vec![]
                         };
                         group.days.push(day);
                         group_day = group.days.last_mut();
-                        //println!(
-                        //    "{} gets {} added to {} days",
-                        //    teacher.name,
-                        //    teacher_day.date,
-                        //    group.name
-                        //);
                     }
     
                     let group_day = group_day.unwrap();
@@ -229,6 +199,7 @@ pub fn complement<'a>(
                     if group_subject.is_none() {
                         let subject = Subject {
                             raw: teacher_subject.raw.clone(),
+                            recovered: true,
                             name: teacher_subject.name.clone(),
                             num: teacher_subject.num,
                             format: teacher_subject.format,
@@ -236,13 +207,6 @@ pub fn complement<'a>(
                         };
                         group_day.subjects.push(subject);
                         group_subject = group_day.subjects.last_mut();
-                        //println!(
-                        //    "{} gets {} added to {} subjects @ {}",
-                        //    teacher.name,
-                        //    teacher_subject.name,
-                        //    group.name,
-                        //    group_day.date
-                        //);
                     }
 
                     let group_subject = group_subject.unwrap();
@@ -255,19 +219,13 @@ pub fn complement<'a>(
                     if group_attender.is_none() {
                         let attender = Attender {
                             raw: teacher.raw.clone(),
+                            recovered: true,
                             kind: attender::Kind::Teacher,
                             name: teacher.name.clone(),
                             cabinet: teacher_attender.cabinet.clone().swapped()
                         };
                         group_subject.attenders.push(attender);
                         group_attender = group_subject.attenders.last_mut();
-                        //println!(
-                        //    "{} gets {} added to {} attenders @ {}",
-                        //    teacher.name,
-                        //    teacher.name,
-                        //    group_subject.name,
-                        //    group_day.date
-                        //);
                     }
     
                     let group_attender = group_attender.unwrap();

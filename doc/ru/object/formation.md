@@ -1,6 +1,6 @@
 # Formation
 
-Определение: [`crate::data::schedule::Formation`](/src/data/schedule/mod.rs?blame=1#L160)
+Определение: [`crate::data::schedule::Formation`](/src/data/schedule/mod.rs?blame=1#L166)
 
 Ссылки:
 - [`Day`](/doc/ru/object/day.md)

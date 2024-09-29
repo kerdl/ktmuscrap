@@ -174,6 +174,7 @@ impl Parser {
         for date in dates.parsed.start().iter_days().take(num_days) {
             let day = schedule::Day {
                 raw: dates.raw.to_string(),
+                recovered: false,
                 date,
                 subjects: vec![subject.clone()]
             };
@@ -265,6 +266,7 @@ impl Parser {
                     range: first_cell.y_range(),
                     object: schedule::Formation {
                         raw: first_cell.text.clone(),
+                        recovered: false,
                         name: main_formation,
                         days: vec![]
                     }
