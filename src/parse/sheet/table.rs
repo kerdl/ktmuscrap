@@ -54,10 +54,6 @@ impl Parser {
         let mut ranges: Vec<table::Date> = vec![];
 
         for cell in row.iter() {
-            let weekday_matches = regexes()
-                .whole_short_weekday
-                .find_iter(&cell.text)
-                .collect::<Vec<regex::Match>>();
             let date_matches = regexes()
                 .date
                 .find_iter(&cell.text)
@@ -78,7 +74,7 @@ impl Parser {
                 };
 
                 opt_ranges.push(opt_date);
-            } else if !weekday_matches.is_empty() {
+            } else {
                 let opt_date = table::OptDate {
                     raw: &cell.text,
                     parsed: None,
