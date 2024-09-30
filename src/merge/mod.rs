@@ -15,17 +15,14 @@ use crate::data::schedule::{
 };
 
 
+const MAX_DISTANCE: usize = 3;
+
+
 /// # Complement two schedules
 /// There is a possibility that one
 /// type of schedule has data that
 /// the other one doesn't have.
 /// This function complements both.
-/// 
-/// ## For example
-/// - `groups` might take cabinets
-/// from `teachers`
-/// - `teachers` take subject names
-/// from `groups`
 /// 
 /// (I AM SO PROUD OF THIS CODE,
 /// SMELLS AS SWEET AS INDIA)
@@ -64,8 +61,21 @@ pub fn complement<'a>(
                     // find teacher mapping
                     let mut teacher = teachers.formations
                         .iter_mut()
-                        .find(|tchr| tchr.name == group_attender.name);
-                    
+                        .map(|tchr| (
+                            strsim::damerau_levenshtein(
+                                &tchr.name,
+                                &group_attender.name
+                            ),
+                            tchr
+                            )
+                        )
+                        .filter(|(distance, _tchr)| *distance < MAX_DISTANCE)
+                        // take one with least errors
+                        .min_by(|(a_distance, _a_tchr), (b_distance, _b_tchr)| {
+                            a_distance.cmp(&b_distance)
+                        })
+                        .map(|(_distance, tchr)| tchr);
+
                     if teacher.is_none() {
                         let form = Formation {
                             raw: group_attender.raw.clone(),
@@ -222,7 +232,20 @@ pub fn complement<'a>(
                     // find the teacher as a group attender
                     let mut group_attender = group_subject.attenders
                         .iter_mut()
-                        .find(|group_attender| group_attender.name == teacher.name);
+                        .map(|group_attender| (
+                            strsim::damerau_levenshtein(
+                                &group_attender.name,
+                                &teacher.name
+                            ),
+                            group_attender
+                            )
+                        )
+                        .filter(|(distance, _group_attender)| *distance < MAX_DISTANCE)
+                        // take one with least errors
+                        .min_by(|(a_distance, _a_group_attender), (b_distance, _b_group_attender)| {
+                            a_distance.cmp(&b_distance)
+                        })
+                        .map(|(_distance, group_attender)| group_attender);
 
                     if group_attender.is_none() {
                         let attender = Attender {
