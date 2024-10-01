@@ -7,7 +7,6 @@ pub mod teacher;
 pub mod attender;
 pub mod subject;
 pub mod cabinet;
-pub mod error;
 
 use std::path::PathBuf;
 use crate::data::schedule;
