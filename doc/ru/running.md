@@ -13,7 +13,8 @@
 ## Docker под Debian-based Linux
 Ты можешь запустить контейнер **ktmuslave** сразу со всеми нужными зависимостями.
 
-Инструкция здесь.
+Инструкция
+[здесь](https://github.com/kerdl/ktmuslave/blob/yr2024/doc/ru/running.md#docker-под-debian-based-linux).
 
 
 ## Windows
@@ -23,7 +24,7 @@
 2. Установи [stable Rust](https://www.rust-lang.org/tools/install)
 стандартным способом
 3. Скачай и распакуй репозиторий,
-либо воспользуйся **git**:
+либо воспользуйся **git**
 ```console
 git clone https://github.com/kerdl/ktmuscrap
 ```

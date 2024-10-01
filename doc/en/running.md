@@ -14,7 +14,8 @@ Virtualization through Docker is available.
 You can run a **ktmuslave** container with
 all the dependencies included.
 
-Instructions here.
+Instructions
+[here](https://github.com/kerdl/ktmuslave/blob/yr2024/doc/en/running.md#docker-on-debian-based-linux).
 
 
 ## Windows
@@ -24,11 +25,11 @@ is installed and is not below 4.6
 2. Install [stable Rust](https://www.rust-lang.org/tools/install)
 using quick install
 3. Download and unpack the repo,
-or use **git**:
+or use **git**
 ```console
 git clone https://github.com/kerdl/ktmuscrap
 ```
-4. Go to the code directory or open a **cmd** there:
+4. Go to the code directory or open a **cmd** there
 ```console
 cd ktmuscrap-yr2024
 ```
