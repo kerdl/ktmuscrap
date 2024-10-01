@@ -5,12 +5,12 @@
 
 
 ## Содержание
-- [Docker под Linux](#docker-под-linux)
+- [Docker под Debian-based Linux](#docker-под-debian-based-linux)
 - [Windows](#windows)
-- [Debian Linux](#debian-linux)
+- [Debian-based Linux](#debian-based-linux)
 
 
-## Docker под Linux
+## Docker под Debian-based Linux
 Ты можешь запустить контейнер **ktmuslave** сразу со всеми нужными зависимостями.
 
 Инструкция здесь.
@@ -49,7 +49,7 @@ cargo run --release
 ```
 
 
-## Debian Linux
+## Debian-based Linux
 1. Установи зависимости
 ```console
 sudo apt update && sudo apt install git build-essential pkg-config libssl-dev -y

@@ -5,12 +5,12 @@ Virtualization through Docker is available.
 
 
 ## Contents
-- [Docker on Linux](#docker-on-linux)
+- [Docker on Debian-based Linux](#docker-on-debian-based-linux)
 - [Windows](#windows)
-- [Debian Linux](#debian-linux)
+- [Debian-based Linux](#debian-based-linux)
 
 
-## Docker on Linux
+## Docker on Debian-based Linux
 You can run a **ktmuslave** container with
 all the dependencies included.
 
@@ -50,7 +50,7 @@ cargo run --release
 ```
 
 
-## Debian Linux
+## Debian-based Linux
 1. Install dependencies
 ```console
 sudo apt update && sudo apt install git build-essential pkg-config libssl-dev -y
