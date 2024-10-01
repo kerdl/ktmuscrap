@@ -19,6 +19,7 @@
 ## Windows
 1. Убедись, что установлен [.NET Framework](https://support.microsoft.com/en-us/topic/microsoft-net-framework-4-8-offline-installer-for-windows-9d23f658-3b97-68ab-d013-aa3c3e7495e0)
 версии не ниже 4.6
+(требуется для установщика Rust)
 2. Установи [stable Rust](https://www.rust-lang.org/tools/install)
 стандартным способом
 3. Скачай и распакуй репозиторий,
@@ -34,16 +35,15 @@ cd ktmuscrap-yr2024
 ```console
 cd ktmuscrap
 ```
-5. Запусти и дождись сообщения
+5. Создай необходимые папки и файл `index.json`
+```console
+mkdir data\schedule
+copy NUL data\schedule\index.json
 ```
-cargo run --release
-...
-0000-00-00 at 00:00:00 [ERROR] before running, see ./data/schedule/index.json and fill in the schedule types manually (src/main.rs:55)
-```
-6. Открой файл по пути `./data/schedule/index.json`
-и заполни его по
-[примеру](/doc/ru/configuring.md#пример-расписаний) ([документация](/doc/ru/configuring.md#расписания))
-7. Запусти снова
+6. Заполни файл `index.json` по
+[примеру](/doc/ru/configuring.md#пример-расписаний)
+([документация](/doc/ru/configuring.md#расписания))
+8. Запусти
 ```console
 cargo run --release
 ```
@@ -70,18 +70,18 @@ git clone https://github.com/kerdl/ktmuscrap
 ```console
 cd ktmuscrap
 ```
-6. Запусти и дождись сообщения
+6. Создай необходимые папки и файл `index.json`
+```console
+mkdir -p data/schedule
+touch data/schedule/index.json
 ```
-cargo run --release
-...
-0000-00-00 at 00:00:00 [ERROR] before running, see ./data/schedule/index.json and fill in the schedule types manually (src/main.rs:55)
-```
-7. Открой файл по пути `./data/schedule/index.json` и заполни поле `types`
-по [этой документации](/doc/ru/configuring.md#types)
+7. Заполни файл `index.json` по
+[примеру](/doc/ru/configuring.md#пример-расписаний)
+([документация](/doc/ru/configuring.md#расписания))
 ```console
 nano data/schedule/index.json
 ```
-8. Запусти снова
+8. Запусти
 ```console
 cargo run --release
 ```
