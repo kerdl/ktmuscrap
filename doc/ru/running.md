@@ -30,14 +30,19 @@ git clone https://github.com/kerdl/ktmuscrap
 ```bash
 cd ktmuscrap-yr2024
 ```
+или
+```bash
+cd ktmuscrap
+```
 5. Запусти и дождись сообщения
 ```
 cargo run --release
 ...
 0000-00-00 at 00:00:00 [ERROR] before running, see ./data/schedule/index.json and fill in the schedule types manually (src/main.rs:55)
 ```
-6. Открой файл по пути `./data/schedule/index.json` и заполни поле `types`
-по [этой документации](/doc/ru/configuring.md#types)
+6. Открой файл по пути `./data/schedule/index.json`
+и заполни его по
+[примеру](/doc/ru/configuring.md#пример-расписаний) ([документация](/doc/ru/configuring.md#расписания))
 7. Запусти снова
 ```bash
 cargo run --release
@@ -63,7 +68,7 @@ git clone https://github.com/kerdl/ktmuscrap
 ```
 5. Перейди в директорию
 ```bash
-cd ktmuscrap-yr2024
+cd ktmuscrap
 ```
 6. Запусти и дождись сообщения
 ```
