@@ -23,15 +23,15 @@
 стандартным способом
 3. Скачай и распакуй репозиторий,
 либо воспользуйся **git**:
-```bash
+```console
 git clone https://github.com/kerdl/ktmuscrap
 ```
 4. Перейди в директорию с кодом или открой там **cmd**:
-```bash
+```console
 cd ktmuscrap-yr2024
 ```
 или
-```bash
+```console
 cd ktmuscrap
 ```
 5. Запусти и дождись сообщения
@@ -44,30 +44,30 @@ cargo run --release
 и заполни его по
 [примеру](/doc/ru/configuring.md#пример-расписаний) ([документация](/doc/ru/configuring.md#расписания))
 7. Запусти снова
-```bash
+```console
 cargo run --release
 ```
 
 
 ## Debian Linux
 1. Установи зависимости
-```bash
+```console
 sudo apt update && sudo apt install git build-essential pkg-config libssl-dev -y
 ```
 2. Установи stable Rust стандартным способом
-```bash
+```console
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 3. Обнови переменные среды
-```bash
+```console
 source $HOME/.cargo/env
 ```
 4. Склонируй репозиторий
-```bash
+```console
 git clone https://github.com/kerdl/ktmuscrap
 ```
 5. Перейди в директорию
-```bash
+```console
 cd ktmuscrap
 ```
 6. Запусти и дождись сообщения
@@ -78,10 +78,10 @@ cargo run --release
 ```
 7. Открой файл по пути `./data/schedule/index.json` и заполни поле `types`
 по [этой документации](/doc/ru/configuring.md#types)
-```bash
+```console
 nano data/schedule/index.json
 ```
 8. Запусти снова
-```bash
+```console
 cargo run --release
 ```

@@ -24,15 +24,15 @@ is installed and is not below 4.6
 using quick install
 3. Download and unpack the repo,
 or use **git**:
-```bash
+```console
 git clone https://github.com/kerdl/ktmuscrap
 ```
 4. Go to the code directory or open a **cmd** there:
-```bash
+```console
 cd ktmuscrap-yr2024
 ```
 or
-```bash
+```console
 cd ktmuscrap
 ```
 5. Run and wait for the message
@@ -45,30 +45,30 @@ cargo run --release
 and fill it in using
 [this example](/doc/en/configuring.md#schedules-example) ([documentation](/doc/en/configuring.md#schedules))
 7. Run again
-```bash
+```console
 cargo run --release
 ```
 
 
 ## Debian Linux
 1. Install dependencies
-```bash
+```console
 sudo apt update && sudo apt install git build-essential pkg-config libssl-dev -y
 ```
 2. Install stable Rust using quick install
-```bash
+```console
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 3. Update environment variables
-```bash
+```console
 source $HOME/.cargo/env
 ```
 4. Clone the repo
-```bash
+```console
 git clone https://github.com/kerdl/ktmuscrap
 ```
 5. Go to the directory
-```bash
+```console
 cd ktmuscrap
 ```
 6. Run and wait for the message
@@ -80,10 +80,10 @@ cargo run --release
 7. Open the file `./data/schedule/index.json` and
 fill in the field `types`
 according to [this documentation](/doc/en/configuring.md#types)
-```bash
+```console
 nano data/schedule/index.json
 ```
 8. Run again
-```bash
+```console
 cargo run --release
 ```
