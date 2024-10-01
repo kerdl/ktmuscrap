@@ -1,4 +1,4 @@
-FROM rust:1.68
+FROM rust:1.81
 
 ARG cwd=/ktmuscrap
 
