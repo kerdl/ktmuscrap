@@ -5,6 +5,7 @@
 ## Contents
 - [Settings](#settings)
 - [Schedules](#schedules)
+- [Schedules example](#schedules-example)
 
 
 ## Settings
@@ -144,4 +145,95 @@ Waiting time between downloading tries.
     }
   }
 ]
+```
+
+
+## Schedules example
+```json
+{
+  "fetch": true,
+  "updated": "1970-01-01T00:00:00",
+  "period": {
+    "secs": 600,
+    "nanos": 0
+  },
+  "ignored": [],
+  "types": [
+    {
+      {
+        "kind": "groups",
+        "name": "groups-1",
+        "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+        "fetch_timeout": {
+          "secs": 90,
+          "nanos": 0
+        },
+        "retry_period": {
+          "secs": 2,
+          "nanos": 0
+        }
+      }
+    },
+        {
+      {
+        "kind": "groups",
+        "name": "groups-2",
+        "url": "https://docs.google.com/spreadsheets/d/ghijkl/export?format=zip",
+        "fetch_timeout": {
+          "secs": 90,
+          "nanos": 0
+        },
+        "retry_period": {
+          "secs": 2,
+          "nanos": 0
+        }
+      }
+    },
+        {
+      {
+        "kind": "groups",
+        "name": "groups-3",
+        "url": "https://docs.google.com/spreadsheets/d/mnopqr/export?format=zip",
+        "fetch_timeout": {
+          "secs": 90,
+          "nanos": 0
+        },
+        "retry_period": {
+          "secs": 2,
+          "nanos": 0
+        }
+      }
+    },
+        {
+      {
+        "kind": "groups",
+        "name": "groups-4",
+        "url": "https://docs.google.com/spreadsheets/d/stuvwx/export?format=zip",
+        "fetch_timeout": {
+          "secs": 90,
+          "nanos": 0
+        },
+        "retry_period": {
+          "secs": 2,
+          "nanos": 0
+        }
+      }
+    },
+    {
+      {
+        "kind": "teachers",
+        "name": "teachers",
+        "url": "https://docs.google.com/spreadsheets/d/yzabcd/export?format=zip",
+        "fetch_timeout": {
+          "secs": 90,
+          "nanos": 0
+        },
+        "retry_period": {
+          "secs": 2,
+          "nanos": 0
+        }
+      }
+    }
+  ]
+}
 ```
