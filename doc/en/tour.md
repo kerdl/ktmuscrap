@@ -44,7 +44,7 @@ using coordinates
 
 ## Merging
 - Same schedule types are merged here: 
-[`crate::merge::combine`](/src/merge/mod.rs?blame=1#L370).
+[`crate::merge::combine`](/src/merge/mod.rs?blame=1#L364).
 
 - Complementing happens here: 
 [`crate::merge::complement`](/src/merge/mod.rs?blame=1#L29).

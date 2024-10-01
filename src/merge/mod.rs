@@ -1,7 +1,7 @@
 pub mod error;
 
 use chrono::NaiveDate;
-use error::{MergeError, NonOverlappingDates};
+use error::MergeError;
 use std::ops::RangeInclusive;
 use crate::data::schedule::{
     raw,
@@ -37,17 +37,11 @@ pub fn complement<'a>(
         return Err(MergeError::InvalidKind(teachers));
     }
 
-    let groups_date = groups.date.start();
-
-    if !teachers.date.contains(&groups_date) {
-        let overlap_error = NonOverlappingDates {
-            latest: if groups_date > teachers.date.end() {
-                groups
-            } else {
-                teachers
-            }
-        };
-        return Err(MergeError::NonOverlappingDates(overlap_error))
+    if !(
+        groups.date.start() <= teachers.date.end() &&
+        teachers.date.start() <= groups.date.end()
+    ) {
+        return Err(MergeError::NonOverlappingDates)
     }
 
     for group in groups.formations.iter_mut() {

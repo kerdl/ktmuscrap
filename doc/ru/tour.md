@@ -45,7 +45,7 @@
 
 ## Объединение
 - Одинаковые типы расписаний объединяются здесь:
-[`crate::merge::combine`](/src/merge/mod.rs?blame=1#L370).
+[`crate::merge::combine`](/src/merge/mod.rs?blame=1#L364).
 
 - Дополнение происходит здесь:
 [`crate::merge::complement`](/src/merge/mod.rs?blame=1#L29).
