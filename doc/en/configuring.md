@@ -149,6 +149,7 @@ Waiting time between downloading tries.
 
 
 ## Schedules example
+File: `./data/schedule/index.json`
 ```json
 {
   "fetch": true,
