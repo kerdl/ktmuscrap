@@ -73,6 +73,7 @@ impl DetailedCmp<regular::Attender, Attender> for Attender {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Subject {
+    pub raw: Option<String>,
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num: Option<Primitive<u32>>,
@@ -84,6 +85,13 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
         old: Option<regular::Subject>,
         new: Option<regular::Subject>
     ) -> Self {
+        let raw = if let Some(new) = &new {
+            Some(new.raw.clone())
+        } else if let Some(old) = &old {
+            Some(old.raw.clone())
+        } else {
+            None
+        };
         let name = if let Some(new) = &new {
             Some(new.name.clone())
         } else if let Some(old) = &old {
@@ -101,6 +109,7 @@ impl DetailedCmp<regular::Subject, Subject> for Subject {
         ).await;
 
         Self {
+            raw,
             name,
             num: if num.is_different_hash() {
                 Some(num)
@@ -182,11 +191,11 @@ impl DetailedCmp<regular::Page, Page> for Page {
             old.as_ref().map(|old| old.date.clone()),
             new.as_ref().map(|new| new.date.clone()),
         );
-        let mappings = DetailedChanges::compare(
+        let formations = DetailedChanges::compare(
             old.as_ref().map(|old| old.formations.clone()),
             new.as_ref().map(|new| new.formations.clone()),
         ).await;
 
-        Self { date, formations: mappings }
+        Self { date, formations }
     }
 }
