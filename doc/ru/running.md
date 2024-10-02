@@ -41,9 +41,9 @@ cd ktmuscrap
 mkdir data\schedule
 copy NUL data\schedule\index.json
 ```
-6. Заполни файл `index.json` по
-[примеру](/doc/ru/configuring.md#пример-расписаний)
-([документация](/doc/ru/configuring.md#расписания))
+6. Заполни файл `index.json`
+([пример](/doc/ru/configuring.md#пример-расписаний),
+[документация](/doc/ru/configuring.md#расписания))
 8. Запусти
 ```console
 cargo run --release
@@ -77,8 +77,8 @@ mkdir -p data/schedule
 touch data/schedule/index.json
 ```
 7. Заполни файл `index.json` по
-[примеру](/doc/ru/configuring.md#пример-расписаний)
-([документация](/doc/ru/configuring.md#расписания))
+([пример](/doc/ru/configuring.md#пример-расписаний),
+[документация](/doc/ru/configuring.md#расписания))
 ```console
 nano data/schedule/index.json
 ```

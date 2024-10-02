@@ -42,9 +42,9 @@ cd ktmuscrap
 mkdir data\schedule
 copy NUL data\schedule\index.json
 ```
-6. Fill in `index.json` according to
-[this example](/doc/en/configuring.md#schedules-example)
-([documentation](/doc/en/configuring.md#schedules))
+6. Fill in `index.json`
+([example](/doc/en/configuring.md#schedules-example),
+[documentation](/doc/en/configuring.md#schedules))
 7. Run
 ```console
 cargo run --release
@@ -77,9 +77,9 @@ cd ktmuscrap
 mkdir -p data/schedule
 touch data/schedule/index.json
 ```
-7. Fill in `index.json` according to
-[this example](/doc/en/configuring.md#schedules-example)
-([documentation](/doc/en/configuring.md#schedules))
+7. Fill in `index.json`
+([example](/doc/en/configuring.md#schedules-example),
+[documentation](/doc/en/configuring.md#schedules))
 8. Run
 ```console
 cargo run --release
