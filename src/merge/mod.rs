@@ -140,6 +140,10 @@ pub fn complement<'a>(
     
                     let teacher_attender = teacher_attender.unwrap();
 
+                    if teacher_subject.name.is_empty() && !group_subject.name.is_empty() {
+                        teacher_subject.name = group_subject.name.clone()
+                    }
+
                     teacher_attender.cabinet.opposite = group_attender
                         .cabinet
                         .primary
@@ -250,6 +254,10 @@ pub fn complement<'a>(
                     }
     
                     let group_attender = group_attender.unwrap();
+
+                    if group_subject.name.is_empty() && !teacher_subject.name.is_empty() {
+                        group_subject.name = teacher_subject.name.clone()
+                    }
 
                     if group_attender.cabinet.opposite.is_none() {
                         group_attender.cabinet.opposite = teacher_attender
