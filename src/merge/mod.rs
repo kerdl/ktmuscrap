@@ -140,10 +140,6 @@ pub fn complement<'a>(
     
                     let teacher_attender = teacher_attender.unwrap();
 
-                    // group schedules have better subject naming,
-                    // clone it to the teachers
-                    teacher_subject.name = group_subject.name.clone();
-
                     teacher_attender.cabinet.opposite = group_attender
                         .cabinet
                         .primary
