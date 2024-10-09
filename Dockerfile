@@ -1,6 +1,7 @@
 FROM rust:1.81
 
 ARG cwd=/ktmuscrap
+ENV TZ="Europe/Moscow"
 
 WORKDIR ${cwd}
 COPY . ${cwd}
