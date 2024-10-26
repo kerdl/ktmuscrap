@@ -73,7 +73,7 @@ and timeouts.
 {
   "kind": "groups | teachers",
   "name": "schedule_name",
-  "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+  "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
   "fetch_timeout": {
     "secs": 90,
     "nanos": 0
@@ -102,7 +102,10 @@ Used
 URL to a ZIP archive with the schedule.
 
 If the URL points to Google Sheets, make sure it
-has `/export?format=zip` at the end.
+has `/preview` at the end.
+
+Support for `/export?format=zip` is removed,
+because the editor could disable exporting.
 
 #### `fetch_timeout`
 Maximum allowed time to download this schedule.
@@ -118,7 +121,7 @@ Waiting time between downloading tries.
     {
       "kind": "groups",
       "name": "groups-1",
-      "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -133,7 +136,7 @@ Waiting time between downloading tries.
     {
       "kind": "teachers",
       "name": "teachers",
-      "url": "https://docs.google.com/spreadsheets/d/ghijkl/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/ghijkl/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -163,7 +166,7 @@ File: `./data/schedule/index.json`
     {
       "kind": "groups",
       "name": "groups-1",
-      "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -176,7 +179,7 @@ File: `./data/schedule/index.json`
     {
       "kind": "groups",
       "name": "groups-2",
-      "url": "https://docs.google.com/spreadsheets/d/ghijkl/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/ghijkl/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -189,7 +192,7 @@ File: `./data/schedule/index.json`
     {
       "kind": "groups",
       "name": "groups-3",
-      "url": "https://docs.google.com/spreadsheets/d/mnopqr/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/mnopqr/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -202,7 +205,7 @@ File: `./data/schedule/index.json`
     {
       "kind": "groups",
       "name": "groups-4",
-      "url": "https://docs.google.com/spreadsheets/d/stuvwx/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/stuvwx/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -215,7 +218,7 @@ File: `./data/schedule/index.json`
     {
       "kind": "teachers",
       "name": "teachers",
-      "url": "https://docs.google.com/spreadsheets/d/yzabcd/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/yzabcd/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0

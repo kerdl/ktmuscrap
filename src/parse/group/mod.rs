@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use unicode_segmentation::UnicodeSegmentation;
 use std::ops::Range;
 use crate::regexes;
 
@@ -8,7 +9,12 @@ use crate::regexes;
 pub fn validate_unchecked(string: &str) -> String {
     let without_punctiation = regexes().nonword.replace_all(string, "").to_string();
     let mut capitalized = without_punctiation.to_uppercase();
-    if capitalized.chars().nth(1).unwrap() != 'К' {
+    let letters = regexes()
+        .digit
+        .replace_all(&capitalized, "")
+        .parse::<String>()
+        .unwrap();
+    if letters.graphemes(true).count() == 2 {
         capitalized.insert(1, 'К');
     }
     capitalized

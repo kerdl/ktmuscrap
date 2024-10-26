@@ -1,19 +1,16 @@
 use log::{debug, warn};
 use chrono::{NaiveDateTime, DateTime, Utc, Duration};
-use async_zip::tokio::read::seek::ZipFileReader;
 use serde_derive::{Serialize, Deserialize};
 use reqwest;
-use actix_web::web::Bytes;
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt}, sync::{mpsc, Mutex, RwLock}, task::JoinHandle
+    io::AsyncWriteExt, sync::{mpsc, Mutex, RwLock}, task::JoinHandle
 };
-use tokio_util::compat::FuturesAsyncReadCompatExt;
 use std::{
-    io::Cursor,
     path::PathBuf,
     sync::Arc
 };
 use crate::{
+    regexes,
     SyncResult,
     data::{
         json::{
@@ -27,8 +24,7 @@ use crate::{
             raw::{Kind, error},
             File
         },
-    },
-    fs
+    }
 };
 
 enum UpdateFinishType {
@@ -224,8 +220,8 @@ impl Index {
                 let handle = tokio::spawn(async move {
                     let paths;
                     loop {
-                        let bytes = schedule.refetch_until_success().await;
-                        let unpack_result = schedule.clone().unpack(bytes).await;
+                        let string = schedule.refetch_until_success().await;
+                        let unpack_result = schedule.clone().steal_sheets(string).await;
 
                         if let Ok(collected_paths) = unpack_result {
                             paths = collected_paths;
@@ -399,38 +395,55 @@ impl Schedule {
         self.root.join(self.name.clone())
     }
 
-    pub async fn fetch(&self) -> Result<Bytes, reqwest::Error> {
-        let resp = self.reqwest.get(&self.url).send().await?;
-        resp.bytes().await
+    pub async fn fetch_custom(&self, url: &str) -> Result<String, reqwest::Error> {
+        let resp = self.reqwest.get(url).send().await?;
+        resp.text().await
     }
 
-    pub async fn fetch_after(&self, after: Duration) -> Result<Bytes, reqwest::Error> {
+    pub async fn fetch(&self) -> Result<String, reqwest::Error> {
+        self.fetch_custom(&self.url).await
+    }
+
+    pub async fn fetch_after(&self, after: Duration) -> Result<String, reqwest::Error> {
         tokio::time::sleep(after.to_std().unwrap()).await;
         self.fetch().await
     }
 
-    pub async fn refetch_until_success(&self) -> Bytes {
+    pub async fn refetch_until_success_custom(
+        &self,
+        name: &str,
+        url: &str,
+        retry_period: std::time::Duration
+    ) -> String {
         loop {
-            debug!("fetching {} ({})", self.name, self.url);
-            let fetch_result = self.fetch().await;
+            debug!("fetching {} ({})", name, url);
+            let fetch_result = self.fetch_custom(url).await;
     
             if let Err(error) = &fetch_result {
                 warn!(
                     "refetching {} because of error {:?}",
-                    self.name,
+                    name,
                     error
                 );
     
-                tokio::time::sleep(self.retry_period).await;
+                tokio::time::sleep(retry_period).await;
                 continue;
             }
             
-            debug!("fetching {} success", self.name);
+            debug!("fetching {} success", name);
             return fetch_result.unwrap()
         };
     }
 
-    pub async fn unpack(self: Arc<Self>, bytes: Bytes) -> Result<Vec<PathBuf>, error::UnpackError> {
+    pub async fn refetch_until_success(&self) -> String {
+        self.refetch_until_success_custom(
+            &self.name,
+            &self.url,
+            self.retry_period
+        ).await
+    }
+
+    pub async fn steal_sheets(self: Arc<Self>, string: String) -> Result<Vec<PathBuf>, error::UnpackError> {
         let dir = self.dir();
 
         debug!("unpacking {:?}", dir);
@@ -449,76 +462,46 @@ impl Schedule {
             }
         }
 
-        let cursor = Cursor::new(bytes);
-        debug!("parsing {} archive", self.name);
-        let archive_result = ZipFileReader::with_tokio(cursor).await;
-        debug!("parsed {} archive", self.name);
-
-        if let Err(error) = archive_result {
-            return Err(error::UnpackError::Zip(error));
-        }
-
-        let mut archive = archive_result.unwrap();
+        let mut sheet_urls: Vec<String> = vec![];
+        let mut handles: Vec<JoinHandle<File>> = vec![];
         let mut files: Vec<File> = vec![];
 
-        debug!("extracting {} archive", self.name);
-        for index in 0..archive.file().entries().len() {
-            let entry = archive.file().entries().get(index).unwrap();
-            let filename_pathbuf = fs::path::sanitize(entry.filename().as_str().unwrap());
-            let path = dir.join(filename_pathbuf);
-            let entry_is_dir = entry.dir().unwrap();
+        for quoted_string in regexes().strings.find_iter(&string) {
+            let quoted_string = quoted_string.as_str()
+                .replace(r#"\/"#, r#"/"#);
 
-            let entry_reader = archive.reader_without_entry(index).await;
-            if let Err(err) = entry_reader {
-                warn!("entry reader error: {:?}", err);
+            let mut quoted_string_chars = quoted_string.chars();
+            quoted_string_chars.next();
+            quoted_string_chars.next_back();
+            let pure_string = quoted_string_chars.as_str();
+
+            if !pure_string.starts_with("http") || !pure_string.contains("gid=") {
                 continue;
             }
-            let entry_reader = entry_reader.unwrap();
 
-            if entry_is_dir {
-                // The directory may have been created if iteration is out of order.
-                if !path.exists() {
-                    let result = tokio::fs::create_dir_all(&path).await;
-                    if let Err(err) = result {
-                        warn!("failed to create extracted directory: {:?}", err);
-                        continue;
-                    }
-                }
-            } else {
-                // Creates parent directories. They may not exist if iteration is out of order
-                // or the archive does not contain directory entries.
-                let parent = path.parent();
-                if parent.is_none() {
-                    warn!("a file entry should have parent directories");
-                    continue;
-                }
-                let parent = parent.unwrap();
-                if !parent.is_dir() {
-                    let result = tokio::fs::create_dir_all(parent).await;
-                    if let Err(err) = result {
-                        warn!("failed to create parent directories: {:?}", err);
-                        continue;
-                    }
-                }
-
-                let mut buf = vec![];
-                let copy_result = entry_reader.compat().read_to_end(&mut buf).await;
-
-                if let Err(err) = copy_result {
-                    warn!("failed to copy to extracted file: {:?}", err);
-                    continue;
-                }
-
-                let file = File {
-                    path,
-                    bytes: buf.into()
-                };
-                files.push(file);
-    
-                // Closes the file and manipulates its metadata here if you wish to preserve its metadata from the archive.
-            }
+            sheet_urls.push(pure_string.to_string());
         }
-        debug!("extracted {} archive", self.name);
+
+        for (idx, sheet_url) in sheet_urls.into_iter().enumerate() {
+            let self_ref = self.clone();
+            let handle = tokio::spawn(async move {
+                let string = self_ref.refetch_until_success_custom(
+                    &format!("{}/{} ({})", self_ref.name, idx.to_string(), sheet_url),
+                    &sheet_url,
+                    self_ref.retry_period
+                ).await;
+
+                File {
+                    path: self_ref.dir().join(format!("{}.html", idx)),
+                    string
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            files.push(handle.await.unwrap());
+        }
 
         let unpacked_paths = self.post_unpack(files).await;
 
@@ -541,7 +524,7 @@ impl Schedule {
             }
             let mut writer = writer.unwrap();
  
-            if let Err(err) = writer.write_all(&file.bytes[..]).await {
+            if let Err(err) = writer.write_all(file.string.as_bytes()).await {
                 warn!("failed to write file: {:?}", err);
                 continue;
             }
