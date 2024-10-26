@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use crate::data::{self, schedule::raw::table};
 use crate::parse;
 
- 
+
+const HTML: &str = "html";
+const BODY: &str = "body";
+const HEAD: &str = "head";
 const STYLE: &str = "style";
 const DIV: &str = "div";
 const TABLE: &str = "table";
@@ -13,7 +16,6 @@ const TD: &str = "td";
 const COLSPAN: &str = "colspan";
 const ROWSPAN: &str = "rowspan";
 const HEIGHT: &str = "height";
-const GRID_CONTAINER: &str = "grid-container";
 const FREEZEBAR_CELL: &str = "freezebar-cell";
 const BACKGROUND_COLOR: &str = "background-color";
 const DEFAULT_CELL_COLOR: palette::Srgb = {
@@ -60,28 +62,79 @@ impl Parser {
         Ok(this)
     }
 
-    fn style(&self) -> Option<&html_parser::Node> {
+    fn html_node(&self) -> Option<&html_parser::Node> {
         self.dom.children.iter().find(|node| {
+            let Some(elm) = node.element() else { return false };
+            let is_html = elm.name == HTML;
+            is_html
+        })
+    }
+
+    fn head(&self) -> Option<&html_parser::Node> {
+        let node = self.html_node()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
+            let Some(elm) = node.element() else { return false };
+            elm.name == HEAD
+        })
+    }
+
+    fn style(&self) -> Option<&html_parser::Node> {
+        let node = self.head()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
             let Some(elm) = node.element() else { return false };
             elm.name == STYLE
         })
     }
 
-    fn main_div(&self) -> Option<&html_parser::Node> {
-        self.dom.children.iter().find(|node| {
+    fn body(&self) -> Option<&html_parser::Node> {
+        let node = self.html_node()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
+            let Some(elm) = node.element() else { return false };
+            let is_body = elm.name == BODY;
+            is_body
+        })
+    }
+
+    fn body_first_div(&self) -> Option<&html_parser::Node> {
+        let node = self.body()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
             let Some(elm) = node.element() else { return false };
             let is_div = elm.name == DIV;
-            let is_grid_container = elm.classes.join(" ").contains(GRID_CONTAINER);
-            is_div && is_grid_container
+            is_div
+        })
+    }
+
+    fn body_first_div_first_div(&self) -> Option<&html_parser::Node> {
+        let node = self.body_first_div()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
+            let Some(elm) = node.element() else { return false };
+            let is_div = elm.name == DIV;
+            is_div
+        })
+    }
+
+    fn body_first_div_first_div_first_div(&self) -> Option<&html_parser::Node> {
+        let node = self.body_first_div_first_div()?;
+        let elm = node.element()?;
+        elm.children.iter().find(|node| {
+            let Some(elm) = node.element() else { return false };
+            let is_div = elm.name == DIV;
+            is_div
         })
     }
 
     fn main_table(&self) -> Option<&html_parser::Node> {
-        let node = self.main_div()?;
+        let node = self.body_first_div_first_div_first_div()?;
         let elm = node.element()?;
         elm.children.iter().find(|node| {
             let Some(elm) = node.element() else { return false };
-            elm.name == TABLE
+            let is_table = elm.name == TABLE;
+            is_table
         })
     }
 

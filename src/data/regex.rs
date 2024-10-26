@@ -80,7 +80,8 @@ pub struct Container {
     pub nonword: Arc<Regex>,
     pub digit: Arc<Regex>,
     pub start_digits: Arc<Regex>,
-    pub end_digits: Arc<Regex>
+    pub end_digits: Arc<Regex>,
+    pub strings: Arc<Regex>
 }
 impl Default for Container {
     fn default() -> Container {
@@ -97,6 +98,7 @@ impl Default for Container {
         let digit = r"\d";
         let start_digits = r"^\d+";
         let end_digits = r"\d+$";
+        let strings = r#""([^"\\]*(\\.)*)*""#;
 
         Container {
             group: Arc::new(Regex::new(group).unwrap()), 
@@ -111,7 +113,8 @@ impl Default for Container {
             nonword: Arc::new(Regex::new(nonword).unwrap()),
             digit: Arc::new(Regex::new(digit).unwrap()),
             start_digits: Arc::new(Regex::new(start_digits).unwrap()),
-            end_digits: Arc::new(Regex::new(end_digits).unwrap())
+            end_digits: Arc::new(Regex::new(end_digits).unwrap()),
+            strings: Arc::new(Regex::new(strings).unwrap())
         }
     }
 }

@@ -72,7 +72,7 @@ Hex-цвет дистанционного предмета для классиф
 {
   "kind": "groups | teachers",
   "name": "schedule_name",
-  "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+  "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
   "fetch_timeout": {
     "secs": 90,
     "nanos": 0
@@ -100,7 +100,11 @@ Hex-цвет дистанционного предмета для классиф
 #### `url`
 Ссылка на ZIP-архив с расписанием.
 
-Если ссылка на Google Таблицы, нужно убедиться в наличии `/export?format=zip` на конце.
+Если ссылка на Google Таблицы,
+нужно убедиться в наличии `/preview` на конце.
+
+Поддержка `/export?format=zip` удалена,
+потому что редактор мог отключить экспорт.
 
 #### `fetch_timeout`
 Максимально разрешённое время на скачивание этого расписания.
@@ -117,7 +121,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "groups",
       "name": "groups-1",
-      "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -132,7 +136,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "teachers",
       "name": "teachers",
-      "url": "https://docs.google.com/spreadsheets/d/ghijkl/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/ghijkl/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -162,7 +166,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "groups",
       "name": "groups-1",
-      "url": "https://docs.google.com/spreadsheets/d/abcdef/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/abcdef/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -175,7 +179,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "groups",
       "name": "groups-2",
-      "url": "https://docs.google.com/spreadsheets/d/ghijkl/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/ghijkl/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -188,7 +192,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "groups",
       "name": "groups-3",
-      "url": "https://docs.google.com/spreadsheets/d/mnopqr/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/mnopqr/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -201,7 +205,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "groups",
       "name": "groups-4",
-      "url": "https://docs.google.com/spreadsheets/d/stuvwx/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/stuvwx/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
@@ -214,7 +218,7 @@ Hex-цвет дистанционного предмета для классиф
     {
       "kind": "teachers",
       "name": "teachers",
-      "url": "https://docs.google.com/spreadsheets/d/yzabcd/export?format=zip",
+      "url": "https://docs.google.com/spreadsheets/d/yzabcd/preview",
       "fetch_timeout": {
         "secs": 90,
         "nanos": 0
