@@ -396,7 +396,7 @@ impl Schedule {
     }
 
     pub async fn fetch_custom(&self, url: &str) -> Result<String, reqwest::Error> {
-        let resp = self.reqwest.get(url).send().await?;
+        let resp = self.reqwest.get(url).send().await?.error_for_status()?;
         resp.text().await
     }
 
