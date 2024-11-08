@@ -153,6 +153,10 @@ impl Parser {
             ranges.push(date);
         }
 
+        if ranges.is_empty() {
+            return None;
+        }
+        
         Some(ranges)
     }
 
