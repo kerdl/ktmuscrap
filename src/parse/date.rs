@@ -113,11 +113,8 @@ pub fn month(string: &str) -> Result<u32, MonthError> {
 }
 
 pub fn day(string: &str) -> Result<u32, DayError> {
-    if string.len() != 2 {
-        return Err(DayError::InvalidLength(string.len()));
-    }
     let num = string.parse::<u32>()?;
-    if num > 32 {
+    if num > 31 {
         return Err(DayError::TooLarge)
     }
     Ok(num)
