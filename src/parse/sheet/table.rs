@@ -64,14 +64,20 @@ impl Parser {
             if !date_matches.is_empty() {
                 let start = parse::date::whole(
                     date_matches.first().unwrap().as_str()
-                ).unwrap();
+                ).ok();
                 let end = parse::date::whole(
                     date_matches.last().unwrap().as_str()
-                ).unwrap();
+                ).ok();
+
+                let parsed = if start.is_some() && end.is_some() {
+                    Some(start.unwrap()..=end.unwrap())
+                } else {
+                    None
+                };
 
                 let opt_date = table::OptDate {
                     raw: &cell.text,
-                    parsed: Some(start..=end),
+                    parsed,
                     range: (cell.x())..(cell.x() + cell.width() - 1)
                 };
 
